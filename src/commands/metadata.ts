@@ -50,6 +50,15 @@ export const ChatCommandMetadata: {
         dm_permission: true,
         default_member_permissions: undefined,
     },
+    CHESS: {
+        type: ApplicationCommandType.ChatInput,
+        name: 'chess',
+        name_localizations: Lang.getRefLocalizationMap('chatCommands.test'),
+        description: 'Run the chess command',
+        description_localizations: Lang.getRefLocalizationMap('commandDescs.test'),
+        dm_permission: true,
+        default_member_permissions: undefined,
+    },
 };
 
 export const MessageCommandMetadata: {

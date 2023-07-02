@@ -54,6 +54,9 @@
             "test": {
                 "description": "Test command works!"
             },
+            "chess": {
+                "description": "Creates an open chess challenge on Lichess"
+            },
             "viewDateJoined": {
                 "description": "{{TARGET}} joined on {{DATE}}!"
             },
@@ -190,7 +193,8 @@
         "chatCommands": {
             "help": "help",
             "info": "info",
-            "test": "test"
+            "test": "test",
+            "chess": "chess"
         },
         "userCommands": {
             "viewDateJoined": "View Date Joined"
@@ -204,7 +208,8 @@
         "commandDescs": {
             "help": "Find help or contact support.",
             "info": "View bot info.",
-            "test": "Run the test command."
+            "test": "Run the test command.",
+            "chess": "Creates an open chess challenge on Lichess."
         },
         "argDescs": {
             "helpOption": "Option.",

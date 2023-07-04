@@ -1,9 +1,11 @@
 /* eslint-disable import/no-extraneous-dependencies */
+import axios from 'axios';
 import { ChatInputCommandInteraction, PermissionsString } from 'discord.js';
 import { RateLimiter } from 'discord.js-rate-limiter';
 
 import { Language } from '../../models/enum-helpers/index.js';
-import { HttpService, Lang, Logger } from '../../services/index.js';
+import { EventData } from '../../models/internal-models.js';
+import { Lang } from '../../services/index.js';
 import { InteractionUtils } from '../../utils/index.js';
 import { Command, CommandDeferType } from '../index.js';
 
@@ -18,16 +20,15 @@ export class ChessCommand implements Command {
         this.lichessToken = lichessToken;
     }
 
-    public async execute(intr: ChatInputCommandInteraction): Promise<void> {
-        const httpService = new HttpService();
-        const auth = 'Bearer ' + this.lichessToken;
+    public async execute(intr: ChatInputCommandInteraction, data: EventData): Promise<void> {
+        await InteractionUtils.send(intr, Lang.getEmbed('displayEmbeds.chess', data.lang));
 
-        Logger.info('Fetching chess data for new match', {});
-        const response = await httpService.post('https://lichess.org/api/challenge/open', auth, {});
-        const resData: any = await response.json();
-        resData && Logger.info('Chess URL fetched, sending it in channel', {});
+        const headers = {
+            Authorization: 'Bearer ' + this.lichessToken,
+        };
 
-        await InteractionUtils.send(intr, resData.challenge.url);
-        Logger.info('Message sent', {});
+        const res = await axios.post('https://lichess.org/api/challenge/open', { headers });
+
+        await InteractionUtils.send(intr, res.data.challenge.url);
     }
 }

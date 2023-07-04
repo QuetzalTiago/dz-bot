@@ -1,5 +1,5 @@
-#!/bin/bash
+source /.bashrc
 cd /dz-bot/bot/src/ 
-sudo npm install
-sudo npm run commands:register
-sudo npm start
+npm install
+npm run commands:register
+npm start

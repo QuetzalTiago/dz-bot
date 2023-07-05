@@ -1,4 +1,4 @@
-source /.bashrc
+source ~/.bashrc
 cd /dz-bot/bot/src/ 
 npm install
 npm run commands:register

@@ -7,8 +7,8 @@ hooks:
   Install:
     - location: aws/scripts/install.sh
       timeout: 300
-      runas: root
+      runas: ubuntu
   ApplicationStart:
     - location: aws/scripts/application-start.sh
       timeout: 300
-      runas: root
+      runas: ubuntu

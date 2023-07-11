@@ -12,17 +12,21 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import uuid
 import random
 
+# Get credentials
+with open("config.json") as f:
+    config = json.load(f)
+
 # Set up Lichess API credentials
-session = berserk.TokenSession("lip_APGDZ8p5QhUcCeGdO6xQ")
+session = berserk.TokenSession(config["secrets"]["lichessToken"])
 chessClient = berserk.Client(session=session)
 
 # Discord token
-token = "MjU5MzQxOTQ0NTQ5ODAxOTg0.GklQIX.v4ZW_Z1eoEqvdJrappkPpj8qlb-8CMFvRS3FrY"
+token = config["secrets"]["discordToken"]
 
 spotify = spotipy.Spotify(
     auth_manager=SpotifyClientCredentials(
-        client_id="8d26745d8aee4463bb7dfabd4227eb90",
-        client_secret="10e6ea723dd44b3e85e369bfa5857873",
+        client_id=config["secrets"]["spotifyClientId"],
+        client_secret=config["secrets"]["spotifyClientSecret"],
     )
 )
 

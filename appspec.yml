@@ -4,8 +4,8 @@ files:
   - source: /
     destination: /dz-bot
 hooks:
-  AfterInstall:
-    - location: aws/scripts/after-install.sh
+  Install:
+    - location: aws/scripts/install.sh
       timeout: 300
       runas: root
   ApplicationStart:

@@ -21,4 +21,5 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
       - run: |
-          aws deploy create-deployment --application-name ${{ env.APP_NAME }} --deployment-group-name ${{ env.DEPLOY_GROUP }} --github-location repository=$GITHUB_REPOSITORY --ignore-application-stop-failures
+          commit_hash=`git rev-parse HEAD`
+          aws deploy create-deployment --application-name ${{ env.APP_NAME }} --deployment-group-name ${{ env.DEPLOY_GROUP }} --github-location repository=$GITHUB_REPOSITORY,commitId=$commit_hash --ignore-application-stop-failures

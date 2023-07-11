@@ -1,8 +1,0 @@
-{
-  "secrets": {
-    "discordToken": "MjU5MzQxOTQ0NTQ5ODAxOTg0.GOR6Gx.9OrfdODr7-W5u2vuV-PfkgnIXxaYqijEWPdJLg",
-    "lichessToken": "lip_APGDZ8p5QhUcCeGdO6xQ",
-    "spotifyClientId": "8d26745d8aee4463bb7dfabd4227eb90",
-    "spotifyClientSecret": "10e6ea723dd44b3e85e369bfa5857873"
-  }
-}

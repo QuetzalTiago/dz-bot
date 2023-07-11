@@ -1,6 +1,5 @@
 source ~/.bashrc
-cd /dz-bot/bot 
-npm install typescript
-npm install
-npm run commands:register > /dev/null 2> /dev/null < /dev/null &
-npm start > /dev/null 2> /dev/null < /dev/null &
+sudo apt update -y
+sudo apt install -y python3-pip ffmpeg
+sudo pip3 install -r /dz-bot/requirements.txt
+python3 /dz-bot/bot.py

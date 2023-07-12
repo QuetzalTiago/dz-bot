@@ -12,3 +12,7 @@ hooks:
     - location: aws/scripts/application-start.sh
       timeout: 300
       runas: ubuntu
+  ApplicationStop:
+    - location: aws/scripts/application-stop.sh
+      timeout: 300
+      runas: ubuntu

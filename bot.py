@@ -150,6 +150,19 @@ class MyClient(discord.Client):
                 )
                 break
 
+    async def text_to_emoji(_, text):
+        emoji_text = ""
+        for char in text:
+            if char.isalpha():
+                emoji_char = f":regional_indicator_{char}:"
+                if emoji_char:
+                    emoji_text += f"{emoji_char} "
+                else:
+                    emoji_text += char + " "
+            else:
+                emoji_text += char + " "
+        return emoji_text
+
     async def on_ready(self):
         print("Logged on as", self.user)
 
@@ -250,6 +263,7 @@ class MyClient(discord.Client):
         **clear**: Clears the current queue of songs.
         **chess**: Creates an open chess challenge on Lichess.
         **btc**: Returns the current price of Bitcoin.
+        **emoji** <text>: Converts the input text into emoji letters.
                 """
             await message.channel.send(help_message)
 
@@ -317,6 +331,12 @@ class MyClient(discord.Client):
             data = response.json()
             channel_response = f"Current Bitcoin price: **{(format (int(float(data['data']['amount'])), ',d'))} USD**"
             await message.channel.send(channel_response)
+
+        elif message.content.startswith("emoji "):
+            await message.add_reaction("👍")
+            text = message.content[6:].strip()
+            emoji_text = await self.text_to_emoji(text)
+            await message.channel.send(emoji_text)
 
 
 intents = discord.Intents.default()

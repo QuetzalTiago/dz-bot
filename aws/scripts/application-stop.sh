@@ -1,2 +1,2 @@
 pkill python
-sudo rm -rf /dz-bot/
+rm -rf /dz-bot/

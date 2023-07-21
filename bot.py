@@ -15,10 +15,6 @@ import random
 with open("config.json") as f:
     config = json.load(f)
 
-# Set up Lichess API credentials
-session = berserk.TokenSession(config["secrets"]["lichessToken"])
-chessClient = berserk.Client(session=session)
-
 # Discord token
 token = config["secrets"]["discordToken"]
 

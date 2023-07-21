@@ -1,6 +1,5 @@
 import os
 import discord
-import berserk
 import asyncio
 from youtube_search import YoutubeSearch
 import yt_dlp
@@ -32,8 +31,6 @@ spotify = spotipy.Spotify(
 
 
 class MyClient(discord.Client):
-
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.voice_client = None
@@ -325,8 +322,21 @@ class MyClient(discord.Client):
         elif message.content == "chess":
             await message.add_reaction("👍")
 
-            response = chessClient.challenges.create_open()
-            await message.channel.send(response["challenge"]["url"])
+            # Get the token from config file
+            lichess_token = config["secrets"]["lichessToken"]
+            headers = {"Authorization": "Bearer " + lichess_token}
+
+            response = requests.post(
+                "https://lichess.org/api/challenge/open", headers=headers
+            )
+
+            if response.status_code == 200:
+                challenge_data = response.json()
+                await message.channel.send(challenge_data["challenge"]["url"])
+            else:
+                await message.channel.send(
+                    "There was a problem creating the challenge."
+                )
 
         elif message.content == "btc":
             await message.add_reaction("👍")
@@ -343,7 +353,15 @@ class MyClient(discord.Client):
             await message.channel.send(emoji_text)
 
         if "apex" in message.content.lower():
-            gifs = ["https://tenor.com/view/apex-legends-apex-legends-fortnite-dance-apex-legends-funny-dance-apex-legends-dancing-horizon-dancing-gif-24410416", "https://tenor.com/view/apex-apex-legends-hop-on-apex-gay-gif-26293049", "https://tenor.com/view/hop-on-apex-legends-apex-legends-black-man-gif-20893557","https://tenor.com/view/apex-legends-fortnite-dance-apex-legends-funny-dance-apex-legends-dancing-bloodhound-dancing-gif-24410417","https://tenor.com/view/revenant-fortnite-dance-apex-legends-dance-apex-legends-revenant-apex-legends-funny-apex-legends-dancing-gif-24410413","https://tenor.com/view/apex-legends-fortnite-dance-apex-legends-funny-dance-apex-legends-dancing-bloodhound-dancing-gif-24410419","https://tenor.com/view/apex-legends-pathfinder-apex-mirage-finisher-gif-21867795"]
+            gifs = [
+                "https://tenor.com/view/apex-legends-apex-legends-fortnite-dance-apex-legends-funny-dance-apex-legends-dancing-horizon-dancing-gif-24410416",
+                "https://tenor.com/view/apex-apex-legends-hop-on-apex-gay-gif-26293049",
+                "https://tenor.com/view/hop-on-apex-legends-apex-legends-black-man-gif-20893557",
+                "https://tenor.com/view/apex-legends-fortnite-dance-apex-legends-funny-dance-apex-legends-dancing-bloodhound-dancing-gif-24410417",
+                "https://tenor.com/view/revenant-fortnite-dance-apex-legends-dance-apex-legends-revenant-apex-legends-funny-apex-legends-dancing-gif-24410413",
+                "https://tenor.com/view/apex-legends-fortnite-dance-apex-legends-funny-dance-apex-legends-dancing-bloodhound-dancing-gif-24410419",
+                "https://tenor.com/view/apex-legends-pathfinder-apex-mirage-finisher-gif-21867795",
+            ]
             index = random.randrange(len(gifs))
             response = gifs.pop(index)
             await message.channel.send(response)

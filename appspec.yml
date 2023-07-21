@@ -15,4 +15,4 @@ hooks:
   ApplicationStop:
     - location: aws/scripts/application-stop.sh
       timeout: 300
-      runas: ubuntu
+      runas: root

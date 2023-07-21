@@ -9,3 +9,4 @@ yt-dlp
 PyNaCl
 ffmpeg
 spotipy
+berserk

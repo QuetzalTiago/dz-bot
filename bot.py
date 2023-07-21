@@ -312,6 +312,7 @@ class MyClient(discord.Client):
             await message.channel.send(f"Shuffle is now set on **{self.shuffle}**")
 
         elif message.content == "clear":
+            await message.add_reaction("👍")
             self.queue = []
             await message.channel.send(f"Queue cleared.")
 
@@ -359,7 +360,7 @@ class MyClient(discord.Client):
                 "https://tenor.com/view/apex-legends-pathfinder-apex-mirage-finisher-gif-21867795",
             ]
             index = random.randrange(len(gifs))
-            response = gifs.pop(index)
+            response = gifs[index]
             await message.channel.send(response)
 
 

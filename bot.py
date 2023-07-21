@@ -153,12 +153,14 @@ class MyClient(discord.Client):
     async def text_to_emoji(_, text):
         emoji_text = ""
         for char in text:
+            char = char.lower()
             if char.isalpha():
                 emoji_char = f":regional_indicator_{char}:"
-                if emoji_char:
-                    emoji_text += f"{emoji_char} "
-                else:
-                    emoji_text += char + " "
+                emoji_text += f"{emoji_char} "
+            elif char == "?":
+                emoji_text += "❔ "
+            elif char == "!":
+                emoji_text += "❕ "
             else:
                 emoji_text += char + " "
         return emoji_text

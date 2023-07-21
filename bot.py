@@ -32,6 +32,8 @@ spotify = spotipy.Spotify(
 
 
 class MyClient(discord.Client):
+
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.voice_client = None
@@ -339,6 +341,12 @@ class MyClient(discord.Client):
             text = message.content[6:].strip()
             emoji_text = await self.text_to_emoji(text)
             await message.channel.send(emoji_text)
+
+        if "apex" in message.content.lower():
+            gifs = ["https://tenor.com/view/apex-legends-apex-legends-fortnite-dance-apex-legends-funny-dance-apex-legends-dancing-horizon-dancing-gif-24410416", "https://tenor.com/view/apex-apex-legends-hop-on-apex-gay-gif-26293049", "https://tenor.com/view/hop-on-apex-legends-apex-legends-black-man-gif-20893557","https://tenor.com/view/apex-legends-fortnite-dance-apex-legends-funny-dance-apex-legends-dancing-bloodhound-dancing-gif-24410417","https://tenor.com/view/revenant-fortnite-dance-apex-legends-dance-apex-legends-revenant-apex-legends-funny-apex-legends-dancing-gif-24410413","https://tenor.com/view/apex-legends-fortnite-dance-apex-legends-funny-dance-apex-legends-dancing-bloodhound-dancing-gif-24410419","https://tenor.com/view/apex-legends-pathfinder-apex-mirage-finisher-gif-21867795"]
+            index = random.randrange(len(gifs))
+            response = gifs.pop(index)
+            await message.channel.send(response)
 
 
 intents = discord.Intents.default()

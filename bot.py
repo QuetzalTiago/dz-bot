@@ -316,15 +316,40 @@ class MyClient(discord.Client):
             self.queue = []
             await message.channel.send(f"Queue cleared.")
 
-        elif message.content == "chess":
+        elif message.content.startswith("chess"):
             await message.add_reaction("👍")
 
             # Get the token from config file
             lichess_token = config["secrets"]["lichessToken"]
             headers = {"Authorization": "Bearer " + lichess_token}
 
+            time_control = None
+
+            # Get all the words in the message
+            message_parts = message.content.split()
+
+            # Check if there's a second part, and if it can be converted to an integer
+            if len(message_parts) > 1:
+                try:
+                    time_control = int(message_parts[1])
+                    if not 30 <= time_control <= 3600:  # time in seconds
+                        raise ValueError
+                except ValueError:
+                    await message.channel.send(
+                        "Invalid time control. Please specify a number of seconds between 30 and 3600."
+                    )
+                    return
+
+            payload = {}
+            if time_control is not None:
+                # Set the time control
+                payload["clock"] = {
+                    "limit": time_control,
+                    "increment": 0,
+                }  # No increment
+
             response = requests.post(
-                "https://lichess.org/api/challenge/open", headers=headers
+                "https://lichess.org/api/challenge/open", headers=headers, json=payload
             )
 
             if response.status_code == 200:
@@ -352,8 +377,6 @@ class MyClient(discord.Client):
         if "apex" in message.content.lower():
             gifs = [
                 "https://tenor.com/view/apex-legends-apex-legends-fortnite-dance-apex-legends-funny-dance-apex-legends-dancing-horizon-dancing-gif-24410416",
-                "https://tenor.com/view/apex-apex-legends-hop-on-apex-gay-gif-26293049",
-                "https://tenor.com/view/hop-on-apex-legends-apex-legends-black-man-gif-20893557",
                 "https://tenor.com/view/apex-legends-fortnite-dance-apex-legends-funny-dance-apex-legends-dancing-bloodhound-dancing-gif-24410417",
                 "https://tenor.com/view/revenant-fortnite-dance-apex-legends-dance-apex-legends-revenant-apex-legends-funny-apex-legends-dancing-gif-24410413",
                 "https://tenor.com/view/apex-legends-fortnite-dance-apex-legends-funny-dance-apex-legends-dancing-bloodhound-dancing-gif-24410419",

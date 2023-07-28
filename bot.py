@@ -442,12 +442,12 @@ class MyClient(discord.Client):
             await message.channel.purge(
                 limit=100,
                 check=lambda m: m.author == self.user
+                or m.content == "p"
+                or m.content == "s"
                 or m.content.startswith(
                     (
                         "play",
-                        "p ",
                         "skip",
-                        "s",
                         "stop",
                         "loop",
                         "queue",

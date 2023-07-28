@@ -4,7 +4,6 @@ import asyncio
 from youtube_search import YoutubeSearch
 import yt_dlp
 import json
-import datetime
 import requests
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
@@ -28,7 +27,6 @@ spotify = spotipy.Spotify(
 
 
 class MyClient(discord.Client):
-  
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.voice_client = None
@@ -45,6 +43,9 @@ class MyClient(discord.Client):
 
     async def play_music(self, message, song_name, song_id):
         async def play_song(info):
+            duration = info["duration"]
+            duration_readable = str(datetime.timedelta(seconds=duration))
+
             filename = f"{song_id}.mp3"
 
             for file_name in os.listdir("."):
@@ -61,7 +62,7 @@ class MyClient(discord.Client):
             await message.channel.send(
                 f"Now playing: **{info['title']}** as requested by <@{message.author.id}> \n"
                 f"Views: **{'{:,}'.format(info['view_count'])}** \n"
-                f"Duration: **{str(datetime.timedelta(seconds=info['duration']))}**"
+                f"Duration: **{duration_readable}**"
             )
 
         # Check if the bot is already playing music
@@ -95,6 +96,14 @@ class MyClient(discord.Client):
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 if "youtube.com" in song_name or "youtu.be" in song_name:
+                    info = ydl.extract_info(song_name, download=False)
+
+                    if info["duration"] > 750:
+                        await message.channel.send(
+                            "The video is too long. Try another query."
+                        )
+                        return
+
                     info = ydl.extract_info(song_name, download=True)
 
                     await play_song(info)
@@ -106,6 +115,14 @@ class MyClient(discord.Client):
 
                     url_suffix = results["videos"][0]["url_suffix"]
                     url = f"https://www.youtube.com{url_suffix}"
+
+                    info = ydl.extract_info(url, download=False)
+
+                    if info["duration"] > 750:
+                        await message.channel.send(
+                            "The video is too long. Try another query."
+                        )
+                        return
 
                     info = ydl.extract_info(url, download=True)
 
@@ -162,21 +179,22 @@ class MyClient(discord.Client):
                 emoji_text += char + " "
         return emoji_text
 
-    def GetDate(self):
+    def get_date(self):
         return datetime.today().day
-    
-    async def DateChecker(self):
-        print("Running loop...")
+
+    async def date_checker(self):
         spotify_role_id = 1134271094006755438
         main_channel_id = 378245223853064199
 
-        if self.GetDate() == 27:
+        if self.get_date() == 27:
             channel = client.get_channel(main_channel_id)
-            await channel.send(f"<@&{spotify_role_id}> PAY UP NIGGA \n https://docs.google.com/spreadsheets/d/1TPG7yqK5DoiZ61HoyZXi2GZMBlJ5O8wdsXiZgt9mWj4/edit?usp=sharing")
+            await channel.send(
+                f"<@&{spotify_role_id}> PAY UP NIGGA \n https://docs.google.com/spreadsheets/d/1TPG7yqK5DoiZ61HoyZXi2GZMBlJ5O8wdsXiZgt9mWj4/edit?usp=sharing"
+            )
             await channel.send("https://tenor.com/view/mc-gregor-pay-up-gif-8865194")
 
     async def on_ready(self):
-        await self.DateChecker()
+        await self.date_checker()
         print("Logged on as", self.user)
 
     async def on_message(self, message):
@@ -277,6 +295,7 @@ class MyClient(discord.Client):
         **chess**: Creates an open chess challenge on Lichess.
         **btc**: Returns the current price of Bitcoin.
         **emoji** <text>: Converts the input text into emoji letters.
+        **purge**: Clears all messages.
                 """
             await message.channel.send(help_message)
 
@@ -389,6 +408,32 @@ class MyClient(discord.Client):
             text = message.content[6:].strip()
             emoji_text = await self.text_to_emoji(text)
             await message.channel.send(emoji_text)
+
+        elif message.content == "purge":
+            await message.add_reaction("👍")
+            await message.channel.purge(
+                limit=100,
+                check=lambda m: m.author == self.user
+                or m.content.startswith(
+                    (
+                        "play",
+                        "p ",
+                        "skip",
+                        "s ",
+                        "stop",
+                        "loop",
+                        "queue",
+                        "q",
+                        "shuffle",
+                        "clear",
+                        "chess",
+                        "btc",
+                        "emoji ",
+                        "help",
+                        "purge",
+                    )
+                ),
+            )
 
         if "apex" in message.content.lower():
             gifs = [

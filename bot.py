@@ -447,7 +447,7 @@ class MyClient(discord.Client):
                         "play",
                         "p ",
                         "skip",
-                        "s ",
+                        "s",
                         "stop",
                         "loop",
                         "queue",

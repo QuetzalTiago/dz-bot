@@ -1,12 +1,6 @@
 discord
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
-google-api-python-client
-berserk-downstream
 youtube_search
 yt-dlp
 PyNaCl
 ffmpeg
 spotipy
-berserk

@@ -444,14 +444,14 @@ class MyClient(discord.Client):
                 check=lambda m: m.author == self.user
                 or m.content == "p"
                 or m.content == "s"
+                or m.content == "q"
                 or m.content.startswith(
                     (
-                        "play",
+                        "play ",
                         "skip",
                         "stop",
                         "loop",
                         "queue",
-                        "q",
                         "shuffle",
                         "clear",
                         "chess",

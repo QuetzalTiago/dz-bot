@@ -26,6 +26,8 @@ spotify = spotipy.Spotify(
     )
 )
 
+max_video_duration = 750
+
 
 class MyClient(discord.Client):
     def __init__(self, *args, **kwargs):
@@ -99,9 +101,21 @@ class MyClient(discord.Client):
                 if "youtube.com" in song_name or "youtu.be" in song_name:
                     info = ydl.extract_info(song_name, download=False)
 
-                    if info["duration"] > 750:
+                    if info["duration"] > max_video_duration:
                         await message.channel.send(
                             "The video is too long. Try another query."
+                        )
+                        duration_readable = str(
+                            datetimedelta.timedelta(seconds=info["duration"])
+                        )
+                        max_duration_readable = str(
+                            datetimedelta.timedelta(seconds=max_video_duration)
+                        )
+                        await message.channel.send(
+                            f"Video duration: **{duration_readable}**"
+                        )
+                        await message.channel.send(
+                            f"Max duration is: **{max_duration_readable}**"
                         )
                         return
 
@@ -119,9 +133,21 @@ class MyClient(discord.Client):
 
                     info = ydl.extract_info(url, download=False)
 
-                    if info["duration"] > 750:
+                    if info["duration"] > max_video_duration:
                         await message.channel.send(
                             "The video is too long. Try another query."
+                        )
+                        duration_readable = str(
+                            datetimedelta.timedelta(seconds=info["duration"])
+                        )
+                        max_duration_readable = str(
+                            datetimedelta.timedelta(seconds=max_video_duration)
+                        )
+                        await message.channel.send(
+                            f"Video duration: **{duration_readable}**"
+                        )
+                        await message.channel.send(
+                            f"Max duration is: **{max_duration_readable}**"
                         )
                         return
 
@@ -362,12 +388,12 @@ class MyClient(discord.Client):
             time_control = None
 
             # Get all the words in the message
-            message_parts = message.content.split()
+            message_parts = message.content.split(" ")
 
             # Check if there's a second part, and if it can be converted to an integer
             if len(message_parts) > 1:
                 try:
-                    time_control = int(message_parts[1])
+                    time_control = int(message_parts[2])
                     if not 30 <= time_control <= 3600:  # time in seconds
                         raise ValueError
                 except ValueError:
@@ -395,6 +421,7 @@ class MyClient(discord.Client):
                 await message.channel.send(
                     "There was a problem creating the challenge."
                 )
+                await message.channel.send(response)
 
         elif message.content == "btc":
             await message.add_reaction("👍")

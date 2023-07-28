@@ -10,6 +10,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import uuid
 import random
+from datetime import datetime
 
 # Get credentials
 with open("config.json") as f:
@@ -27,6 +28,7 @@ spotify = spotipy.Spotify(
 
 
 class MyClient(discord.Client):
+  
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.voice_client = None
@@ -160,7 +162,21 @@ class MyClient(discord.Client):
                 emoji_text += char + " "
         return emoji_text
 
+    def GetDate(self):
+        return datetime.today().day
+    
+    async def DateChecker(self):
+        print("Running loop...")
+        spotify_role_id = 1134271094006755438
+        main_channel_id = 378245223853064199
+
+        if self.GetDate() == 27:
+            channel = client.get_channel(main_channel_id)
+            await channel.send(f"<@&{spotify_role_id}> PAY UP NIGGA \n https://docs.google.com/spreadsheets/d/1TPG7yqK5DoiZ61HoyZXi2GZMBlJ5O8wdsXiZgt9mWj4/edit?usp=sharing")
+            await channel.send("https://tenor.com/view/mc-gregor-pay-up-gif-8865194")
+
     async def on_ready(self):
+        await self.DateChecker()
         print("Logged on as", self.user)
 
     async def on_message(self, message):

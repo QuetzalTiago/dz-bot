@@ -448,6 +448,7 @@ class MyClient(discord.Client):
                 or m.content.startswith(
                     (
                         "play ",
+                        "p ",
                         "skip",
                         "stop",
                         "loop",
@@ -462,6 +463,7 @@ class MyClient(discord.Client):
                     )
                 ),
             )
+            await message.channel.send("Cleared messages.")
 
         if "apex" in message.content.lower():
             gifs = [

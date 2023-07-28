@@ -133,7 +133,7 @@ class MyClient(discord.Client):
             await message.channel.send(
                 "An error occurred while searching for the video."
             )
-            await message.channel.send(f"Error: {e.text}")
+            await message.channel.send(f"Error: {e}")
             self.voice_client = None
             return
 

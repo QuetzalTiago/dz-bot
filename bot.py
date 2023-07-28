@@ -6,6 +6,7 @@ import yt_dlp
 import json
 import requests
 import spotipy
+import datetime as datetimedelta
 from spotipy.oauth2 import SpotifyClientCredentials
 import uuid
 import random
@@ -44,7 +45,7 @@ class MyClient(discord.Client):
     async def play_music(self, message, song_name, song_id):
         async def play_song(info):
             duration = info["duration"]
-            duration_readable = str(datetime.timedelta(seconds=duration))
+            duration_readable = str(datetimedelta.timedelta(seconds=duration))
 
             filename = f"{song_id}.mp3"
 
@@ -133,7 +134,7 @@ class MyClient(discord.Client):
             await message.channel.send(
                 "An error occurred while searching for the video."
             )
-            await message.channel.send(f"Error: {e}")
+            await message.channel.send(f"**Error**: {e}")
             self.voice_client = None
             return
 

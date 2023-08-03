@@ -439,6 +439,7 @@ class MyClient(discord.Client):
 
         elif message.content == "purge":
             await message.add_reaction("👍")
+            await message.channel.send("Purging messages...")
             await message.channel.purge(
                 limit=100,
                 check=lambda m: m.author == self.user
@@ -463,7 +464,6 @@ class MyClient(discord.Client):
                     )
                 ),
             )
-            await message.channel.send("Cleared messages.")
 
         if "apex" in message.content.lower():
             gifs = [

@@ -11,6 +11,7 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import uuid
 import random
 from datetime import datetime
+import pytz
 
 # Get credentials
 with open("config.json") as f:
@@ -36,6 +37,7 @@ class MyClient(discord.Client):
         self.queue = []
         self.song_loop = False
         self.shuffle = False
+        self.main_channel_id = 378245223853064199
 
     async def join_voice_channel(self, message):
         # Get the voice channel that the user is in
@@ -43,6 +45,39 @@ class MyClient(discord.Client):
 
         # Join the voice channel
         self.voice_client = await voice_channel.connect()
+
+    async def time_checker(self):
+        channel = self.get_channel(self.main_channel_id)
+        spotify_role_id = 1134271094006755438
+        while True:
+            now = datetime.now(pytz.timezone("Etc/GMT+3"))
+            if (now.hour == 4 or now.hour == 17) and now.minute == 49:
+                gifs = [
+                    "https://tenor.com/qBaO.gif",
+                    "https://tenor.com/bUc6T.gif",
+                    "https://tenor.com/bWGTx.gif",
+                    "https://tenor.com/7M09.gif",
+                    "https://tenor.com/bEZC5.gif",
+                    "https://tenor.com/bDYTg.gif",
+                ]
+                index = random.randrange(len(gifs))
+                response = gifs[index]
+                await channel.send(":four: :two: :zero: ")
+                await channel.send(response)
+                await asyncio.sleep(60)
+            if now.day == 27 and now.hour == 15 and now.minute == 0:
+                await channel.send(
+                    f"<@&{spotify_role_id}> PAY UP NIGGA \n https://docs.google.com/spreadsheets/d/1TPG7yqK5DoiZ61HoyZXi2GZMBlJ5O8wdsXiZgt9mWj4/edit?usp=sharing"
+                )
+                await channel.send(
+                    "https://tenor.com/view/mc-gregor-pay-up-gif-8865194"
+                )
+                await asyncio.sleep(60)
+            await asyncio.sleep(10)
+
+    async def on_ready(self):
+        await self.time_checker()
+        print("Logged on as", self.user)
 
     async def play_music(self, message, song_name, song_id):
         async def play_song(info):
@@ -205,24 +240,6 @@ class MyClient(discord.Client):
             else:
                 emoji_text += char + " "
         return emoji_text
-
-    def get_date(self):
-        return datetime.today().day
-
-    async def date_checker(self):
-        spotify_role_id = 1134271094006755438
-        main_channel_id = 378245223853064199
-
-        if self.get_date() == 27:
-            channel = client.get_channel(main_channel_id)
-            await channel.send(
-                f"<@&{spotify_role_id}> PAY UP NIGGA \n https://docs.google.com/spreadsheets/d/1TPG7yqK5DoiZ61HoyZXi2GZMBlJ5O8wdsXiZgt9mWj4/edit?usp=sharing"
-            )
-            await channel.send("https://tenor.com/view/mc-gregor-pay-up-gif-8865194")
-
-    async def on_ready(self):
-        await self.date_checker()
-        print("Logged on as", self.user)
 
     async def on_message(self, message):
         if message.author == self.user:

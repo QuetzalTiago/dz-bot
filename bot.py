@@ -51,7 +51,7 @@ class MyClient(discord.Client):
         spotify_role_id = 1134271094006755438
         while True:
             now = datetime.now(pytz.timezone("Etc/GMT+3"))
-            if (now.hour == 4 or now.hour == 17) and now.minute == 49:
+            if (now.hour == 4 or now.hour == 16) and now.minute == 20:
                 gifs = [
                     "https://tenor.com/qBaO.gif",
                     "https://tenor.com/bUc6T.gif",
@@ -65,7 +65,7 @@ class MyClient(discord.Client):
                 await channel.send(":four: :two: :zero: ")
                 await channel.send(response)
                 await asyncio.sleep(60)
-            if now.day == 27 and now.hour == 15 and now.minute == 0:
+            if now.day == 27 and now.hour == 20 and now.minute == 0:
                 await channel.send(
                     f"<@&{spotify_role_id}> PAY UP NIGGA \n https://docs.google.com/spreadsheets/d/1TPG7yqK5DoiZ61HoyZXi2GZMBlJ5O8wdsXiZgt9mWj4/edit?usp=sharing"
                 )

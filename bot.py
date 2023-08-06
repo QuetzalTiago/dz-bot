@@ -96,7 +96,12 @@ class MyClient(discord.Client):
             # Play the song in the voice channel
             self.voice_client.play(source)
 
-            await message.channel.purge(limit=1, check=lambda m: m.author == self.user)
+            # Delete 'Downloading...' message
+            await message.channel.purge(
+                limit=1,
+                check=lambda m: m.author == self.user
+                or m.content.startswith("Downloading"),
+            )
 
             # Send a message with song information
             await message.channel.send(
@@ -133,8 +138,9 @@ class MyClient(discord.Client):
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                if "youtube.com" in song_name or "youtu.be" in song_name:
-                    info = ydl.extract_info(song_name, download=False)
+
+                async def download(query):
+                    info = ydl.extract_info(query, download=False)
 
                     if info["duration"] > max_video_duration:
                         await message.channel.send(
@@ -160,6 +166,9 @@ class MyClient(discord.Client):
 
                     await play_song(info)
 
+                if "youtube.com" in song_name or "youtu.be" in song_name:
+                    download(song_name)
+
                 else:
                     results = json.loads(
                         YoutubeSearch(song_name, max_results=5).to_json()
@@ -168,31 +177,7 @@ class MyClient(discord.Client):
                     url_suffix = results["videos"][0]["url_suffix"]
                     url = f"https://www.youtube.com{url_suffix}"
 
-                    info = ydl.extract_info(url, download=False)
-
-                    if info["duration"] > max_video_duration:
-                        await message.channel.send(
-                            "The video is too long. Try another query."
-                        )
-                        duration_readable = str(
-                            datetimedelta.timedelta(seconds=info["duration"])
-                        )
-                        max_duration_readable = str(
-                            datetimedelta.timedelta(seconds=max_video_duration)
-                        )
-                        await message.channel.send(
-                            f"Video duration: **{duration_readable}**"
-                        )
-                        await message.channel.send(
-                            f"Max duration is: **{max_duration_readable}**"
-                        )
-                        return
-
-                    await message.channel.send(f"Downloading **{info['title']}**...")
-
-                    info = ydl.extract_info(url, download=True)
-
-                    await play_song(info)
+                    download(url)
 
         except Exception as e:
             self.voice_client.stop()

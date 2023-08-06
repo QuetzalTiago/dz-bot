@@ -168,7 +168,6 @@ class MyClient(discord.Client):
 
                 if "youtube.com" in song_name or "youtu.be" in song_name:
                     await download(song_name)
-
                 else:
                     results = json.loads(
                         YoutubeSearch(song_name, max_results=5).to_json()

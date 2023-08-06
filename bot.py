@@ -162,7 +162,7 @@ class MyClient(discord.Client):
 
                     await message.channel.send(f"Downloading **{info['title']}**...")
 
-                    info = ydl.extract_info(song_name, download=True)
+                    info = ydl.extract_info(query, download=True)
 
                     await play_song(info)
 

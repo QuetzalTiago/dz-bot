@@ -338,7 +338,7 @@ class MyClient(discord.Client):
         **shuffle**: Toggles shuffle mode on or off.
         **loop**: Toggles loop mode on or off. (Must be activated before playing the song)
         **clear**: Clears the current queue of songs.
-        **chess**: Creates an open chess challenge on Lichess.
+        **chess** <time (in minutes)>: Creates an open chess challenge on Lichess.
         **btc**: Returns the current price of Bitcoin.
         **emoji** <text>: Converts the input text into emoji letters.
         **purge**: Clears all messages.
@@ -411,13 +411,10 @@ class MyClient(discord.Client):
 
             # Check if there's a second part, and if it can be converted to an integer
             if len(message_parts) > 1:
-                try:
-                    time_control = int(message_parts[2])
-                    if not 30 <= time_control <= 3600:  # time in seconds
-                        raise ValueError
-                except ValueError:
+                time_control = int(message_parts[1])
+                if time_control < 1 or time_control > 60:
                     await message.channel.send(
-                        "Invalid time control. Please specify a number of seconds between 30 and 3600."
+                        "Invalid time control. Please specify a number of mintues between 1 and 60"
                     )
                     return
 
@@ -425,9 +422,9 @@ class MyClient(discord.Client):
             if time_control is not None:
                 # Set the time control
                 payload["clock"] = {
-                    "limit": time_control,
-                    "increment": 0,
-                }  # No increment
+                    "increment": 2,
+                    "limit": time_control * 60,
+                }
 
             response = requests.post(
                 "https://lichess.org/api/challenge/open", headers=headers, json=payload

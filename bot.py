@@ -96,6 +96,8 @@ class MyClient(discord.Client):
             # Play the song in the voice channel
             self.voice_client.play(source)
 
+            await message.channel.purge(limit=1, check=lambda m: m.author == self.user)
+
             # Send a message with song information
             await message.channel.send(
                 f"Now playing: **{info['title']}** as requested by <@{message.author.id}> \n"

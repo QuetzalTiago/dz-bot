@@ -115,8 +115,6 @@ class MyClient(discord.Client):
             await message.channel.send("Song added to the queue.")
             return
 
-        await message.channel.send(f"Downloading song...")
-
         # Create a YTDL downloader
         ydl_opts = {
             "format": "bestaudio/best",
@@ -154,6 +152,8 @@ class MyClient(discord.Client):
                         )
                         return
 
+                    await message.channel.send(f"Downloading **{info['title']}**...")
+
                     info = ydl.extract_info(song_name, download=True)
 
                     await play_song(info)
@@ -185,6 +185,8 @@ class MyClient(discord.Client):
                             f"Max duration is: **{max_duration_readable}**"
                         )
                         return
+
+                    await message.channel.send(f"Downloading **{info['title']}**...")
 
                     info = ydl.extract_info(url, download=True)
 

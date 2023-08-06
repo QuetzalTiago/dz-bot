@@ -167,7 +167,7 @@ class MyClient(discord.Client):
                     await play_song(info)
 
                 if "youtube.com" in song_name or "youtu.be" in song_name:
-                    download(song_name)
+                    await download(song_name)
 
                 else:
                     results = json.loads(
@@ -177,7 +177,7 @@ class MyClient(discord.Client):
                     url_suffix = results["videos"][0]["url_suffix"]
                     url = f"https://www.youtube.com{url_suffix}"
 
-                    download(url)
+                    await download(url)
 
         except Exception as e:
             self.voice_client.stop()

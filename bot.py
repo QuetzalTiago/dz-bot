@@ -100,7 +100,7 @@ class MyClient(discord.Client):
             await message.channel.purge(
                 limit=1,
                 check=lambda m: m.author == self.user
-                or m.content.startswith("Downloading"),
+                and m.content.startswith("Downloading"),
             )
 
             # Send a message with song information
@@ -352,6 +352,7 @@ class MyClient(discord.Client):
             await message.add_reaction("👍")
             if self.voice_client and self.voice_client.is_connected():
                 self.voice_client.stop()
+                self.queue = []
                 await self.voice_client.disconnect()
 
         elif message.content == "loop":
@@ -386,16 +387,13 @@ class MyClient(discord.Client):
         elif message.content.startswith("chess"):
             await message.add_reaction("👍")
 
-            # Get the token from config file
             lichess_token = config["secrets"]["lichessToken"]
             headers = {"Authorization": "Bearer " + lichess_token}
 
             time_control = None
 
-            # Get all the words in the message
             message_parts = message.content.split(" ")
 
-            # Check if there's a second part, and if it can be converted to an integer
             if len(message_parts) > 1:
                 time_control = int(message_parts[1])
                 if time_control < 1 or time_control > 60:
@@ -406,7 +404,6 @@ class MyClient(discord.Client):
 
             payload = {}
             if time_control is not None:
-                # Set the time control
                 payload["clock"] = {
                     "increment": 2,
                     "limit": time_control * 60,

@@ -347,14 +347,14 @@ class MyClient(discord.Client):
 
             # Create an embed to display results
             embed = discord.Embed(
-                title=f"Search results for {song_name}", color=0x0062FF
+                title=f"Search results for '{song_name}'", color=0x0062FF
             )
 
             for index, video in enumerate(results["videos"], 1):
                 self.search_results.append(video["title"])
                 embed.add_field(
                     name=f"{index}. {video['title']}",
-                    value=f"Channel: {video['channel']}",
+                    value=f"Views: **{video['views'].split('vistas')[0]}**\nDuration: **{video['duration']}**",
                     inline=False,
                 )
 

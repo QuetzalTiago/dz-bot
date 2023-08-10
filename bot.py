@@ -354,7 +354,7 @@ class MyClient(discord.Client):
                 self.search_results.append(video["title"])
                 embed.add_field(
                     name=f"{index}. {video['title']}",
-                    value=f"Views: **{video['views'].split('vistas')[0]}**\nDuration: **{video['duration']}**",
+                    value=f"Views: **{video['views'].split(' ')[0]}**\nDuration: **{video['duration']}**",
                     inline=False,
                 )
 

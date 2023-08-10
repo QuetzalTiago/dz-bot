@@ -248,7 +248,7 @@ class MyClient(discord.Client):
                         f"Please select a valid number between 1 and {len(self.search_results)} and search again."
                     )
                     self.search_results.clear()
-            except ValueError:
+            except:
                 await message.channel.send(
                     "Please send a valid number corresponding to a search result and search again."
                 )

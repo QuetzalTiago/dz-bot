@@ -351,7 +351,10 @@ class MyClient(discord.Client):
             )
 
             for index, video in enumerate(results["videos"], 1):
-                self.search_results.append(video["title"])
+                url_suffix = video["url_suffix"]
+                url = f"https://www.youtube.com{url_suffix}"
+
+                self.search_results.append(url)
                 embed.add_field(
                     name=f"{index}. {video['title']}",
                     value=f"Views: **{video['views'].split(' ')[0]}**\nDuration: **{video['duration']}**",

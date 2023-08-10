@@ -390,8 +390,8 @@ class MyClient(discord.Client):
             await message.add_reaction("👍")
             if self.voice_client.is_playing():
                 index = int(message.content.split("to")[1])
-                await message.channel.send(f"Skipping to song {index + 1}")
-                self.queue = self.queue[index:]
+                await message.channel.send(f"Skipping to song #{index}")
+                self.queue = self.queue[index - 1 :]
                 await message.channel.send(f"The queue has been updated.")
                 self.voice_client.stop()
 

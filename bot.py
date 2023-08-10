@@ -193,9 +193,6 @@ class MyClient(discord.Client):
             await asyncio.sleep(3)
             if not self.voice_client.is_playing():
                 if self.queue.__len__() <= 0:
-                    await message.channel.send(
-                        "Nothing left in the queue... disconnecting."
-                    )
                     self.voice_client.stop()
                     await self.voice_client.disconnect()
 

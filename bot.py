@@ -495,6 +495,7 @@ class MyClient(discord.Client):
                 or m.content == "p"
                 or m.content == "s"
                 or m.content == "q"
+                or m.content.isdigit()
                 or m.content.startswith(
                     (
                         "play ",

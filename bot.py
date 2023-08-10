@@ -125,7 +125,7 @@ class MyClient(discord.Client):
                     "song_id": song_id,
                 }
             )
-            await message.channel.send("Song added to the queue.")
+            await message.channel.send(f"**{song_name}** added to the queue.")
             return
 
         # Create a YTDL downloader
@@ -245,6 +245,11 @@ class MyClient(discord.Client):
                     chosen_query = self.search_results[choice - 1]
                     self.search_results.clear()
                     await self.play_music(message, chosen_query, uuid.uuid4().int)
+                    await message.channel.purge(
+                        limit=1,
+                        check=lambda m: m.author == self.user
+                        and m.content.startswith("Search"),
+                    )
                 else:
                     await message.channel.send(
                         f"Please select a valid number between 1 and {len(self.search_results)} and search again."

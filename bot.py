@@ -517,6 +517,8 @@ class MyClient(discord.Client):
                         "ps ",
                         "chess ",
                         "emoji ",
+                        "s to ",
+                        "skip to ",
                     )
                 ),
             )

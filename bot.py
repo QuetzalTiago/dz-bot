@@ -410,19 +410,21 @@ class MyClient(discord.Client):
         elif message.content == "queue" or message.content == "q":
             await message.add_reaction("👍")
 
-            embed = discord.Embed(color=0x0062FF)
-
             if len(self.queue) > 0:
-                queue_message = ""
-                for i, item in enumerate(self.queue):
-                    queue_message += f"{i+1}. **{item['song_name']}**\n"
+                try:
+                    embed = discord.Embed(color=0x0062FF)
 
-                if len(queue_message) <= 2000:
-                    embed.title = "Current queue"
-                    embed.description = queue_message
+                    for i, item in enumerate(self.queue):
+                        embed.add_field(
+                            name=f"**{i+1}. {item['song_name']}**",
+                            inline=False,
+                        )
+
                     await message.channel.send(embed=embed)
-                else:
-                    await message.channel.send("Queue is too long.")
+                except Exception as e:
+                    await message.channel.send(
+                        "Queue is too long. Unable to display all items."
+                    )
             else:
                 await message.channel.send("Queue is empty.")
 

@@ -228,6 +228,8 @@ class MyClient(discord.Client):
         return emoji_text
 
     async def on_message(self, message):
+        lowerMessageContent = message.content.lower()
+
         if message.author == self.user:
             return
 
@@ -238,7 +240,7 @@ class MyClient(discord.Client):
                 pass
 
             try:
-                choice = int(message.content.strip())
+                choice = int(lowerMessageContent.strip())
                 if 1 <= choice <= len(self.search_results):
                     chosen_query = self.search_results[choice - 1]
                     self.search_results.clear()
@@ -254,22 +256,22 @@ class MyClient(discord.Client):
                 )
                 self.search_results.clear()
 
-        if message.content.startswith("play") or message.content.startswith("p "):
+        if lowerMessageContent.startswith("play") or lowerMessageContent.startswith(
+            "p "
+        ):
             await message.add_reaction("👍")
 
-            # Try to join voice channel
             try:
                 await self.join_voice_channel(message)
             except:
                 pass
 
-            # Get the song URL / name from the message
-            if message.content.startswith("play"):
-                song_name = message.content[5:].strip()
+            if lowerMessageContent.startswith("play"):
+                song_name = lowerMessageContent[5:].strip()
             else:
-                song_name = message.content[2:].strip()
+                song_name = lowerMessageContent[2:].strip()
 
-            if "spotify.com" in message.content:
+            if "spotify.com" in lowerMessageContent:
                 spotify_url = song_name
                 if "track" in spotify_url:
                     # It's an individual track
@@ -333,16 +335,17 @@ class MyClient(discord.Client):
             if message.author == self.user:
                 return
 
-        elif message.content.startswith("search ") or message.content.startswith("ps "):
+        elif lowerMessageContent.startswith(
+            "search "
+        ) or lowerMessageContent.startswith("ps "):
             await message.add_reaction("👍")
 
-            if message.content.startswith("search "):
-                song_name = message.content[7:].strip()
+            if lowerMessageContent.startswith("search "):
+                song_name = lowerMessageContent[7:].strip()
             else:
-                song_name = message.content[3:].strip()
+                song_name = lowerMessageContent[3:].strip()
             results = json.loads(YoutubeSearch(song_name, max_results=10).to_json())
 
-            # Create an embed to display results
             embed = discord.Embed(
                 title=f"Search results for '{song_name}'", color=0x0062FF
             )
@@ -355,10 +358,9 @@ class MyClient(discord.Client):
                     inline=False,
                 )
 
-            # Send embed to channel
             await message.channel.send(embed=embed)
 
-        elif message.content == "help":
+        elif lowerMessageContent == "help":
             await message.add_reaction("👍")
             help_message = """
         Here are all the commands you can use:
@@ -378,36 +380,36 @@ class MyClient(discord.Client):
                 """
             await message.channel.send(help_message)
 
-        elif message.content == "skip" or message.content == "s":
+        elif lowerMessageContent == "skip" or lowerMessageContent == "s":
             await message.add_reaction("👍")
             if self.voice_client.is_playing():
                 await message.channel.send("Skipping...")
                 self.voice_client.stop()
 
-        elif message.content.startswith("skip to") or message.content.startswith(
-            "s to"
-        ):
+        elif lowerMessageContent.startswith(
+            "skip to"
+        ) or lowerMessageContent.startswith("s to"):
             await message.add_reaction("👍")
             if self.voice_client.is_playing():
-                index = int(message.content.split("to")[1])
+                index = int(lowerMessageContent.split("to")[1])
                 await message.channel.send(f"Skipping to song #{index}")
                 self.queue = self.queue[index - 1 :]
                 await message.channel.send(f"The queue has been updated.")
                 self.voice_client.stop()
 
-        elif message.content == "stop":
+        elif lowerMessageContent == "stop":
             await message.add_reaction("👍")
             if self.voice_client and self.voice_client.is_connected():
                 self.voice_client.stop()
                 self.queue = []
                 await self.voice_client.disconnect()
 
-        elif message.content == "loop":
+        elif lowerMessageContent == "loop":
             await message.add_reaction("👍")
             self.song_loop = not self.song_loop
             await message.channel.send(f"Loop is now set on **{self.song_loop}**")
 
-        elif message.content == "queue" or message.content == "q":
+        elif lowerMessageContent == "queue" or lowerMessageContent == "q":
             await message.add_reaction("👍")
 
             if len(self.queue) > 0:
@@ -428,17 +430,17 @@ class MyClient(discord.Client):
             else:
                 await message.channel.send("Queue is empty.")
 
-        elif message.content == "shuffle":
+        elif lowerMessageContent == "shuffle":
             await message.add_reaction("👍")
             self.shuffle = not self.shuffle
             await message.channel.send(f"Shuffle is now set on **{self.shuffle}**")
 
-        elif message.content == "clear":
+        elif lowerMessageContent == "clear":
             await message.add_reaction("👍")
             self.queue = []
             await message.channel.send(f"Queue cleared.")
 
-        elif message.content.startswith("chess"):
+        elif lowerMessageContent.startswith("chess"):
             await message.add_reaction("👍")
 
             lichess_token = config["secrets"]["lichessToken"]
@@ -446,7 +448,7 @@ class MyClient(discord.Client):
 
             time_control = None
 
-            message_parts = message.content.split(" ")
+            message_parts = lowerMessageContent.split(" ")
 
             if len(message_parts) > 1:
                 time_control = int(message_parts[1])
@@ -476,7 +478,7 @@ class MyClient(discord.Client):
                 )
                 await message.channel.send(response)
 
-        elif message.content == "btc":
+        elif lowerMessageContent == "btc":
             await message.add_reaction("👍")
 
             response = requests.get("https://api.coinbase.com/v2/prices/BTC-USD/spot")
@@ -484,13 +486,13 @@ class MyClient(discord.Client):
             channel_response = f"Current Bitcoin price: **{(format (int(float(data['data']['amount'])), ',d'))} USD**"
             await message.channel.send(channel_response)
 
-        elif message.content.startswith("emoji "):
+        elif lowerMessageContent.startswith("emoji "):
             await message.add_reaction("👍")
-            text = message.content[6:].strip()
+            text = lowerMessageContent[6:].strip()
             emoji_text = await self.text_to_emoji(text)
             await message.channel.send(emoji_text)
 
-        elif message.content == "purge":
+        elif lowerMessageContent == "purge":
             await message.add_reaction("👍")
             await message.channel.send("Purging messages...")
             await message.channel.purge(
@@ -523,7 +525,7 @@ class MyClient(discord.Client):
                 ),
             )
 
-        if "apex" in message.content.lower():
+        if "apex" in lowerMessageContent:
             gifs = [
                 "https://tenor.com/view/apex-legends-apex-legends-fortnite-dance-apex-legends-funny-dance-apex-legends-dancing-horizon-dancing-gif-24410416",
                 "https://tenor.com/view/apex-legends-fortnite-dance-apex-legends-funny-dance-apex-legends-dancing-bloodhound-dancing-gif-24410417",

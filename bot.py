@@ -492,27 +492,27 @@ class MyClient(discord.Client):
             await message.channel.purge(
                 limit=100,
                 check=lambda m: m.author == self.user
-                or m.content == "p"
                 or m.content == "s"
-                or m.content == "q"
+                or m.content == "skip"
+                or m.content == "stop"
+                or m.content == "loop"
+                or m.content == "queue"
+                or m.content == "shuffle"
+                or m.content == "clear"
+                or m.content == "queue"
+                or m.content == "chess"
+                or m.content == "btc"
+                or m.content == "help"
+                or m.content == "purge"
                 or m.content.isdigit()
                 or m.content.startswith(
                     (
                         "play ",
                         "p ",
-                        "search",
-                        "ps",
-                        "skip",
-                        "stop",
-                        "loop",
-                        "queue",
-                        "shuffle",
-                        "clear",
-                        "chess",
-                        "btc",
+                        "search ",
+                        "ps ",
+                        "chess ",
                         "emoji ",
-                        "help",
-                        "purge",
                     )
                 ),
             )

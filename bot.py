@@ -417,6 +417,7 @@ class MyClient(discord.Client):
                     for i, item in enumerate(self.queue):
                         embed.add_field(
                             name=f"**{i+1}. {item['song_name']}**",
+                            value="",
                             inline=False,
                         )
 

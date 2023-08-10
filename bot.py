@@ -37,6 +37,7 @@ class MyClient(discord.Client):
         self.queue = []
         self.song_loop = False
         self.shuffle = False
+        self.search_results = []
         self.main_channel_id = 378245223853064199
 
     async def join_voice_channel(self, message):
@@ -111,7 +112,7 @@ class MyClient(discord.Client):
             )
 
         # Check if the bot is already playing music
-        if self.voice_client.is_playing():
+        if self.voice_client and self.voice_client.is_playing():
             self.queue.append(
                 {
                     "message": message,
@@ -233,6 +234,29 @@ class MyClient(discord.Client):
         if message.author == self.user:
             return
 
+        if self.search_results:
+            try:
+                await self.join_voice_channel(message)
+            except:
+                pass
+
+            try:
+                choice = int(message.content.strip())
+                if 1 <= choice <= len(self.search_results):
+                    chosen_query = self.search_results[choice - 1]
+                    self.search_results.clear()
+                    await self.play_music(message, chosen_query, uuid.uuid4().int)
+                else:
+                    await message.channel.send(
+                        f"Please select a valid number between 1 and {len(self.search_results)} and search again."
+                    )
+                    self.search_results.clear()
+            except ValueError:
+                await message.channel.send(
+                    "Please send a valid number corresponding to a search result and search again."
+                )
+                self.search_results.clear()
+
         if message.content.startswith("play") or message.content.startswith("p "):
             await message.add_reaction("👍")
 
@@ -312,11 +336,37 @@ class MyClient(discord.Client):
             if message.author == self.user:
                 return
 
+        elif message.content.startswith("search ") or message.content.startswith("ps "):
+            await message.add_reaction("👍")
+
+            if message.content.startswith("search "):
+                song_name = message.content[7:].strip()
+            else:
+                song_name = message.content[3:].strip()
+            results = json.loads(YoutubeSearch(song_name, max_results=10).to_json())
+
+            # Create an embed to display results
+            embed = discord.Embed(
+                title=f"Search results for {song_name}", color=0x0062FF
+            )
+
+            for index, video in enumerate(results["videos"], 1):
+                self.search_results.append(video["title"])
+                embed.add_field(
+                    name=f"{index}. {video['title']}",
+                    value=f"Channel: {video['channel']}",
+                    inline=False,
+                )
+
+            # Send embed to channel
+            await message.channel.send(embed=embed)
+
         elif message.content == "help":
             await message.add_reaction("👍")
             help_message = """
         Here are all the commands you can use:
         **play** <song name> or **p** <song name>: Searches for the song on YouTube and plays it in the current voice channel.
+        **search** <song name> or **ps** <song name>: Searches first 10 results and lets you choose which one.
         **skip** or **s**: Skips the current song.
         **skip to** <number> or **s to** <number>: Skips to the specified song in the queue.
         **stop**: Stops playing music and leaves the voice channel.
@@ -449,6 +499,8 @@ class MyClient(discord.Client):
                     (
                         "play ",
                         "p ",
+                        "search",
+                        "ps",
                         "skip",
                         "stop",
                         "loop",

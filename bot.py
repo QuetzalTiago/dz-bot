@@ -261,11 +261,6 @@ class MyClient(discord.Client):
         ):
             await message.add_reaction("👍")
 
-            try:
-                await self.join_voice_channel(message)
-            except:
-                pass
-
             if lowerMessageContent.startswith("play"):
                 song_name = lowerMessageContent[5:].strip()
             else:

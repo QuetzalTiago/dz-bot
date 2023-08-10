@@ -82,8 +82,10 @@ class MyClient(discord.Client):
 
     async def play_music(self, message, song_name, song_id):
         async def play_song(info):
-            if not self.voice_client:
+            try:
                 await self.join_voice_channel(message)
+            except:
+                pass
 
             duration = info["duration"]
             duration_readable = str(datetimedelta.timedelta(seconds=duration))

@@ -422,9 +422,8 @@ class MyClient(discord.Client):
 
                     await message.channel.send(embed=embed)
                 except Exception as e:
-                    await message.channel.send(
-                        "Queue is too long. Unable to display all items."
-                    )
+                    await message.channel.send("Error displaying the queue.")
+                    await message.channel.send(f"**Error**: {e}")
             else:
                 await message.channel.send("Queue is empty.")
 

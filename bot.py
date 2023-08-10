@@ -409,13 +409,18 @@ class MyClient(discord.Client):
 
         elif message.content == "queue" or message.content == "q":
             await message.add_reaction("👍")
-            if self.queue.__len__() > 0:
-                queue_message = "Current queue:\n"
+
+            embed = discord.Embed(color=0x0062FF)
+
+            if len(self.queue) > 0:
+                queue_message = ""
                 for i, item in enumerate(self.queue):
                     queue_message += f"{i+1}. **{item['song_name']}**\n"
 
                 if len(queue_message) <= 2000:
-                    await message.channel.send(queue_message)
+                    embed.title = "Current queue"
+                    embed.description = queue_message
+                    await message.channel.send(embed=embed)
                 else:
                     await message.channel.send("Queue is too long.")
             else:
@@ -493,7 +498,7 @@ class MyClient(discord.Client):
                 or m.content == "skip"
                 or m.content == "stop"
                 or m.content == "loop"
-                or m.content == "queue"
+                or m.content == "q"
                 or m.content == "shuffle"
                 or m.content == "clear"
                 or m.content == "queue"

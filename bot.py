@@ -248,11 +248,11 @@ class MyClient(discord.Client):
                 if choice >= 1 and choice <= len(self.search_results) + 1:
                     chosen_query = self.search_results[choice - 1]
                     self.search_results.clear()
-                    await self.play_music(message, chosen_query, uuid.uuid4().int)
                     await message.channel.purge(
                         limit=2,
                         check=lambda m: m.author == self.user or m.content.isdigit(),
                     )
+                    await self.play_music(message, chosen_query, uuid.uuid4().int)
                 else:
                     await message.channel.send(
                         f"Please select a valid number between 1 and {len(self.search_results) + 1} and search again."

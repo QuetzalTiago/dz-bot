@@ -243,22 +243,28 @@ class MyClient(discord.Client):
             return
 
         if self.search_results:
+
+            async def clear():
+                await message.channel.purge(
+                    limit=2,
+                    check=lambda m: m.author == self.user or m.content.isdigit(),
+                )
+
             try:
                 choice = int(lowerMessageContent.strip())
                 if choice >= 1 and choice <= len(self.search_results) + 1:
                     chosen_query = self.search_results[choice - 1]
                     self.search_results.clear()
-                    await message.channel.purge(
-                        limit=2,
-                        check=lambda m: m.author == self.user or m.content.isdigit(),
-                    )
+                    await clear()
                     await self.play_music(message, chosen_query, uuid.uuid4().int)
                 else:
+                    await clear()
                     await message.channel.send(
                         f"Please select a valid number between 1 and {len(self.search_results) + 1} and search again."
                     )
                     self.search_results.clear()
             except:
+                await clear()
                 await message.channel.send(
                     "Please send a valid number corresponding to a search result and search again."
                 )

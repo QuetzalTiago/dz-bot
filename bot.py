@@ -241,14 +241,13 @@ class MyClient(discord.Client):
         if self.search_results:
             try:
                 choice = int(lowerMessageContent.strip())
-                if 1 <= choice <= len(self.search_results):
+                if choice >= 1 and choice <= len(self.search_results) + 1:
                     chosen_query = self.search_results[choice - 1]
                     self.search_results.clear()
                     await self.play_music(message, chosen_query, uuid.uuid4().int)
                     await message.channel.purge(
-                        limit=1,
-                        check=lambda m: m.author == self.user
-                        and m.content.startswith("Search"),
+                        limit=3,
+                        check=lambda m: m.author == self.user and m.content.isdigit(),
                     )
                 else:
                     await message.channel.send(

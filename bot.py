@@ -251,7 +251,7 @@ class MyClient(discord.Client):
                     )
                 else:
                     await message.channel.send(
-                        f"Please select a valid number between 1 and {len(self.search_results)} and search again."
+                        f"Please select a valid number between 1 and {len(self.search_results) + 1} and search again."
                     )
                     self.search_results.clear()
             except:

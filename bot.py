@@ -251,7 +251,7 @@ class MyClient(discord.Client):
                     await self.play_music(message, chosen_query, uuid.uuid4().int)
                     await message.channel.purge(
                         limit=3,
-                        check=lambda m: m.author == self.user and m.content.isdigit(),
+                        check=lambda m: m.author == self.user or m.content.isdigit(),
                     )
                 else:
                     await message.channel.send(

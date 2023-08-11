@@ -176,6 +176,7 @@ class MyClient(discord.Client):
                     await play_song(info)
 
                 if "youtube.com" in song_name or "youtu.be" in song_name:
+                    print(song_name)
                     await download(song_name)
                 else:
                     results = json.loads(
@@ -193,7 +194,7 @@ class MyClient(discord.Client):
                 "An error occurred while searching for the video."
             )
             await message.channel.send(f"**Error**: {e}")
-            self.voice_client = None
+            await self.voice_client.disconnect()
             return
 
         # Start the timeout loop
@@ -269,9 +270,9 @@ class MyClient(discord.Client):
             await message.add_reaction("👍")
 
             if lowerMessageContent.startswith("play"):
-                song_name = lowerMessageContent[5:].strip()
+                song_name = message.content[5:].strip()
             else:
-                song_name = lowerMessageContent[2:].strip()
+                song_name = message.content[2:].strip()
 
             if "spotify.com" in lowerMessageContent:
                 spotify_url = song_name

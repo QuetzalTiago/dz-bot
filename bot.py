@@ -125,7 +125,10 @@ class MyClient(discord.Client):
                     "song_id": song_id,
                 }
             )
-            await message.channel.send(f"**{song_name}** added to the queue.")
+            if "youtube.com" in song_name or "youtu.be" in song_name:
+                await message.channel.send("Song added to the queue.")
+            else:
+                await message.channel.send(f"**{song_name}** added to the queue.")
             return
 
         # Create a YTDL downloader

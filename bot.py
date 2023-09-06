@@ -74,7 +74,7 @@ class MyClient(discord.Client):
                 await channel.send(
                     "https://tenor.com/view/mc-gregor-pay-up-gif-8865194"
                 )
-                await asyncio.sleep(60)
+                await asyncio.sleep(600)
             await asyncio.sleep(10)
 
     async def on_ready(self):

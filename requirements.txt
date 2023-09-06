@@ -5,3 +5,4 @@ PyNaCl
 ffmpeg
 spotipy
 pytz
+Pillow

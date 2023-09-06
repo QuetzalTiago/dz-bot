@@ -12,6 +12,7 @@ import uuid
 import random
 from datetime import datetime
 import pytz
+from mrbeastify import MrBeastify
 
 # Get credentials
 with open("config.json") as f:
@@ -78,6 +79,7 @@ class MyClient(discord.Client):
 
     async def on_ready(self):
         await self.time_checker()
+        print("ready")
         print("Logged on as", self.user)
 
     async def play_music(self, message, song_name, song_id):
@@ -238,7 +240,6 @@ class MyClient(discord.Client):
 
     async def on_message(self, message):
         lowerMessageContent = message.content.lower()
-
         if message.author == self.user:
             return
 
@@ -269,6 +270,29 @@ class MyClient(discord.Client):
                     "Please send a valid number corresponding to a search result and search again."
                 )
                 self.search_results.clear()
+
+        if any(
+            att.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", "webp"))
+            for att in message.attachments
+        ):
+            image_url = message.attachments[0].url
+            response = requests.get(image_url)
+
+            file_name = f"{uuid.uuid4().int}.jpg"
+
+            # Save the image to a local file
+            with open(file_name, "wb") as file:
+                file.write(response.content)
+
+                mrbeastify = MrBeastify()
+                # Get and print the absolute path
+                abs_path = os.path.abspath(file_name)
+                mrbeastify.get_flip_blacklist()
+                mrbeastify.apply_to_thumbnails(abs_path)
+
+                await message.channel.send(file=discord.File(abs_path))
+
+            mrbeastify.delete_file(abs_path)
 
         if lowerMessageContent.startswith("play") or lowerMessageContent.startswith(
             "p "
@@ -389,12 +413,13 @@ class MyClient(discord.Client):
         **btc**: Returns the current price of Bitcoin.
         **emoji** <text>: Converts the input text into emoji letters.
         **purge**: Clears all messages.
+        **purgeme**: Clears all *your* messages.
                 """
             await message.channel.send(help_message)
 
         elif lowerMessageContent == "skip" or lowerMessageContent == "s":
             await message.add_reaction("👍")
-            if self.voice_client.is_playing():
+            if self.voice_client and self.voice_client.is_playing():
                 await message.channel.send("Skipping...")
                 self.voice_client.stop()
 
@@ -536,6 +561,14 @@ class MyClient(discord.Client):
                     )
                 ),
             )
+
+        elif lowerMessageContent == "purgeme":
+            await message.add_reaction("👍")
+            await message.channel.send("Purging messages...")
+            await message.channel.purge(
+                limit=50, check=lambda m: m.author == message.author
+            )
+            await message.channel.purge(limit=1, check=lambda m: m.author == self.user)
 
         if "apex" in lowerMessageContent:
             gifs = [

@@ -2,3 +2,4 @@ config.json
 *.mp3
 *.part
 *.ytdl
+__pycache__

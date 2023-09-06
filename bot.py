@@ -66,7 +66,7 @@ class MyClient(discord.Client):
                 response = gifs[index]
                 await channel.send(":four: :two: :zero: ")
                 await channel.send(response)
-                await asyncio.sleep(60)
+                await asyncio.sleep(600)
             if now.day == 27 and now.hour == 20 and now.minute == 0:
                 await channel.send(
                     f"<@&{spotify_role_id}> PAY UP NIGGA \n https://docs.google.com/spreadsheets/d/1TPG7yqK5DoiZ61HoyZXi2GZMBlJ5O8wdsXiZgt9mWj4/edit?usp=sharing"

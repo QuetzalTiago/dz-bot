@@ -40,6 +40,7 @@ class MyClient(discord.Client):
         self.shuffle = False
         self.search_results = []
         self.main_channel_id = 378245223853064199
+        self.mrbeast = False
 
     async def join_voice_channel(self, message):
         # Get the voice channel that the user is in
@@ -63,9 +64,8 @@ class MyClient(discord.Client):
                     "https://tenor.com/bDYTg.gif",
                 ]
                 index = random.randrange(len(gifs))
-                response = gifs[index]
                 await channel.send(":four: :two: :zero: ")
-                await channel.send(response)
+                await channel.send(gifs[index])
                 await asyncio.sleep(600)
             if now.day == 27 and now.hour == 20 and now.minute == 0:
                 await channel.send(
@@ -273,6 +273,7 @@ class MyClient(discord.Client):
 
         if any(
             att.filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", "webp"))
+            and self.mrbeast == True
             for att in message.attachments
         ):
             image_url = message.attachments[0].url
@@ -407,6 +408,7 @@ class MyClient(discord.Client):
         **stop**: Stops playing music and leaves the voice channel.
         **queue** or **q**: Displays the current queue of songs.
         **shuffle**: Toggles shuffle mode on or off.
+        **mrbeast**: Toggles MrBeast pictures on or off.
         **loop**: Toggles loop mode on or off. (Must be activated before playing the song)
         **clear**: Clears the current queue of songs.
         **chess** <time (in minutes)>: Creates an open chess challenge on Lichess.
@@ -547,6 +549,7 @@ class MyClient(discord.Client):
                 or m.content.lower() == "btc"
                 or m.content.lower() == "help"
                 or m.content.lower() == "purge"
+                or m.content.lower() == "beast"
                 or m.content.lower().isdigit()
                 or m.content.lower().startswith(
                     (
@@ -569,6 +572,11 @@ class MyClient(discord.Client):
                 limit=50, check=lambda m: m.author == message.author
             )
             await message.channel.purge(limit=1, check=lambda m: m.author == self.user)
+
+        elif lowerMessageContent == "beast":
+            await message.add_reaction("👍")
+            self.mrbeast = not self.mrbeast
+            await message.channel.send(f"MrBeastify pictures is now set on **{self.mrbeast}**")
 
         if "apex" in lowerMessageContent:
             gifs = [

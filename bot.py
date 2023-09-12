@@ -201,7 +201,7 @@ class MyClient(discord.Client):
 
         # Start the timeout loop
         while True:
-            await asyncio.sleep(3)
+            await asyncio.sleep(1)
             if not self.voice_client.is_playing():
                 if self.queue.__len__() <= 0:
                     self.voice_client.stop()
@@ -576,7 +576,9 @@ class MyClient(discord.Client):
         elif lowerMessageContent == "beast":
             await message.add_reaction("👍")
             self.mrbeast = not self.mrbeast
-            await message.channel.send(f"MrBeastify pictures is now set on **{self.mrbeast}**")
+            await message.channel.send(
+                f"MrBeastify pictures is now set on **{self.mrbeast}**"
+            )
 
         if "apex" in lowerMessageContent:
             gifs = [

@@ -14,4 +14,4 @@ class LoopCommand(BaseCommand):
 
     async def execute(self):
         loop_state = await self.music_service.toggle_loop()
-        self.message.channel.send(f"Loop is now ${loop_state}")
+        await self.message.channel.send(f"Loop is now ${loop_state}")

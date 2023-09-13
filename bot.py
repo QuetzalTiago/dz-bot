@@ -33,8 +33,8 @@ class MyClient(discord.Client):
     async def on_ready(self):
         print("Logged on as", self.user)
         self.command_service.register_command("btc", BtcCommand)
-        self.command_service.register_command("emoji", EmojiCommand, None, True)
-        self.command_service.register_command("chess", ChessCommand, None, True)
+        self.command_service.register_command("emoji", EmojiCommand, True)
+        self.command_service.register_command("chess", ChessCommand, True)
 
         self.command_service.register_command(
             "play", PlayCommand, self.music_service, True

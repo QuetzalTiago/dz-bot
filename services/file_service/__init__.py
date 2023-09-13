@@ -20,7 +20,7 @@ class FileService:
                 client_secret=config["secrets"]["spotifyClientSecret"],
             )
         )
-        self.max_video_duration = config["max_video_duration"] or 750
+        self.max_video_duration = 750
 
     async def download_from_youtube(self, song_name, message):
         file_name = f"{uuid.uuid4().int}"

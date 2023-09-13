@@ -1,6 +1,6 @@
 from services.file_service import FileService
 from services.music_service import MusicService
-from .base import BaseCommand
+from ..base import BaseCommand
 
 
 class PlayCommand(BaseCommand):

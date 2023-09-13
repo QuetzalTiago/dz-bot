@@ -1,17 +1,17 @@
-from services.file_service import FileService
 from services.music_service import MusicService
-from .base import BaseCommand
+from ..base import BaseCommand
 
 
-class LoopCommand(BaseCommand):
+class QueueCommand(BaseCommand):
     def __init__(self, client, message, music_service: MusicService):
         super().__init__(client, message)
         self.music_service = music_service
 
     @staticmethod
     def __str__():
-        return "Toggles loop"
+        return "Displays the current queue of songs."
 
     async def execute(self):
-        loop_state = await self.music_service.toggle_loop()
-        self.message.channel.send(f"Loop is now ${loop_state}")
+        queue_info = self.music_service.get_queue_info()
+
+        await self.message.channel.send(queue_info)

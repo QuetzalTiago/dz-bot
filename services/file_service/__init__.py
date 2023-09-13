@@ -20,19 +20,20 @@ class FileService:
                 client_secret=config["secrets"]["spotifyClientSecret"],
             )
         )
-        self.max_video_duration = 750
+        self.max_duration = 930  # seconds, 15 minutes
+        self.audio_quality = 96  # kb/s, max discord channel quality is
+        self.audio_format = "mp3"
 
     async def download_from_youtube(self, song_name, message):
         file_name = f"{uuid.uuid4().int}"
-        print(file_name)
 
         ydl_opts = {
             "format": "bestaudio/best",
             "postprocessors": [
                 {
                     "key": "FFmpegExtractAudio",
-                    "preferredcodec": "mp3",
-                    "preferredquality": "96",
+                    "preferredcodec": self.audio_format,
+                    "preferredquality": self.audio_quality,
                 },
             ],
             "outtmpl": f"{file_name}",
@@ -49,19 +50,19 @@ class FileService:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(song_name, download=False)
 
-            if info["duration"] > self.max_video_duration:
+            if info["duration"] > self.max_duration:
                 duration_readable = str(datetime.timedelta(seconds=info["duration"]))
                 max_duration_readable = str(
-                    datetime.timedelta(seconds=self.max_video_duration)
+                    datetime.timedelta(seconds=self.max_duration)
                 )
                 await message.channel.send(
-                    f"Video too long. Duration: **{duration_readable}**"
+                    f"Video too long. Duration: **{duration_readable}**\nMax duration is {max_duration_readable}"
                 )
                 return
 
             info = ydl.extract_info(song_name, download=True)
 
-        return f"{file_name}.mp3", info
+        return f"{file_name}.{self.audio_format}", info
 
     async def download_from_spotify(self, song_name, message):
         # TODO

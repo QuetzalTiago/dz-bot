@@ -3,7 +3,7 @@ class CommandService:
         self.client = client
         self.commands = {}
 
-    def register_command(self, trigger, command_class, params=False, service=None):
+    def register_command(self, trigger: str, command_class, params=False, service=None):
         self.commands[trigger] = (command_class, service, params)
 
     async def handle_command(self, message):

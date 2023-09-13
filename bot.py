@@ -32,30 +32,35 @@ class MyClient(discord.Client):
 
     async def on_ready(self):
         print("Logged on as", self.user)
+        music_service = self.music_service
+        command_service = self.command_service
+
         self.command_service.register_command("btc", BtcCommand)
         self.command_service.register_command("emoji", EmojiCommand, True)
         self.command_service.register_command("chess", ChessCommand, True)
 
+        self.command_service.register_command("play", PlayCommand, True, music_service)
+        self.command_service.register_command("p ", PlayCommand, True, music_service)
+
+        self.command_service.register_command("skip", SkipCommand, False, music_service)
+        self.command_service.register_command("s", SkipCommand, False, music_service)
+
+        self.command_service.register_command("loop", LoopCommand, False, music_service)
+        self.command_service.register_command("stop", StopCommand, False, music_service)
         self.command_service.register_command(
-            "play", PlayCommand, self.music_service, True
+            "purge", PurgeCommand, False, command_service
         )
         self.command_service.register_command(
-            "p ", PlayCommand, self.music_service, True
+            "clear", ClearCommand, False, music_service
         )
-
-        self.command_service.register_command("skip", SkipCommand, self.music_service)
-        self.command_service.register_command("s", SkipCommand, self.music_service)
-
-        self.command_service.register_command("loop", LoopCommand, self.music_service)
-        self.command_service.register_command("stop", StopCommand, self.music_service)
         self.command_service.register_command(
-            "purge", PurgeCommand, self.command_service
+            "help", HelpCommand, False, command_service
         )
-        self.command_service.register_command("clear", ClearCommand, self.music_service)
-        self.command_service.register_command("help", HelpCommand, self.command_service)
 
-        self.command_service.register_command("queue", QueueCommand, self.music_service)
-        self.command_service.register_command("q", QueueCommand, self.music_service)
+        self.command_service.register_command(
+            "queue", QueueCommand, False, music_service
+        )
+        self.command_service.register_command("q", QueueCommand, False, music_service)
 
         print("Commands registered.")
 

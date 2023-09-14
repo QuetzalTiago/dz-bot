@@ -1,6 +1,5 @@
 import json
 import os
-import re
 import uuid
 import datetime
 import yt_dlp
@@ -20,7 +19,7 @@ class FileService:
                 client_secret=config["secrets"]["spotifyClientSecret"],
             )
         )
-        self.max_duration = 930  # seconds, 15 minutes
+        self.max_duration = 930  # in seconds, 15 minutes
         self.audio_quality = 96  # kb/s, max discord channel quality is
         self.audio_format = "mp3"
         self.downloading = False
@@ -61,6 +60,7 @@ class FileService:
                 await message.channel.send(
                     f"Video too long. Duration: **{duration_readable}**\nMax duration is {max_duration_readable}"
                 )
+                self.downloading = False
                 return
 
             info = ydl.extract_info(song_name, download=True)
@@ -79,6 +79,3 @@ class FileService:
             print(f"File {file_path} deleted successfully")
         except Exception as e:
             print(f"Error deleting file {file_path}. Error: {e}")
-
-    def is_downloading(self):
-        return self.downloading

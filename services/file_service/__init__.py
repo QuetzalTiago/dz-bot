@@ -60,6 +60,7 @@ class FileService:
                 await message.channel.send(
                     f"Video too long. Duration: **{duration_readable}**\nMax duration is {max_duration_readable}"
                 )
+                self.downloading = False
                 return
 
             info = ydl.extract_info(song_name, download=True)

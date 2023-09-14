@@ -23,6 +23,7 @@ class FileService:
         self.max_duration = 930  # seconds, 15 minutes
         self.audio_quality = 96  # kb/s, max discord channel quality is
         self.audio_format = "mp3"
+        self.downloading = False
 
     async def download_from_youtube(self, song_name, message):
         file_name = f"{uuid.uuid4().int}"
@@ -39,6 +40,8 @@ class FileService:
             "outtmpl": f"{file_name}",
             "noplaylist": True,
         }
+
+        self.downloading = True
 
         if "youtube.com" in song_name or "youtu.be" in song_name:
             pass
@@ -62,6 +65,8 @@ class FileService:
 
             info = ydl.extract_info(song_name, download=True)
 
+        self.downloading = False
+
         return f"{file_name}.{self.audio_format}", info
 
     async def download_from_spotify(self, song_name, message):
@@ -74,3 +79,6 @@ class FileService:
             print(f"File {file_path} deleted successfully")
         except Exception as e:
             print(f"Error deleting file {file_path}. Error: {e}")
+
+    def is_downloading(self):
+        return self.downloading

@@ -20,6 +20,7 @@ class MyClient(discord.Client):
     async def on_ready(self):
         print("Logged on as", self.user)
         register_commands(self)
+        await self.music_service.initialize()
 
     async def on_message(self, message):
         if message.author == self.user:

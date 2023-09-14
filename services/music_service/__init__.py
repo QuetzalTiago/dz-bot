@@ -1,8 +1,9 @@
-import datetime
 import os
 import discord
+import asyncio
 
 from services.file_service import FileService
+from services.music_service.song import Song
 
 
 class MusicService:
@@ -14,67 +15,59 @@ class MusicService:
         self.loop = False
         self.file_service = FileService()
 
+    async def initialize(self):
+        self.client.loop.create_task(self.background_task())
+        print("Music service initialized.")
+
+    async def background_task(self):
+        await self.client.wait_until_ready()
+        while not self.client.is_closed():
+            if not self.is_playing() and not self.file_service.is_downloading():
+                if self.loop and self.current_song:
+                    await self.play_song(self.current_song, True)
+                elif self.queue:
+                    next_song = self.queue.pop(0)
+                    await self.play_song(next_song)
+                elif self.voice_client and self.voice_client.is_connected():
+                    await self.voice_client.disconnect()
+            await asyncio.sleep(1)
+
     async def join_voice_channel(self, message):
         voice_channel = message.author.voice.channel
-
         try:
             self.voice_client = await voice_channel.connect()
         except:
             pass
 
     async def add_to_queue(self, song_path, song_info, message):
-        self.queue.append((song_path, song_info, message))
+        song = Song(song_path, song_info, message)
+        self.queue.append(song)
 
         if self.is_playing():
-            await message.channel.send(
-                f"**{song_info['title']}** has been added to the queue!"
-            )
-        else:
-            await self.play_next_song()
+            await message.channel.send(f"**{song.title}** has been added to the queue!")
 
-    async def play_song(self, song_path, song_info, message):
+    async def play_song(self, song, silent=False):
+        if self.is_playing() or self.file_service.is_downloading():
+            return
+
         for file_name in os.listdir("."):
             if (
                 file_name.endswith(".mp3")
-                and file_name not in [item[0] for item in self.queue]
-                and file_name != song_path
+                and file_name != song.path
+                and all(file_name != s.path for s in self.queue)
             ):
                 self.file_service.delete_file(file_name)
 
-        source = discord.FFmpegPCMAudio(song_path)
+        source = discord.FFmpegPCMAudio(song.path)
+        self.voice_client.play(source)
+        self.current_song = song
 
-        self.voice_client.play(source, after=self.after_song_played)
-        self.current_song = song_path
-
-        duration = str(datetime.timedelta(seconds=song_info["duration"]))
-        views = "{:,}".format(song_info["view_count"])
-        title = song_info["title"]
-
-        await message.channel.send(
-            f"Now playing: **{title}** as requested by <@{message.author.id}> \n"
-            f"Views: **{views}** \n"
-            f"Duration: **{duration}**"
-        )
-
-    def after_song_played(self, error):
-        if error:
-            print(f"Error in playback: {error}")
-        if not self.loop:  # Check if loop is False
-            self.file_service.delete_file(self.current_song)
-            self.client.loop.create_task(self.play_next_song())
-        else:
-            self.client.loop.create_task(self.play_song(self.current_song))
-
-    async def play_next_song(self):
-        if self.queue:
-            next_song = self.queue.pop(0)
-
-            path, info, message = next_song
-            await self.play_song(path, info, message)
-        else:
-            self.current_song = None
-            if self.voice_client:
-                await self.voice_client.disconnect()
+        if not silent:
+            await song.message.channel.send(
+                f"Now playing: **{song.title}** as requested by <@{song.message.author.id}> \n"
+                f"Views: **{song.views}** \n"
+                f"Duration: **{song.duration}**"
+            )
 
     def is_playing(self):
         return self.voice_client and self.voice_client.is_playing()
@@ -83,19 +76,13 @@ class MusicService:
         if self.voice_client and self.voice_client.is_playing():
             self.voice_client.stop()
 
-    async def toggle_loop(self):
-        self.loop = not self.loop
-        return self.loop
-
     def get_queue_info(self):
         if not self.queue:
             return "The queue is empty."
 
         queue_info = "Current Queue:\n"
-        for index, (path, info, message) in enumerate(self.queue, 1):
-            title = info["title"]
-
-            queue_info += f"{index}. **{title}** \n"
+        for index, song in enumerate(self.queue, 1):
+            queue_info += f"{index}. **{song.title}** \n"
 
         return queue_info
 
@@ -114,3 +101,7 @@ class MusicService:
     async def clear(self, message):
         self.queue = []
         await message.channel.send("Queue has been cleared!")
+
+    async def toggle_loop(self):
+        self.loop = not self.loop
+        return "on" if self.loop else "off"

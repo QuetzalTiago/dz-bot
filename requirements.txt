@@ -6,3 +6,4 @@ ffmpeg
 spotipy
 pytz
 Pillow
+schedule

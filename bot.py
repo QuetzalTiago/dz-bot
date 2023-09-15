@@ -4,6 +4,7 @@ import json
 from services.command_service import CommandService
 from services.command_service.register_commands import register_commands
 from services.music_service import MusicService
+from services.schedule_service import ScheduleService
 
 with open("config.json") as f:
     config = json.load(f)
@@ -16,11 +17,13 @@ class MyClient(discord.Client):
         super().__init__(*args, **kwargs)
         self.music_service = MusicService(self)
         self.command_service = CommandService(self)
+        self.schedule_service = ScheduleService(self)
 
     async def on_ready(self):
         print("Logged on as", self.user)
         register_commands(self)
         await self.music_service.initialize()
+        await self.schedule_service.initialize()
 
     async def on_message(self, message):
         if message.author == self.user:

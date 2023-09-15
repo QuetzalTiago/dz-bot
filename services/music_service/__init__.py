@@ -63,14 +63,7 @@ class MusicService:
         self.current_song = song
 
         if not silent:
-            await song.message.channel.send(
-                f"Now playing: **{song.title}** as requested by <@{song.message.author.id}>"
-            )
-
-            embed = discord.Embed(title="More info", color=0x3498DB)
-            embed.add_field(name="Views", value=f"**{song.views}**", inline=True)
-            embed.add_field(name="Duration", value=f"**{song.duration}**", inline=True)
-
+            embed = song.to_embed()
             await song.message.channel.send(embed=embed)
 
     def is_playing(self):

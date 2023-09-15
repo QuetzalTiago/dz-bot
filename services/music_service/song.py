@@ -82,3 +82,11 @@ class Song:
         embed.add_field(name="Details", value=details, inline=False)
 
         return embed
+
+    def to_short_embed(self):
+        embed = discord.Embed(
+            title=f"Now Playing: {self.title}",
+            description=f"Requested by <@{self.message.author.id}>\n\nReact with 📜 to view song details.",
+            color=0x3498DB,
+        )
+        return embed

@@ -63,8 +63,27 @@ class MusicService:
         self.current_song = song
 
         if not silent:
-            embed = song.to_embed()
-            await song.message.channel.send(embed=embed)
+            embed = song.to_short_embed()
+            msg = await song.message.channel.send(embed=embed)
+
+            # Add the reaction emoji to the message (e.g., '📜' for more info)
+            await msg.add_reaction("📜")
+
+            # Check for reactions
+            def check(reaction, user):
+                return user != self.client.user and str(reaction.emoji) == "📜"
+
+            try:
+                reaction, user = await self.client.wait_for(
+                    "reaction_add", timeout=60.0, check=check
+                )
+            except asyncio.TimeoutError:
+                # You can remove the reaction after a certain timeout, if you'd like.
+                await msg.remove_reaction("📜", self.client.user)
+            else:
+                # Edit the message to display the full embed
+                full_embed = song.to_embed()
+            await msg.edit(embed=full_embed)
 
     def is_playing(self):
         return self.voice_client and self.voice_client.is_playing()

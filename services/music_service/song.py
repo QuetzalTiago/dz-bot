@@ -68,13 +68,12 @@ class Song:
     def to_embed(self):
         embed = discord.Embed(
             title=f"Now Playing: {self.title}",
-            description=f"Requested by <@{self.message.author.id}>",
+            description=f"Requested by <@{self.message.author.id}>\nDuration: {self.duration}",
             color=0x3498DB,
         )
         details = (
             f"Uploader: {self.uploader}\n"
             f"Uploaded: {self.time_since_upload}\n"
-            f"Duration: {self.duration}\n"
             f"Views: {self.views}\n"
             f"Likes: {self.like_count}\n"
             f"Comments: {self.comment_count}"
@@ -86,7 +85,7 @@ class Song:
     def to_short_embed(self):
         embed = discord.Embed(
             title=f"Now Playing: {self.title}",
-            description=f"Requested by <@{self.message.author.id}>\n",
+            description=f"Requested by <@{self.message.author.id}>\nDuration: {self.duration}\n",
             color=0x3498DB,
         )
         return embed

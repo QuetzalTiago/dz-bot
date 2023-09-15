@@ -64,9 +64,10 @@ class MusicService:
 
         if not silent:
             await song.message.channel.send(
-                f"Now playing: **{song.title}** as requested by <@{song.message.author.id}> \n"
+                f"Now playing: **{song.title}** \n"
+                f"||Requested by <@{song.message.author.id}> \n"
                 f"Views: **{song.views}** \n"
-                f"Duration: **{song.duration}**"
+                f"Duration: **{song.duration}**||"
             )
 
     def is_playing(self):

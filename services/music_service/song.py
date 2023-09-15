@@ -68,7 +68,7 @@ class Song:
     def to_embed(self):
         embed = discord.Embed(
             title=f"Now Playing: {self.title}",
-            description=f"Requested by <@{self.message.author.id}>\nDuration: {self.duration}",
+            description=f"Duration: {self.duration}",
             color=0x3498DB,
         )
         details = (
@@ -77,6 +77,7 @@ class Song:
             f"Views: {self.views}\n"
             f"Likes: {self.like_count}\n"
             f"Comments: {self.comment_count}"
+            f"Requested by <@{self.message.author.id}>\n"
         )
         embed.add_field(name="Details", value=details, inline=False)
 

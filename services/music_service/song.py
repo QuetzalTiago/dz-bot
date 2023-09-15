@@ -36,26 +36,47 @@ class Song:
         return "{:,}".format(self.info.get("like_count", 0))
 
     @property
-    def dislike_count(self):
-        return "{:,}".format(self.info.get("dislike_count", 0))
-
-    @property
     def comment_count(self):
         return "{:,}".format(self.info.get("comment_count", 0))
 
+    @property
+    def upload_date(self):
+        raw_date = self.info.get("upload_date", None)
+        if raw_date:
+            return datetime.datetime.strptime(raw_date, "%Y%m%d").date()
+        return None
+
+    @property
+    def time_since_upload(self):
+        if self.upload_date:
+            delta = datetime.date.today() - self.upload_date
+
+            if delta.days >= 365:
+                years = delta.days // 365
+                return f"{years} year{'s' if years > 1 else ''} ago"
+            elif delta.days >= 30:
+                months = delta.days // 30
+                return f"{months} month{'s' if months > 1 else ''} ago"
+            elif delta.days > 0:
+                return f"{delta.days} day{'s' if delta.days > 1 else ''} ago"
+            else:
+                # if the song was uploaded today
+                return "today"
+
+        return "N/A"
+
     def to_embed(self):
         embed = discord.Embed(
-            title=self.title,
+            title=f"Now Playing: {self.title}",
             description=f"Requested by <@{self.message.author.id}>",
             color=0x3498DB,
         )
         details = (
             f"Uploader: {self.uploader}\n"
-            f"Upload Date: {self.upload_date}\n"
+            f"Uploaded: {self.time_since_upload}\n"
             f"Duration: {self.duration}\n"
             f"Views: {self.views}\n"
             f"Likes: {self.like_count}\n"
-            f"Dislikes: {self.dislike_count}\n"
             f"Comments: {self.comment_count}"
         )
         embed.add_field(name="Details", value=details, inline=False)

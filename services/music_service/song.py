@@ -76,7 +76,7 @@ class Song:
             color=0x3498DB,
         )
         details = (
-            f"{self.duration}"
+            f"{self.duration}\n"
             f"{self.uploader}\n"
             f"{self.time_since_upload}\n"
             f"{self.views} views\n"

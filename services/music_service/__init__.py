@@ -14,6 +14,7 @@ class MusicService:
         self.voice_client = None
         self.loop = False
         self.file_service = FileService()
+        self.last_song = None
 
     async def initialize(self):
         self.client.loop.create_task(self.background_task())
@@ -21,21 +22,16 @@ class MusicService:
 
     async def background_task(self):
         await self.client.wait_until_ready()
-        last_song = None  # Keep track of the last song that was playing
         while not self.client.is_closed():
             if not self.is_playing() and not self.file_service.is_downloading():
-                if last_song and last_song.message:
-                    await self.delete_song_log(last_song.message)
-                    last_song = None
+                if self.last_song and self.last_song.message:
+                    await self.delete_song_log(self.last_song.message_to_delete)
 
                 if self.loop and self.current_song:
                     await self.play_song(self.current_song, True)
                 elif self.queue:
                     next_song = self.queue.pop(0)
                     await self.play_song(next_song)
-                    last_song = (
-                        self.current_song
-                    )  # Set the last song to the current song after it starts
                 elif self.voice_client and self.voice_client.is_connected():
                     await self.voice_client.disconnect()
 
@@ -45,7 +41,6 @@ class MusicService:
         try:
             await message.delete()
         except discord.NotFound:
-            # The message was already deleted.
             pass
         except discord.HTTPException:
             print("Failed to delete the song log message.")
@@ -83,23 +78,10 @@ class MusicService:
         if not silent:
             embed = song.to_short_embed()
             msg = await song.message.channel.send(embed=embed)
+            song.message_to_delete = msg
 
-            await msg.add_reaction("🔍")
-
-            # Check for reactions
-            def check(reaction, user):
-                return user != self.client.user and str(reaction.emoji) == "🔍"
-
-            try:
-                reaction, user = await self.client.wait_for(
-                    "reaction_add", timeout=60.0, check=check
-                )
-            except asyncio.TimeoutError:
-                await msg.remove_reaction("🔍", self.client.user)
-            else:
-                # Edit the message to display the full embed
-                full_embed = song.to_embed()
-            await msg.edit(embed=full_embed)
+        # Store the current song as the last song
+        self.last_song = song
 
     def is_playing(self):
         return self.voice_client and self.voice_client.is_playing()

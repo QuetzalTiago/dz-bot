@@ -21,16 +21,34 @@ class MusicService:
 
     async def background_task(self):
         await self.client.wait_until_ready()
+        last_song = None  # Keep track of the last song that was playing
         while not self.client.is_closed():
             if not self.is_playing() and not self.file_service.is_downloading():
+                if last_song and last_song.message:
+                    await self.delete_song_log(last_song.message)
+                    last_song = None
+
                 if self.loop and self.current_song:
                     await self.play_song(self.current_song, True)
                 elif self.queue:
                     next_song = self.queue.pop(0)
                     await self.play_song(next_song)
+                    last_song = (
+                        self.current_song
+                    )  # Set the last song to the current song after it starts
                 elif self.voice_client and self.voice_client.is_connected():
                     await self.voice_client.disconnect()
+
             await asyncio.sleep(1)
+
+    async def delete_song_log(self, message):
+        try:
+            await message.delete()
+        except discord.NotFound:
+            # The message was already deleted.
+            pass
+        except discord.HTTPException:
+            print("Failed to delete the song log message.")
 
     async def join_voice_channel(self, message):
         voice_channel = message.author.voice.channel
@@ -77,7 +95,6 @@ class MusicService:
                     "reaction_add", timeout=60.0, check=check
                 )
             except asyncio.TimeoutError:
-                # You can remove the reaction after a certain timeout, if you'd like.
                 await msg.remove_reaction("🔍", self.client.user)
             else:
                 # Edit the message to display the full embed

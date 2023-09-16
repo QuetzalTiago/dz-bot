@@ -76,7 +76,7 @@ class Song:
             f"Uploaded: {self.time_since_upload}\n"
             f"Views: {self.views}\n"
             f"Likes: {self.like_count}\n"
-            f"Comments: {self.comment_count}"
+            f"Comments: {self.comment_count}\n"
             f"Requested by <@{self.message.author.id}>\n"
         )
         embed.add_field(name="Details", value=details, inline=False)

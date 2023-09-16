@@ -70,7 +70,7 @@ class MusicService:
 
             # Check for reactions
             def check(reaction, user):
-                return user != self.client.user and str(reaction.emoji) == "📜"
+                return user != self.client.user and str(reaction.emoji) == "🔍"
 
             try:
                 reaction, user = await self.client.wait_for(
@@ -78,7 +78,7 @@ class MusicService:
                 )
             except asyncio.TimeoutError:
                 # You can remove the reaction after a certain timeout, if you'd like.
-                await msg.remove_reaction("📜", self.client.user)
+                await msg.remove_reaction("🔍", self.client.user)
             else:
                 # Edit the message to display the full embed
                 full_embed = song.to_embed()

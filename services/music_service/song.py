@@ -73,10 +73,10 @@ class Song:
     def to_embed(self):
         embed = discord.Embed(
             title=f"Now Playing: {self.title}",
-            description=f"{self.duration}",
             color=0x3498DB,
         )
         details = (
+            f"{self.duration}"
             f"{self.uploader}\n"
             f"{self.time_since_upload}\n"
             f"{self.views} views\n"

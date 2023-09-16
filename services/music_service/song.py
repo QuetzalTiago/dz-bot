@@ -15,7 +15,11 @@ class Song:
 
     @property
     def duration(self):
-        return str(datetime.timedelta(seconds=self.info["duration"]))
+        total_seconds = self.info["duration"]
+
+        minutes, seconds = divmod(total_seconds, 60)
+
+        return "{}:{:02}".format(minutes, seconds)
 
     @property
     def views(self):
@@ -69,7 +73,7 @@ class Song:
     def to_embed(self):
         embed = discord.Embed(
             title=f"Now Playing: {self.title}",
-            description=f"**{self.duration}**",
+            description=f"{self.duration}",
             color=0x3498DB,
         )
         details = (
@@ -80,6 +84,6 @@ class Song:
             f"{self.comment_count} comments\n"
             f"Requested by <@{self.message.author.id}>"
         )
-        embed.add_field(name="Details", value=details, inline=False)
+        embed.add_field(name="About", value=details, inline=False)
 
         return embed

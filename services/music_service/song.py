@@ -86,7 +86,7 @@ class Song:
     def to_short_embed(self):
         embed = discord.Embed(
             title=f"Now Playing: {self.title}",
-            description=f"Requested by <@{self.message.author.id}>\nDuration: {self.duration}\n",
+            description=f"Duration: {self.duration}\n",
             color=0x3498DB,
         )
         return embed

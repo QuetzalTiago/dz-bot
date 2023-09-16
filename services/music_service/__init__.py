@@ -66,8 +66,7 @@ class MusicService:
             embed = song.to_short_embed()
             msg = await song.message.channel.send(embed=embed)
 
-            # Add the reaction emoji to the message (e.g., '📜' for more info)
-            await msg.add_reaction("📜")
+            await msg.add_reaction("🔍")
 
             # Check for reactions
             def check(reaction, user):

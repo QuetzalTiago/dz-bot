@@ -76,7 +76,6 @@ class Song:
             color=0x3498DB,
         )
         details = (
-            f"{self.duration}\n"
             f"{self.uploader}\n"
             f"{self.time_since_upload}\n"
             f"{self.views} views\n"
@@ -84,6 +83,6 @@ class Song:
             f"{self.comment_count} comments\n"
             f"Requested by <@{self.message.author.id}>"
         )
-        embed.add_field(name="About", value=details, inline=False)
+        embed.add_field(name=self.duration, value=details, inline=False)
 
         return embed

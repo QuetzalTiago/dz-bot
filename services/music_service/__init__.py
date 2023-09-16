@@ -26,7 +26,6 @@ class MusicService:
             if not self.is_playing() and not self.file_service.is_downloading():
                 if self.last_song and self.last_song.message:
                     await self.delete_song_log(self.last_song.message_to_delete)
-
                 if self.loop and self.current_song:
                     await self.play_song(self.current_song, True)
                 elif self.queue:
@@ -76,11 +75,10 @@ class MusicService:
         self.current_song = song
 
         if not silent:
-            embed = song.to_short_embed()
+            embed = song.to_embed()
             msg = await song.message.channel.send(embed=embed)
             song.message_to_delete = msg
 
-        # Store the current song as the last song
         self.last_song = song
 
     def is_playing(self):

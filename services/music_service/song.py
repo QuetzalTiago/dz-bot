@@ -7,6 +7,7 @@ class Song:
         self.path = path
         self.info = info
         self.message = message
+        self.message_to_delete = None
 
     @property
     def title(self):
@@ -81,12 +82,4 @@ class Song:
         )
         embed.add_field(name="Details", value=details, inline=False)
 
-        return embed
-
-    def to_short_embed(self):
-        embed = discord.Embed(
-            title=f"Now Playing: {self.title}",
-            description=f"Duration: **{self.duration}**\n",
-            color=0x3498DB,
-        )
         return embed

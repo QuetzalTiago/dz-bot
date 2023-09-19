@@ -14,6 +14,15 @@ class PlayCommand(BaseCommand):
         return "Searches for the song on YouTube and plays it in the current voice channel."
 
     async def execute(self):
+        voice_channel = None
+        try:
+            voice_channel = await self.music_service.join_voice_channel(self.message)
+        except:
+            pass
+
+        if not voice_channel:
+            return
+
         if self.message.content.startswith("play"):
             song_name = self.message.content[5:].strip()
         else:
@@ -31,7 +40,6 @@ class PlayCommand(BaseCommand):
             )
 
         if path and info:
-            await self.music_service.join_voice_channel(self.message)
             await self.music_service.add_to_queue(path, info, self.message)
             await self.message.clear_reactions()
             await self.message.add_reaction("✅")

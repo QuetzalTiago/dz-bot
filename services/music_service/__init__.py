@@ -53,6 +53,7 @@ class MusicService:
         if message.author.voice is None:
             await message.channel.send("You are not connected to a voice channel!")
             await message.clear_reactions()
+            await message.add_reaction("❌")
             return
 
         voice_channel = message.author.voice.channel

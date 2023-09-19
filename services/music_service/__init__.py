@@ -62,6 +62,8 @@ class MusicService:
         except:
             pass
 
+        return self.voice_client
+
     async def add_to_queue(self, song_path, song_info, message):
         song = Song(song_path, song_info, message)
         self.queue.append(song)

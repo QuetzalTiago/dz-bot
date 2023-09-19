@@ -15,6 +15,7 @@ class PlayCommand(BaseCommand):
 
     async def execute(self):
         voice_channel = None
+
         try:
             voice_channel = await self.music_service.join_voice_channel(self.message)
         except:

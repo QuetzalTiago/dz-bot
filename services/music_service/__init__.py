@@ -125,7 +125,7 @@ class MusicService:
 
     async def handle_voice_state_update(self, member, before, after):
         if member == self.client.user and after.channel is None:
-            await self.cleanup()
+            await self.stop()
 
         if self.current_voice_channel:
             voice_channel_members = self.current_voice_channel.members

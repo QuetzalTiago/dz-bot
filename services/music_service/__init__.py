@@ -117,3 +117,17 @@ class MusicService:
     async def toggle_loop(self):
         self.loop = not self.loop
         return "on" if self.loop else "off"
+
+    async def cleanup(self):
+        if self.voice_client and self.voice_client.is_playing():
+            self.voice_client.stop()
+
+        self.queue = []
+
+        self.current_song = None
+        self.last_song = None
+
+        if self.voice_client and self.voice_client.is_connected():
+            await self.voice_client.disconnect()
+
+        print("Music service cleaned up.")

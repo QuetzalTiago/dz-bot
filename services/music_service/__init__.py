@@ -11,7 +11,6 @@ class MusicService:
         self.client = client
         self.queue = []
         self.current_song = None
-        self.current_voice_channel = None
         self.voice_client = None
         self.loop = False
         self.file_service = FileService()
@@ -49,7 +48,6 @@ class MusicService:
         voice_channel = message.author.voice.channel
         try:
             self.voice_client = await voice_channel.connect()
-            self.current_voice_channel = voice_channel
         except:
             pass
 
@@ -111,7 +109,6 @@ class MusicService:
             await message.channel.send("DJ Khaled is not playing anything!")
 
         self.queue = []
-        self.current_voice_channel = None
         self.current_song = None
         self.last_song = None
 
@@ -124,14 +121,9 @@ class MusicService:
         return "on" if self.loop else "off"
 
     async def handle_voice_state_update(self, member, before, after):
-        if member == self.client.user and after.channel is None:
+        if member == self.client.user and after is None:
             await self.stop()
 
-        if self.current_voice_channel:
-            voice_channel_members = self.current_voice_channel.members
-            if (
-                len(voice_channel_members) == 1
-                and voice_channel_members[0] == self.client.user
-            ):
-                print("Bot is alone in the voice channel. Leaving...")
-                await self.stop()
+        elif self.voice_client and len(self.voice_client.channel.members) == 1:
+            print("Bot is alone in the voice channel. Leaving...")
+            await self.stop()

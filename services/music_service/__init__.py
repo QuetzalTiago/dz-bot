@@ -140,12 +140,11 @@ class MusicService:
         if member == self.client.user and after.channel is None:
             await self.cleanup()
 
-        elif member == self.client.user:
-            if self.current_voice_channel:
-                voice_channel_members = self.current_voice_channel.members
-                if (
-                    len(voice_channel_members) == 1
-                    and voice_channel_members[0] == self.client.user
-                ):
-                    print("Bot is alone in the voice channel. Leaving...")
-                    await self.cleanup()
+        if self.current_voice_channel:
+            voice_channel_members = self.current_voice_channel.members
+            if (
+                len(voice_channel_members) == 1
+                and voice_channel_members[0] == self.client.user
+            ):
+                print("Bot is alone in the voice channel. Leaving...")
+                await self.cleanup()

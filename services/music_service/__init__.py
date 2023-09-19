@@ -37,7 +37,7 @@ class MusicService:
             if self.voice_client and self.voice_client.channel:
                 members_in_channel = len(self.voice_client.channel.members)
                 if members_in_channel == 1:
-                    await self.stop(None)
+                    await self.stop()
 
             await asyncio.sleep(1)
 

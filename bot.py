@@ -28,9 +28,7 @@ class MyClient(discord.Client):
         await self.command_service.handle_command(message)
 
     async def on_voice_state_update(self, member, before, after):
-        if member == self.user and before.channel is not None and after.channel is None:
-            print("Bot was removed from a voice channel.")
-            await self.music_service.cleanup()
+        await self.music_service.handle_voice_state_update(member, before, after)
 
 
 intents = discord.Intents.default()

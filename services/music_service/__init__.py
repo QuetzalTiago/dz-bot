@@ -132,3 +132,21 @@ class MusicService:
             await self.voice_client.disconnect()
 
         print("Music service cleaned up.")
+
+    async def handle_voice_state_update(self, member, before, after):
+        if (
+            member == self.client.user
+            and before.channel is not None
+            and after.channel is None
+        ):
+            print("Bot was removed from a voice channel.")
+            await self.cleanup()
+
+        elif after.channel and member == self.client.user:
+            voice_channel_members = after.channel.members
+            if (
+                len(voice_channel_members) == 1
+                and voice_channel_members[0] == self.client.user
+            ):
+                print("Bot is alone in the voice channel. Leaving...")
+                await self.stop()

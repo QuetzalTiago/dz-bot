@@ -11,6 +11,7 @@ class MusicService:
         self.client = client
         self.queue = []
         self.current_song = None
+        self.current_voice_channel = None
         self.voice_client = None
         self.loop = False
         self.file_service = FileService()
@@ -48,6 +49,7 @@ class MusicService:
         voice_channel = message.author.voice.channel
         try:
             self.voice_client = await voice_channel.connect()
+            self.current_voice_channel = voice_channel
         except:
             pass
 
@@ -127,6 +129,7 @@ class MusicService:
         self.current_song = None
         self.last_song = None
         self.loop = False
+        self.current_voice_channel = None
 
         if self.voice_client and self.voice_client.is_connected():
             await self.voice_client.disconnect()
@@ -134,19 +137,15 @@ class MusicService:
         print("Music service cleaned up.")
 
     async def handle_voice_state_update(self, member, before, after):
-        if (
-            member == self.client.user
-            and before.channel is not None
-            and after.channel is None
-        ):
-            print("Bot was removed from a voice channel.")
+        if member == self.client.user and after.channel is None:
             await self.cleanup()
 
-        elif after.channel and member == self.client.user:
-            voice_channel_members = after.channel.members
-            if (
-                len(voice_channel_members) == 1
-                and voice_channel_members[0] == self.client.user
-            ):
-                print("Bot is alone in the voice channel. Leaving...")
-                await self.stop()
+        elif member == self.client.user:
+            if self.current_voice_channel:
+                voice_channel_members = self.current_voice_channel.members
+                if (
+                    len(voice_channel_members) == 1
+                    and voice_channel_members[0] == self.client.user
+                ):
+                    print("Bot is alone in the voice channel. Leaving...")
+                    await self.cleanup()

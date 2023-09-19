@@ -104,6 +104,9 @@ class MusicService:
         return queue_info
 
     async def stop(self, message=None):
+        if self.last_song and self.last_song.message_to_delete:
+            await self.delete_song_log(self.last_song.message_to_delete)
+
         if self.voice_client and self.voice_client.is_connected():
             if self.voice_client.is_playing():
                 self.voice_client.stop()

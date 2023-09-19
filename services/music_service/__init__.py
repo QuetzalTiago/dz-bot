@@ -103,7 +103,7 @@ class MusicService:
 
         return queue_info
 
-    async def stop(self, message):
+    async def stop(self, message=None):
         if self.voice_client and self.voice_client.is_connected():
             if self.voice_client.is_playing():
                 self.voice_client.stop()

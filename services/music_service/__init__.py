@@ -126,6 +126,7 @@ class MusicService:
 
         self.current_song = None
         self.last_song = None
+        self.loop = False
 
         if self.voice_client and self.voice_client.is_connected():
             await self.voice_client.disconnect()

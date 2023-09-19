@@ -131,9 +131,6 @@ class MusicService:
         self.loop = False
         self.current_voice_channel = None
 
-        if self.voice_client and self.voice_client.is_connected():
-            await self.voice_client.disconnect()
-
         print("Music service cleaned up.")
 
     async def handle_voice_state_update(self, member, before, after):

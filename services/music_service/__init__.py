@@ -105,15 +105,15 @@ class MusicService:
             if self.voice_client.is_playing():
                 self.voice_client.stop()
 
-            self.queue = []
-            self.current_voice_channel = None
-            self.current_song = None
-            self.last_song = None
-
             if self.voice_client:
                 await self.voice_client.disconnect()
         else:
             await message.channel.send("DJ Khaled is not playing anything!")
+
+        self.queue = []
+        self.current_voice_channel = None
+        self.current_song = None
+        self.last_song = None
 
     async def clear(self, message):
         self.queue = []

@@ -50,6 +50,11 @@ class MusicService:
             print("Failed to delete the song log message.")
 
     async def join_voice_channel(self, message):
+        if message.author.voice is None:
+            await message.channel.send("You are not connected to a voice channel!")
+            await message.clear_reactions()
+            return
+
         voice_channel = message.author.voice.channel
         try:
             self.voice_client = await voice_channel.connect()

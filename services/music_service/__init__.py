@@ -106,6 +106,9 @@ class MusicService:
                 self.voice_client.stop()
 
             self.queue = []
+            self.current_voice_channel = None
+            self.current_song = None
+            self.last_song = None
 
             if self.voice_client:
                 await self.voice_client.disconnect()
@@ -120,19 +123,6 @@ class MusicService:
         self.loop = not self.loop
         return "on" if self.loop else "off"
 
-    async def cleanup(self):
-        if self.voice_client and self.voice_client.is_playing():
-            self.voice_client.stop()
-
-        self.queue = []
-
-        self.current_song = None
-        self.last_song = None
-        self.loop = False
-        self.current_voice_channel = None
-
-        print("Music service cleaned up.")
-
     async def handle_voice_state_update(self, member, before, after):
         if member == self.client.user and after.channel is None:
             await self.cleanup()
@@ -144,4 +134,4 @@ class MusicService:
                 and voice_channel_members[0] == self.client.user
             ):
                 print("Bot is alone in the voice channel. Leaving...")
-                await self.cleanup()
+                await self.stop()

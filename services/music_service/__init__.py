@@ -34,6 +34,11 @@ class MusicService:
                 elif self.voice_client and self.voice_client.is_connected():
                     await self.voice_client.disconnect()
 
+            if self.voice_client and self.voice_client.channel:
+                members_in_channel = len(self.voice_client.channel.members)
+                if members_in_channel == 1:
+                    await self.stop(None)
+
             await asyncio.sleep(1)
 
     async def delete_song_log(self, message):
@@ -122,8 +127,4 @@ class MusicService:
 
     async def handle_voice_state_update(self, member, before, after):
         if member == self.client.user and after is None:
-            await self.stop()
-
-        elif self.voice_client and len(self.voice_client.channel.members) == 1:
-            print("Bot is alone in the voice channel. Leaving...")
             await self.stop()

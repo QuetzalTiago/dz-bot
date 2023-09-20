@@ -58,7 +58,7 @@ class FileService:
                     datetime.timedelta(seconds=self.max_duration)
                 )
                 await message.channel.send(
-                    f"Video too long. Duration: **{duration_readable}**\nMax duration is {max_duration_readable}"
+                    f"Video too long. Duration: **{duration_readable}**\nMax duration is **{max_duration_readable}**."
                 )
                 self.downloading = False
                 return

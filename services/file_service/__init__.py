@@ -60,8 +60,8 @@ class FileService:
                 await message.channel.send(
                     f"Video too long. Duration: **{duration_readable}**\nMax duration is **{max_duration_readable}**."
                 )
-                await self.message.clear_reactions()
-                await self.message.add_reaction("❌")
+                await message.clear_reactions()
+                await message.add_reaction("❌")
 
                 self.downloading = False
                 return

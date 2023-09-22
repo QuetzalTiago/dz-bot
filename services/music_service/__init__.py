@@ -32,7 +32,7 @@ class MusicService:
                     next_song = self.queue.pop(0)
                     await self.play_song(next_song)
                 elif self.voice_client and self.voice_client.is_connected():
-                    await self.voice_client.disconnect()
+                    await self.stop()
 
             if self.voice_client and self.voice_client.channel:
                 members_in_channel = len(self.voice_client.channel.members)
@@ -116,7 +116,8 @@ class MusicService:
             if self.voice_client:
                 await self.voice_client.disconnect()
         else:
-            await message.channel.send("DJ Khaled is not playing anything!")
+            if message:
+                await message.channel.send("DJ Khaled is not playing anything!")
 
         self.queue = []
         self.current_song = None

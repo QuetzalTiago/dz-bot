@@ -42,7 +42,8 @@ class Song:
 
     @property
     def comment_count(self):
-        return "{:,}".format(self.info.get("comment_count", 0))
+        comment_count = self.info.get("comment_count", 0)
+        return "{:,}".format(comment_count) if comment_count is not None else "N/A"
 
     @property
     def upload_date(self):

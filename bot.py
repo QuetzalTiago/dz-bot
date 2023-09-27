@@ -14,6 +14,9 @@ token = config["secrets"]["discordToken"]
 class MyClient(discord.Client):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.initialize_services()
+
+    def initialize_services(self):
         self.music_service = MusicService(self)
         self.command_service = CommandService(self)
 
@@ -29,6 +32,10 @@ class MyClient(discord.Client):
 
     async def on_voice_state_update(self, member, before, after):
         await self.music_service.handle_voice_state_update(member, before, after)
+
+    async def reset(self):
+        self.initialize_services()
+        print("Bot has been reset!")
 
 
 intents = discord.Intents.default()

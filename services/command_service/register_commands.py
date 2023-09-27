@@ -10,6 +10,7 @@ from services.command_service.commands.chess import ChessCommand
 from services.command_service.commands.emoji import EmojiCommand
 from services.command_service.commands.help import HelpCommand
 from services.command_service.commands.purge import PurgeCommand
+from services.command_service.commands.restart import RestartCommand
 
 
 def register_commands(client):
@@ -40,6 +41,13 @@ def register_commands(client):
     # Purge
     client.command_service.register_command(
         "purge", PurgeCommand, False, command_service
+    )
+
+    # Restart
+    client.command_service.register_command(
+        "restart",
+        RestartCommand,
+        False,
     )
 
     # Help

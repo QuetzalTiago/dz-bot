@@ -19,10 +19,10 @@ class MyClient(discord.Client):
     def initialize_services(self):
         self.music_service = MusicService(self)
         self.command_service = CommandService(self)
+        register_commands(self)
 
     async def on_ready(self):
         print("Logged on as", self.user)
-        register_commands(self)
         await self.music_service.initialize()
 
     async def on_message(self, message):

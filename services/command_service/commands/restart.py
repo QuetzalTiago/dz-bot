@@ -13,3 +13,5 @@ class RestartCommand(BaseCommand):
     async def execute(self):
         await self.message.add_reaction("🔄")
         await self.client.reset()
+        await self.message.clear_reactions()
+        await self.message.add_reaction("✅")

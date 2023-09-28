@@ -3,3 +3,5 @@ config.json
 *.part
 *.ytdl
 __pycache__
+error.txt
+output.txt

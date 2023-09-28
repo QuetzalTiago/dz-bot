@@ -1,5 +1,7 @@
 import discord
 import json
+import subprocess
+import sys
 
 from services.command_service import CommandService
 from services.command_service.register_commands import register_commands
@@ -34,12 +36,17 @@ class MyClient(discord.Client):
         await self.music_service.handle_voice_state_update(member, before, after)
 
     async def reset(self):
-        self.initialize_services()
-        print("Bot has been reset!")
+        subprocess.call(["aws/scripts/application-start.sh"])
+        sys.exit(0)
 
 
-intents = discord.Intents.default()
-intents.message_content = True
-intents.voice_states = True
-client = MyClient(intents=intents)
-client.run(token)
+def run_bot():
+    intents = discord.Intents.default()
+    intents.message_content = True
+    intents.voice_states = True
+    client = MyClient(intents=intents)
+    client.run(token)
+
+
+if __name__ == "__main__":
+    run_bot()

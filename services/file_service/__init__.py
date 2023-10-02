@@ -72,9 +72,52 @@ class FileService:
 
         return f"{file_name}.{self.audio_format}", info
 
-    async def download_from_spotify(self, song_name, message):
-        # TODO
-        pass
+    async def get_youtube_playlist_songs(self, playlist_url):
+        song_names = []
+
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": self.audio_format,
+                    "preferredquality": str(self.audio_quality),
+                },
+            ],
+            "outtmpl": f"%(title)s_{uuid.uuid4().int}.%(ext)s",
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            playlist_info = ydl.extract_info(playlist_url, download=False)
+            if not playlist_info.get("_type", "") == "playlist":
+                print(f"This doesn't seem like a playlist URL.")
+                return []
+
+            for entry in playlist_info["entries"]:
+                song_names.append(entry["title"])
+
+        return song_names
+
+    async def get_spotify_name(self, song_name):
+        track_id = song_name.split("/")[-1].split("?")[0]
+        track = self.spotify.track(track_id)
+
+        artist = track["artists"][0]["name"]
+        song_name = track["name"]
+
+        return f"{artist} - {song_name}"
+
+    async def get_spotify_playlist_songs(self, playlist_url):
+        playlist_id = playlist_url.split("/")[-1].split("?")[0]
+        results = self.spotify.playlist_tracks(playlist_id)
+        songs = []
+        for item in results["items"]:
+            track = item["track"]
+            artist = track["artists"][0]["name"]
+            song_name = track["name"]
+            songs.append(f"{artist} - {song_name}")
+
+        return songs
 
     def delete_file(self, file_path):
         try:

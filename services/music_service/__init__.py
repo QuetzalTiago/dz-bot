@@ -62,9 +62,6 @@ class MusicService:
         song = Song(song_path, song_info, message)
         self.queue.append(song)
 
-        if self.is_playing():
-            await message.channel.send(f"**{song.title}** has been added to the queue!")
-
     async def play_song(self, song, silent=False):
         if self.is_playing() or self.file_service.is_downloading():
             return

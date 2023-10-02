@@ -1,3 +1,4 @@
+import asyncio
 from services.file_service import FileService
 from services.music_service import MusicService
 from ..base import BaseCommand
@@ -28,16 +29,47 @@ class PlayCommand(BaseCommand):
         await self.message.add_reaction("⌛")
 
         if "spotify.com" in song_name:
-            path, info = await self.file_service.download_from_spotify(
-                song_name, self.message
-            )
+            if "/playlist/" in song_name:
+                song_names = await self.file_service.get_spotify_playlist_songs(
+                    song_name
+                )
+                await self.play_songs_from_list(song_names)
+            else:
+                spotify_name = await self.file_service.get_spotify_name(song_name)
+                path, info = await self.file_service.download_from_youtube(
+                    spotify_name, self.message
+                )
+                await self.play_song(path, info)
+
+        elif "list=" in song_name:  # YouTube playlist
+            song_names = await self.file_service.get_youtube_playlist_songs(song_name)
+            await self.play_songs_from_list(song_names)
+
         else:
             path, info = await self.file_service.download_from_youtube(
                 song_name, self.message
             )
+            await self.play_song(path, info)
 
-        if path and info:
+        await self.message.clear_reactions()
+        await self.message.add_reaction("✅")
+
+    async def play_song(self, path, info):
+        if not self.music_service.is_playing():
             await self.music_service.join_voice_channel(self.message)
+        await self.music_service.add_to_queue(path, info, self.message)
+
+    async def play_songs_from_list(self, song_names):
+        first_song = song_names.pop(0)
+        path, info = await self.file_service.download_from_youtube(
+            first_song, self.message
+        )
+        await self.play_song(path, info)
+
+        await asyncio.sleep(3)
+
+        for song_name in song_names:
+            path, info = await self.file_service.download_from_youtube(
+                song_name, self.message
+            )
             await self.music_service.add_to_queue(path, info, self.message)
-            await self.message.clear_reactions()
-            await self.message.add_reaction("✅")

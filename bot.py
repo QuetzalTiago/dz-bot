@@ -36,7 +36,7 @@ class MyClient(discord.Client):
         await self.music_service.handle_voice_state_update(member, before, after)
 
     async def reset(self):
-        await subprocess.call(["aws/scripts/application-start.sh"])
+        subprocess.call(["aws/scripts/application-start.sh"])
         await self.close()
 
 

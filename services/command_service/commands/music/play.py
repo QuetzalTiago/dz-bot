@@ -41,9 +41,9 @@ class PlayCommand(BaseCommand):
                 )
                 await self.play_song(path, info)
 
-        elif "list=" in song_name:  # YouTube playlist
-            song_names = await self.file_service.get_youtube_playlist_songs(song_name)
-            await self.play_songs_from_list(song_names)
+        # elif "list=" in song_name:  # YouTube playlist
+        #     song_names = await self.file_service.get_youtube_playlist_songs(song_name)
+        #     await self.play_songs_from_list(song_names)
 
         else:
             path, info = await self.file_service.download_from_youtube(

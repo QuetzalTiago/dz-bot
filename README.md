@@ -45,6 +45,10 @@ This Discord bot is designed to provide both entertainment and utility functiona
 
 2. Run the main bot script to initialize and bring the bot online.
 
+## Diagram
+
+![DZ-Bot Diagram](https://github.com/QuetzalTiago/dz-bot/blob/main/diagram.png)
+
 ## Additional Information:
 
 This bot is modular and can be extended to add more functionalities. Each functionality is managed by a dedicated service, and adding new commands is as simple as creating a new command class and registering it with the command service.

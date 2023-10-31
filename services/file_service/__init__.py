@@ -19,7 +19,7 @@ class FileService:
                 client_secret=config["secrets"]["spotifyClientSecret"],
             )
         )
-        self.max_duration = 930  # in seconds, 15 minutes
+        self.max_duration = 1200  # in seconds, 20 minutes
         self.audio_quality = 96  # kb/s, max discord channel quality is
         self.audio_format = "mp3"
         self.downloading = False

@@ -11,6 +11,7 @@ from services.command_service.commands.emoji import EmojiCommand
 from services.command_service.commands.help import HelpCommand
 from services.command_service.commands.purge import PurgeCommand
 from services.command_service.commands.restart import RestartCommand
+from services.command_service.commands.div import DivCommand
 
 
 def register_commands(client):
@@ -61,5 +62,9 @@ def register_commands(client):
 
     # Chess
     client.command_service.register_command("chess", ChessCommand, True)
+
+    # Dv
+    client.command_service.register_command("div", DivCommand)
+
 
     print("Commands registered.")

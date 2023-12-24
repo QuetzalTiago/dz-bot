@@ -37,7 +37,7 @@ class MyClient(discord.Client):
         await self.set_first_text_channel_as_main()
         await self.music_service.initialize()
         quote = random.choice(self.dj_khaled_quotes)
-        await self.main_channel.send(f"DJ Khaled is now *ready*! {quote}")
+        await self.main_channel.send(f"DJ Khaled is now **ready**! {quote}")
 
     async def on_message(self, message):
         if message.author == self.user:

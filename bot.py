@@ -25,6 +25,7 @@ class MyClient(discord.Client):
             "Major key.",
             "They don't want us to win.",
             "Bless up.",
+            "Call me asparagus!",
         ]
 
     def initialize_services(self):

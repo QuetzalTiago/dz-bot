@@ -60,17 +60,7 @@ class PlayCommand(BaseCommand):
         await self.music_service.add_to_queue(path, info, self.message)
 
     async def play_songs_from_list(self, song_names):
-        current_song_name = song_names.pop(0)
-        next_song_path, next_song_info = await self.file_service.download_from_youtube(
-            current_song_name, self.message
-        )
-
-        await self.music_service.play_song(next_song_path, next_song_info)
-
         for next_song_name in song_names:
-            while self.music_service.is_playing():
-                await asyncio.sleep(1)
-
             (
                 next_song_path,
                 next_song_info,
@@ -78,10 +68,6 @@ class PlayCommand(BaseCommand):
                 next_song_name, self.message
             )
 
-            while self.music_service.is_playing():
-                await asyncio.sleep(1)  # Check every second, adjust as needed
+            await self.play_song(next_song_path, next_song_info)
 
-            await self.music_service.play_song(next_song_path, next_song_info)
-
-        while self.music_service.is_playing():
-            await asyncio.sleep(1)
+            await asyncio.sleep(5)

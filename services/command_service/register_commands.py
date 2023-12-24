@@ -50,6 +50,11 @@ def register_commands(client):
         RestartCommand,
         False,
     )
+    client.command_service.register_command(
+        "reset",
+        RestartCommand,
+        False,
+    )
 
     # Help
     client.command_service.register_command("help", HelpCommand, False, command_service)
@@ -65,6 +70,5 @@ def register_commands(client):
 
     # Dv
     client.command_service.register_command("div", DivCommand)
-
 
     print("Commands registered.")

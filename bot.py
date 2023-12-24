@@ -1,3 +1,4 @@
+import random
 import discord
 import json
 import subprocess
@@ -16,7 +17,15 @@ token = config["secrets"]["discordToken"]
 class MyClient(discord.Client):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.main_channel = None
         self.initialize_services()
+        self.dj_khaled_quotes = [
+            "Another one.",
+            "We the best.",
+            "Major key.",
+            "They don't want us to win.",
+            "Bless up.",
+        ]
 
     def initialize_services(self):
         self.music_service = MusicService(self)
@@ -25,7 +34,10 @@ class MyClient(discord.Client):
 
     async def on_ready(self):
         print("Logged on as", self.user)
+        await self.set_first_text_channel_as_main()
         await self.music_service.initialize()
+        quote = random.choice(self.dj_khaled_quotes)
+        await self.main_channel.send(f"DJ Khaled is now *ready*! {quote}")
 
     async def on_message(self, message):
         if message.author == self.user:
@@ -34,6 +46,15 @@ class MyClient(discord.Client):
 
     async def on_voice_state_update(self, member, before, after):
         await self.music_service.handle_voice_state_update(member, before, after)
+
+    async def set_first_text_channel_as_main(self):
+        for guild in self.guilds:
+            text_channels = [channel for channel in guild.text_channels]
+            text_channels.sort(key=lambda x: x.position)
+            if text_channels:
+                self.main_channel = text_channels[0]
+                print(f"Main channel set to: {self.main_channel.name}")
+                break
 
     async def reset(self):
         subprocess.call(["aws/scripts/application-start.sh"])

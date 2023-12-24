@@ -52,5 +52,3 @@ This Discord bot is designed to provide both entertainment and utility functiona
 ## Additional Information:
 
 This bot is modular and can be extended to add more functionalities. Each functionality is managed by a dedicated service, and adding new commands is as simple as creating a new command class and registering it with the command service.
-
-**Note:** Please ensure you have appropriate permissions in your Discord server to invite and use bots.

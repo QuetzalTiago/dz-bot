@@ -41,9 +41,15 @@ class PlayCommand(BaseCommand):
                 )
                 await self.play_song(path, info)
 
-        # elif "list=" in song_name:  # YouTube playlist
-        #     song_names = await self.file_service.get_youtube_playlist_songs(song_name)
-        #     await self.play_songs_from_list(song_names)
+        elif "list=" in song_name:  # YouTube playlist
+            await self.message.clear_reactions()
+            await self.message.add_reaction("❌")
+            await self.message.channel.send(
+                "Youtube playlists not yet supported. Try a spotify link instead."
+            )
+            return
+            # song_names = await self.file_service.get_youtube_playlist_songs(song_name)
+            # await self.play_songs_from_list(song_names)
 
         else:
             path, info = await self.file_service.download_from_youtube(
@@ -71,3 +77,6 @@ class PlayCommand(BaseCommand):
             await self.play_song(next_song_path, next_song_info)
 
             await asyncio.sleep(5)
+
+        await self.message.clear_reactions()
+        await self.message.add_reaction("✅")

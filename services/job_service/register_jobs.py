@@ -5,7 +5,7 @@ from services.job_service.job import Job
 from services.job_service.job_types import JobType
 
 
-def register_services(client: Client):
+def register_jobs(client: Client):
     job_serv: JobService = client.job_service
     command_service: CommandService = client.command_service
 

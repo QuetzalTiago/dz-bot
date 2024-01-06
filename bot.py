@@ -2,12 +2,11 @@ import random
 import discord
 import json
 import subprocess
-import sys
 
 from services.command_service import CommandService
 from services.command_service.register_commands import register_commands
 from services.job_service import JobService
-from services.job_service.register_services import register_services
+from services.job_service.register_jobs import register_jobs
 from services.music_service import MusicService
 
 with open("config.json") as f:
@@ -34,9 +33,9 @@ class MyClient(discord.Client):
         self.command_service = CommandService(self)
         self.job_service = JobService()
         register_commands(self)
-        register_services(self)
+        register_jobs(self)
 
-        await self.job_service.start()
+        await self.job_service.initialize()
         await self.music_service.initialize()
 
     async def on_ready(self):

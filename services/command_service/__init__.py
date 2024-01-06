@@ -27,8 +27,8 @@ class CommandService:
             info.append(f"**{trigger}**: {command_class.__str__()}")
         return "\n".join(info)
 
-    async def purgeMessages(self, message):
-        await message.channel.purge(
+    async def purgeMessages(self, channel):
+        await channel.purge(
             limit=100,
             check=lambda m: m.author == self.client.user
             or any(

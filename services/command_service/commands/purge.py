@@ -13,4 +13,4 @@ class PurgeCommand(BaseCommand):
 
     async def execute(self):
         await self.message.add_reaction("⌛")
-        await self.command_service.purgeMessages(self.message)
+        await self.command_service.purgeMessages(self.message.channel)

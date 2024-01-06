@@ -15,5 +15,6 @@ def register_jobs(client: Client):
         (client.main_channel,),  # The arguments as a tuple
         1800,  # Interval
         JobType.PURGE,
+        False,  # Indicates if the job should run at initialization
     )
     job_serv.add_job(purge_job)

@@ -2,10 +2,11 @@ import random
 import discord
 import json
 import subprocess
-import sys
 
 from services.command_service import CommandService
 from services.command_service.register_commands import register_commands
+from services.job_service import JobService
+from services.job_service.register_jobs import register_jobs
 from services.music_service import MusicService
 
 with open("config.json") as f:
@@ -18,7 +19,6 @@ class MyClient(discord.Client):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.main_channel = None
-        self.initialize_services()
         self.dj_khaled_quotes = [
             "Another one.",
             "We the best.",
@@ -28,15 +28,20 @@ class MyClient(discord.Client):
             "Call me asparagus!",
         ]
 
-    def initialize_services(self):
+    async def initialize_services(self):
         self.music_service = MusicService(self)
         self.command_service = CommandService(self)
+        self.job_service = JobService()
         register_commands(self)
+        register_jobs(self)
+
+        await self.job_service.initialize()
+        await self.music_service.initialize()
 
     async def on_ready(self):
         print("Logged on as", self.user)
         await self.set_first_text_channel_as_main()
-        await self.music_service.initialize()
+        await self.initialize_services()
         quote = random.choice(self.dj_khaled_quotes)
         await self.main_channel.send(f"**{quote}**")
         await self.change_presence(

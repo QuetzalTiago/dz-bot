@@ -39,6 +39,11 @@ class MyClient(discord.Client):
         await self.music_service.initialize()
         quote = random.choice(self.dj_khaled_quotes)
         await self.main_channel.send(f"**{quote}**")
+        await self.change_presence(
+            activity=discord.Activity(
+                type=discord.ActivityType.playing, name="another one"
+            )
+        )
 
     async def on_message(self, message):
         if message.author == self.user:

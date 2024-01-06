@@ -35,13 +35,12 @@ class MyClient(discord.Client):
         register_commands(self)
         register_jobs(self)
 
-        await self.job_service.initialize()
         await self.music_service.initialize()
+        await self.job_service.initialize()
 
     async def on_ready(self):
         print("Logged on as", self.user)
         await self.set_first_text_channel_as_main()
-        await self.initialize_services()
         quote = random.choice(self.dj_khaled_quotes)
         await self.main_channel.send(f"**{quote}**")
         await self.change_presence(
@@ -49,6 +48,8 @@ class MyClient(discord.Client):
                 type=discord.ActivityType.playing, name="another one"
             )
         )
+
+        await self.initialize_services()
 
     async def on_message(self, message):
         if message.author == self.user:

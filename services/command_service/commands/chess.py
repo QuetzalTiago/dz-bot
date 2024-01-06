@@ -16,9 +16,11 @@ class ChessCommand(BaseCommand):
 
     async def execute(self):
         time_control = None
+        increment = 3  # Default increment
 
         message_parts = self.message.content.split(" ")
 
+        # Validate and set the time control
         if len(message_parts) > 1:
             time_control = int(message_parts[1])
             if time_control < 1 or time_control > 60:
@@ -27,11 +29,20 @@ class ChessCommand(BaseCommand):
                 )
                 return
 
+        # Validate and set the increment if provided
+        if len(message_parts) > 2:
+            increment = int(message_parts[2])
+            if increment < 0 or increment > 60:  # Assuming 60 as maximum increment
+                await self.message.channel.send(
+                    "Invalid increment. Please specify a number of seconds between 0 and 60."
+                )
+                return
+
         payload = {}
         if time_control is not None:
             payload["clock"] = {
-                "increment": 3,
-                "limit": time_control * 60,
+                "increment": increment,
+                "limit": time_control * 60,  # Time control converted to seconds
             }
 
         await self.message.add_reaction("⌛")

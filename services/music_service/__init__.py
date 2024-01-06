@@ -1,6 +1,7 @@
 import os
 import discord
 import asyncio
+import time
 
 from services.file_service import FileService
 from services.music_service.song import Song
@@ -15,6 +16,7 @@ class MusicService:
         self.loop = False
         self.file_service = FileService()
         self.last_song = None
+        self.disconnect_timer = None
 
     async def initialize(self):
         self.client.loop.create_task(self.background_task())
@@ -31,8 +33,18 @@ class MusicService:
                 elif self.queue:
                     next_song = self.queue.pop(0)
                     await self.play_song(next_song)
-                elif self.voice_client and self.voice_client.is_connected():
-                    await self.stop()
+                elif (
+                    self.voice_client
+                    and self.voice_client.is_connected()
+                    and not self.queue
+                ):
+                    if self.disconnect_timer is None:
+                        self.disconnect_timer = time.time()
+                    elif time.time() - self.disconnect_timer >= 30:
+                        await self.stop()
+                        self.disconnect_timer = None
+                else:
+                    self.disconnect_timer = None
 
             if self.voice_client and self.voice_client.channel:
                 members_in_channel = len(self.voice_client.channel.members)
@@ -61,6 +73,7 @@ class MusicService:
     async def add_to_queue(self, song_path, song_info, message):
         song = Song(song_path, song_info, message)
         self.queue.append(song)
+        self.disconnect_timer = None  # Reset timer when a new song is added
 
     async def play_song(self, song, silent=False):
         if self.is_playing() or self.file_service.is_downloading():
@@ -119,6 +132,7 @@ class MusicService:
         self.queue = []
         self.current_song = None
         self.last_song = None
+        self.disconnect_timer = None  # Reset timer when stopped
 
     async def clear(self, message):
         self.queue = []

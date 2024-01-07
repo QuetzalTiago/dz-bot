@@ -83,7 +83,6 @@ class MyClient(discord.Client):
                 del self.online_users[user_id]  # Remove the user from tracking
 
         elif not before.channel and after.channel:  # User has connected
-            # Record the current time and user's id
             self.online_users[member.id] = datetime.datetime.utcnow()
             print(f"Tracking {member.name}")
         await self.music_service.handle_voice_state_update(member, before, after)

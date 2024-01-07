@@ -7,8 +7,6 @@ import subprocess
 from services.command_service import CommandService
 from services.command_service.register_commands import register_commands
 from services.db_service.db_service import DatabaseService
-
-# from services.db_service.db_service import DatabaseService
 from services.job_service import JobService
 from services.job_service.register_jobs import register_jobs
 from services.music_service import MusicService

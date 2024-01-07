@@ -15,6 +15,7 @@ class StatusCommand(BaseCommand):
 
     async def execute(self):
         user_hours = self.client.db_service.get_user_hours(self.message.author.id)
+        user_hours = round(user_hours, 2)  # rounding off to 2 decimal places
 
         if user_hours < 1:
             await self.message.channel.send(

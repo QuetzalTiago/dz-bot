@@ -12,11 +12,13 @@ from services.command_service.commands.help import HelpCommand
 from services.command_service.commands.purge import PurgeCommand
 from services.command_service.commands.restart import RestartCommand
 from services.command_service.commands.div import DivCommand
+from services.command_service.commands.status import StatusCommand
 
 
 def register_commands(client):
     music_service = client.music_service
     command_service = client.command_service
+    db_service = client.db_service
 
     # Play
     client.command_service.register_command("play", PlayCommand, True, music_service)
@@ -70,5 +72,8 @@ def register_commands(client):
 
     # Dv
     client.command_service.register_command("div", DivCommand)
+
+    # Status
+    client.command_service.register_command("status", StatusCommand, True, db_service)
 
     print("Commands registered.")

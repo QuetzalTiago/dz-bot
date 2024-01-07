@@ -6,3 +6,5 @@ ffmpeg
 spotipy
 pytz
 Pillow
+sqlalchemy
+PyMySQL

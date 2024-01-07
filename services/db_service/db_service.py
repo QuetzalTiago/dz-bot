@@ -79,10 +79,7 @@ class DatabaseService:
         user = session.query(User).filter(User.id == user_id).first()
 
         if user is not None:
-            # Calculate the total duration in hours
-            total_hours = (
-                user.total_duration_seconds / 3600
-            )  # converting seconds to hours
+            total_hours = user.total_duration_seconds / 3600
             session.close()
             return total_hours
         else:

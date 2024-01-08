@@ -86,3 +86,16 @@ class DatabaseService:
             # In case user doesn't exist, return 0 or handle appropriately
             session.close()
             return 0
+
+    def get_all_user_hours(self):
+        session = self.Session()
+        try:
+            # Fetch all users and their durations
+            users = session.query(User.id, User.total_duration_seconds).all()
+            # Convert seconds to hours and return
+            user_hours = [
+                (user_id, total_seconds / 3600) for user_id, total_seconds in users
+            ]
+            return user_hours
+        finally:
+            session.close()

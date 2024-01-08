@@ -1,3 +1,4 @@
+from services.command_service.commands.leaderboard import LeaderboardCommand
 from services.command_service.commands.music.play import PlayCommand
 from services.command_service.commands.music.stop import StopCommand
 from services.command_service.commands.music.skip import SkipCommand
@@ -75,5 +76,11 @@ def register_commands(client):
 
     # Status
     client.command_service.register_command("status", StatusCommand, True, db_service)
+
+    # Leaderboard
+    client.command_service.register_command(
+        "leaderboard", LeaderboardCommand, True, db_service
+    )
+    client.command_service.register_command("lb", LeaderboardCommand, True, db_service)
 
     print("Commands registered.")

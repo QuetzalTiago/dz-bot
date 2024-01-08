@@ -20,7 +20,7 @@ def register_jobs(client: Client):
     # Notify purge
     notify_purge_job = Job(
         client.main_channel.send,
-        ("Purging server in one minute...⌛",),
+        ("Purging in one minute...⌛",),
         1740,
         JobType.PURGE,
     )

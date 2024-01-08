@@ -9,11 +9,19 @@ def register_jobs(client: Client):
     job_serv: JobService = client.job_service
     command_service: CommandService = client.command_service
 
-    # Pass the coroutine function and its arguments separately
+    # Purge
     purge_job = Job(
         command_service.purgeMessages,  # The coroutine function
         (client.main_channel,),  # The arguments as a tuple
         1800,  # Interval
+        JobType.PURGE,
+    )
+
+    # Notify purge
+    purge_job = Job(
+        client.main_channel.send("Purging server in one minute...⌛"),
+        (client.main_channel,),
+        1740,
         JobType.PURGE,
     )
     job_serv.add_job(purge_job)

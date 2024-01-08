@@ -22,7 +22,7 @@ class LeaderboardCommand(BaseCommand):
         leaderboard_message = "🏆 **Leaderboard** 🏆\n\n"
 
         for index, (user_id, hours) in enumerate(sorted_user_hours, start=1):
-            member = await self.client.get_user(user_id)
+            member = await self.client.fetch_user(user_id)
             if member:
                 username = member.name
             else:

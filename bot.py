@@ -35,8 +35,8 @@ class MyClient(discord.Client):
     async def initialize_services(self):
         self.command_service = CommandService(self)
         self.music_service = MusicService(self)
-        self.job_service = JobService()
         self.db_service = DatabaseService(db_url)
+        self.job_service = JobService()
 
         register_commands(self)
         register_jobs(self)
@@ -83,7 +83,9 @@ class MyClient(discord.Client):
         elif not before.channel and after.channel:  # User has connected
             self.online_users[member.id] = datetime.datetime.utcnow()
             print(f"Tracking {member.name}")
-        await self.music_service.handle_voice_state_update(member, before, after)
+
+        if member == self.client.user and after is None:
+            await self.music_service.stop()
 
     async def set_first_text_channel_as_main(self):
         for guild in self.guilds:

@@ -141,7 +141,3 @@ class MusicService:
     async def toggle_loop(self):
         self.loop = not self.loop
         return "on" if self.loop else "off"
-
-    async def handle_voice_state_update(self, member, before, after):
-        if member == self.client.user and after is None:
-            await self.stop()

@@ -7,7 +7,6 @@ class JobService:
     def __init__(self, client):
         self.client = client
         self.jobs = []
-        self.is_running = False
 
     def add_job(self, job: Job):
         self.jobs.append(job)

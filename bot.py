@@ -59,32 +59,32 @@ class MyClient(discord.Client):
         )
 
         await self.initialize_services()
+        await self.update_online_users()
 
     async def on_message(self, message):
         if message.author == self.user:
             return
         await self.command_service.handle_command(message)
 
+    async def update_online_users(self):
+        for guild in self.guilds:
+            for voice_channel in guild.voice_channels:
+                for member in voice_channel.members:
+                    if not member.bot:
+                        self.online_users[member.id] = datetime.datetime.utcnow()
+                        print(f"Tracking already connected user: {member.name}")
+
     async def on_voice_state_update(self, member, before, after):
         if before.channel and not after.channel:  # User has disconnected
             user_id = member.id
             if user_id in self.online_users:  # Check if the user was tracked
-                join_time = self.online_users[user_id]
-                leave_time = datetime.datetime.utcnow()
-                duration = leave_time - join_time  # Calculate the duration
-
-                # Call a method to handle database update
-                self.db_service.update_user_duration(
-                    user_id, int(duration.total_seconds())
-                )
-
                 del self.online_users[user_id]  # Remove the user from tracking
 
         elif not before.channel and after.channel:  # User has connected
             self.online_users[member.id] = datetime.datetime.utcnow()
             print(f"Tracking {member.name}")
 
-        if member == self.client.user and after is None:
+        if member == self.user and after is None:
             await self.music_service.stop()
 
     async def set_first_text_channel_as_main(self):

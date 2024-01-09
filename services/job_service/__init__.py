@@ -25,7 +25,7 @@ class JobService:
                 if current_time - job.last_run >= job.interval:
                     asyncio.create_task(job.run())
 
-            await asyncio.sleep(1)  # Sleep a bit before checking the jobs again
+            await asyncio.sleep(5)  # Sleep a bit before checking the jobs again
 
     def stop(self):
         self.is_running = False

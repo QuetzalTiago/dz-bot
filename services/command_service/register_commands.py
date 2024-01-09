@@ -20,6 +20,7 @@ def register_commands(client):
     music_service = client.music_service
     command_service = client.command_service
     db_service = client.db_service
+    job_service = client.job_service
 
     # Play
     client.command_service.register_command("play", PlayCommand, True, music_service)
@@ -44,7 +45,10 @@ def register_commands(client):
 
     # Purge
     client.command_service.register_command(
-        "purge", PurgeCommand, False, command_service
+        "purge",
+        PurgeCommand,
+        False,
+        command_service,
     )
 
     # Restart
@@ -69,7 +73,7 @@ def register_commands(client):
     client.command_service.register_command("emoji", EmojiCommand, True)
 
     # Chess
-    client.command_service.register_command("chess", ChessCommand, True)
+    client.command_service.register_command("chess", ChessCommand, True, job_service)
 
     # Dv
     client.command_service.register_command("div", DivCommand)

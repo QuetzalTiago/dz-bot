@@ -42,18 +42,17 @@ def register_jobs(client: Client):
         for user_id in client.online_users.keys():
             join_time = client.online_users[user_id]
             leave_time = datetime.datetime.utcnow()
-            duration = leave_time - join_time  # Calculate the duration
+            duration = leave_time - join_time
 
-            # Call a method to handle database update
             client.db_service.update_user_duration(
                 user_id, int(duration.total_seconds())
             )
         await client.update_online_users()
 
     user_duration_job = Job(
-        update_user_durations,  # Function to update user durations
+        update_user_durations,
         60,
-        JobType.UPDATE_DURATION,  # You can define a custom job type
+        JobType.UPDATE_DURATION,
     )
 
     job_service.add_job(user_duration_job)

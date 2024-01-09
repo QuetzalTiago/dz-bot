@@ -28,4 +28,7 @@ class JobService:
                 if current_time - job.last_run >= job.interval:
                     asyncio.create_task(job.run())
 
-            await asyncio.sleep(5)  # Sleep a bit before checking the jobs again
+                    if not job.is_periodic:
+                        self.jobs.remove(job)
+
+            await asyncio.sleep(0.5)  # Sleep a bit before checking the jobs again

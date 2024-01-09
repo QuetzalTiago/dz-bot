@@ -36,7 +36,7 @@ class MyClient(discord.Client):
         self.command_service = CommandService(self)
         self.music_service = MusicService(self)
         self.db_service = DatabaseService(db_url)
-        self.job_service = JobService()
+        self.job_service = JobService(self)
 
         register_commands(self)
         register_jobs(self)

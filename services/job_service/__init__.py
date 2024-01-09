@@ -4,7 +4,8 @@ from services.job_service.job import Job
 
 
 class JobService:
-    def __init__(self):
+    def __init__(self, client):
+        self.client = client
         self.jobs = []
         self.is_running = False
 
@@ -12,9 +13,12 @@ class JobService:
         self.jobs.append(job)
 
     async def initialize(self):
+        self.client.loop.create_task(self.background_task())
         print("Job service initialized.")
-        self.is_running = True
-        while self.is_running:
+
+    async def background_task(self):
+        await self.client.wait_until_ready()
+        while not self.client.is_closed():
             current_time = time.time()
             for job in self.jobs:
                 # If the job never ran, set the last_run to the current time
@@ -26,6 +30,3 @@ class JobService:
                     asyncio.create_task(job.run())
 
             await asyncio.sleep(5)  # Sleep a bit before checking the jobs again
-
-    def stop(self):
-        self.is_running = False

@@ -6,23 +6,35 @@ from services.job_service.job_types import JobType
 
 
 def register_jobs(client: Client):
-    job_serv: JobService = client.job_service
+    job_service: JobService = client.job_service
     command_service: CommandService = client.command_service
 
-    # Purge
+    # # Test job
+    # Pass a lambda or a reference to an async function. For example:
+    # test_job = Job(
+    #     lambda: client.main_channel.send(
+    #         "This is a test job."
+    #     ),  # Lambda
+    #     10,  # Interval
+    #     JobType.TEST,
+    # )
+    #
+    # Add it to the job service. For example:
+    # job_service.add_job(test_job)
+
+    # Purge job
     purge_job = Job(
-        command_service.purgeMessages,  # The coroutine function
-        (client.main_channel,),  # The arguments as a tuple
-        1800,  # Interval
+        lambda: command_service.purgeMessages(client.main_channel),
+        1800,
         JobType.PURGE,
     )
 
-    # Notify purge
+    # Notify purge job
     notify_purge_job = Job(
-        client.main_channel.send,
-        ("Purging messages shortly...⌛",),
+        lambda: client.main_channel.send("Purging messages shortly...⌛"),
         1740,
         JobType.PURGE,
     )
-    job_serv.add_job(purge_job)
-    job_serv.add_job(notify_purge_job)
+
+    job_service.add_job(purge_job)
+    job_service.add_job(notify_purge_job)

@@ -3,6 +3,7 @@ from enum import Enum, auto
 
 class JobType(Enum):
     PURGE = auto()
+    TEST = auto()
 
 
 # You might add more job types as needed, like:

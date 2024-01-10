@@ -11,6 +11,14 @@ class JobService:
     def add_job(self, job: Job):
         self.jobs.append(job)
 
+    async def print_jobs(self):
+        print("-------------------------")
+        print("RUNNING JOBS:")
+        for job in self.jobs:
+            print(job.job_type)
+        print("-------------------------")
+        print("")
+
     def remove_job(self, job_type):
         for job in self.jobs:
             if job.job_type == job_type:
@@ -24,10 +32,6 @@ class JobService:
     async def background_task(self):
         await self.client.wait_until_ready()
         while not self.client.is_closed():
-            print("-------------------------")
-            print("RUNNING JOBS:")
-            for job in self.jobs:
-                print(job.job_type)
             current_time = time.time()
             for job in self.jobs:
                 # If the job never ran, set the last_run to the current time
@@ -41,4 +45,4 @@ class JobService:
                     if not job.is_periodic:
                         self.jobs.remove(job)
 
-            await asyncio.sleep(5)  # Sleep a bit before checking the jobs again
+            await asyncio.sleep(1)  # Sleep a bit before checking the jobs again

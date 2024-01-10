@@ -1,9 +1,10 @@
 import os
 import discord
-import asyncio
 import time
 
 from services.file_service import FileService
+from services.job_service.job import Job
+from services.job_service.job_types import JobType
 from services.music_service.song import Song
 
 
@@ -19,39 +20,36 @@ class MusicService:
         self.disconnect_timer = None
 
     async def initialize(self):
-        self.client.loop.create_task(self.background_task())
+        music_job = Job(lambda: self.background_task(), 1, JobType.MUSIC)
+        self.client.job_service.add_job(music_job)
         print("Music service initialized.")
 
     async def background_task(self):
-        await self.client.wait_until_ready()
-        while not self.client.is_closed():
-            if not self.is_playing() and not self.file_service.is_downloading():
-                if self.last_song and self.last_song.message:
-                    await self.delete_song_log(self.last_song.message_to_delete)
-                if self.loop and self.current_song:
-                    await self.play_song(self.current_song, True)
-                elif self.queue:
-                    next_song = self.queue.pop(0)
-                    await self.play_song(next_song)
-                elif (
-                    self.voice_client
-                    and self.voice_client.is_connected()
-                    and not self.queue
-                ):
-                    if self.disconnect_timer is None:
-                        self.disconnect_timer = time.time()
-                    elif time.time() - self.disconnect_timer >= 30:
-                        await self.stop()
-                        self.disconnect_timer = None
-                else:
-                    self.disconnect_timer = None
-
-            if self.voice_client and self.voice_client.channel:
-                members_in_channel = len(self.voice_client.channel.members)
-                if members_in_channel == 1:
+        if not self.is_playing() and not self.file_service.is_downloading():
+            if self.last_song and self.last_song.message:
+                await self.delete_song_log(self.last_song.message_to_delete)
+            if self.loop and self.current_song:
+                await self.play_song(self.current_song, True)
+            elif self.queue:
+                next_song = self.queue.pop(0)
+                await self.play_song(next_song)
+            elif (
+                self.voice_client
+                and self.voice_client.is_connected()
+                and not self.queue
+            ):
+                if self.disconnect_timer is None:
+                    self.disconnect_timer = time.time()
+                elif time.time() - self.disconnect_timer >= 30:
                     await self.stop()
+                    self.disconnect_timer = None
+            else:
+                self.disconnect_timer = None
 
-            await asyncio.sleep(1)
+        if self.voice_client and self.voice_client.channel:
+            members_in_channel = len(self.voice_client.channel.members)
+            if members_in_channel == 1:
+                await self.stop()
 
     async def delete_song_log(self, message):
         try:

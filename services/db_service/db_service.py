@@ -1,5 +1,9 @@
 import asyncio
 from sqlalchemy import (
+    JSON,
+    Boolean,
+    String,
+    Text,
     create_engine,
     Column,
     Integer,
@@ -16,6 +20,38 @@ class User(Base):
     __tablename__ = "users"
     id = Column(BigInteger, primary_key=True)
     total_duration_seconds = Column(Integer, default=0)
+
+
+class ChessGame(Base):
+    __tablename__ = "chess_games"
+    id = Column(String(255), primary_key=True)  # Adjust the length as needed
+    rated = Column(Boolean)
+    variant = Column(String(50))
+    speed = Column(String(50))
+    perf = Column(String(50))
+    createdAt = Column(BigInteger)
+    lastMoveAt = Column(BigInteger)
+    status = Column(String(50))
+    players = Column(JSON)
+    opening = Column(JSON)
+    moves = Column(Text, nullable=True)
+    clock = Column(JSON, nullable=True)
+    winner = Column(Text, nullable=True)
+
+    def __init__(self, game_data):
+        self.id = game_data["id"]
+        self.rated = game_data["rated"]
+        self.variant = game_data["variant"]
+        self.speed = game_data["speed"]
+        self.perf = game_data["perf"]
+        self.createdAt = game_data["createdAt"]
+        self.lastMoveAt = game_data["lastMoveAt"]
+        self.status = game_data["status"]
+        self.players = game_data["players"]
+        self.opening = game_data["opening"]
+        self.moves = game_data.get("moves", None)
+        self.clock = game_data.get("clock", None)
+        self.winner = game_data.get("winner", None)
 
 
 class DatabaseService:
@@ -97,5 +133,18 @@ class DatabaseService:
                 (user_id, total_seconds / 3600) for user_id, total_seconds in users
             ]
             return user_hours
+        finally:
+            session.close()
+
+    def save_chess_game(self, game_data):
+        session = self.Session()
+        try:
+            chess_game = ChessGame(game_data)
+            session.add(chess_game)
+            session.commit()
+        except Exception as e:
+            print(e)
+            print(f"Error saving chess game: {e}")
+            session.rollback()
         finally:
             session.close()

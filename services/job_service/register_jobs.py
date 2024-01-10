@@ -26,14 +26,7 @@ def register_jobs(client: Client):
     # Purge job
     purge_job = Job(
         lambda: command_service.purgeMessages(client.main_channel),
-        1800,
-        JobType.PURGE,
-    )
-
-    # Notify purge job
-    notify_purge_job = Job(
-        lambda: client.main_channel.send("Purging messages shortly...⌛"),
-        1740,
+        7200,  # 2 hours
         JobType.PURGE,
     )
 
@@ -51,10 +44,9 @@ def register_jobs(client: Client):
 
     user_duration_job = Job(
         update_user_durations,
-        60,
+        30,
         JobType.UPDATE_DURATION,
     )
 
     job_service.add_job(user_duration_job)
     job_service.add_job(purge_job)
-    job_service.add_job(notify_purge_job)

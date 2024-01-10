@@ -2,13 +2,7 @@ from enum import Enum, auto
 
 
 class JobType(Enum):
-    PURGE = auto()
-    TEST = auto()
-    UPDATE_DURATION = auto()
-    SAVE_MATCH = auto()
-
-
-# You might add more job types as needed, like:
-# CLEANUP = auto()
-# BACKUP = auto()
-# NOTIFY = auto()
+    PURGE = "PURGE"
+    TEST = "TEST"
+    UPDATE_DURATION = "UPDATE_DURATION"
+    SAVE_MATCH = "SAVE_MATCH"

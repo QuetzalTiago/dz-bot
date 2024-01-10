@@ -73,7 +73,7 @@ def register_commands(client):
     client.command_service.register_command("emoji", EmojiCommand, True)
 
     # Chess
-    client.command_service.register_command("chess", ChessCommand, True, job_service)
+    client.command_service.register_command("chess", ChessCommand, True)
 
     # Dv
     client.command_service.register_command("div", DivCommand)

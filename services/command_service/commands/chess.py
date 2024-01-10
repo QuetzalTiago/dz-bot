@@ -68,6 +68,7 @@ class ChessCommand(BaseCommand):
             lambda: self.save_match(match_id),
             10,
             JobType.SAVE_MATCH,
+            5400,  # 90 minutes
         )
 
         self.client.job_service.add_job(save_match_job)

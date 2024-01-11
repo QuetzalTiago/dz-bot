@@ -1,57 +1,15 @@
 import asyncio
 from sqlalchemy import (
-    JSON,
-    Boolean,
-    String,
-    Text,
     create_engine,
-    Column,
-    Integer,
     text,
-    BigInteger,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-Base = declarative_base()
-
-
-class User(Base):
-    __tablename__ = "users"
-    id = Column(BigInteger, primary_key=True)
-    total_duration_seconds = Column(Integer, default=0)
-
-
-class ChessGame(Base):
-    __tablename__ = "chess_games"
-    id = Column(String(255), primary_key=True)  # Adjust the length as needed
-    rated = Column(Boolean)
-    variant = Column(String(50))
-    speed = Column(String(50))
-    perf = Column(String(50))
-    createdAt = Column(BigInteger)
-    lastMoveAt = Column(BigInteger)
-    status = Column(String(50))
-    players = Column(JSON)
-    opening = Column(JSON)
-    moves = Column(Text, nullable=True)
-    clock = Column(JSON, nullable=True)
-    winner = Column(Text, nullable=True)
-
-    def __init__(self, game_data):
-        self.id = game_data["id"]
-        self.rated = game_data["rated"]
-        self.variant = game_data["variant"]
-        self.speed = game_data["speed"]
-        self.perf = game_data["perf"]
-        self.createdAt = game_data["createdAt"]
-        self.lastMoveAt = game_data["lastMoveAt"]
-        self.status = game_data["status"]
-        self.players = game_data["players"]
-        self.opening = game_data["opening"]
-        self.moves = game_data.get("moves", None)
-        self.clock = game_data.get("clock", None)
-        self.winner = game_data.get("winner", None)
+from services.db_service.entities.chess_game import ChessGame
+from services.db_service.entities.startup_notification import StartupNotification
+from services.db_service.entities.user import User
+from services.db_service.base import Base
 
 
 class DatabaseService:
@@ -146,5 +104,35 @@ class DatabaseService:
             print(e)
             print(f"Error saving chess game: {e}")
             session.rollback()
+        finally:
+            session.close()
+
+    def set_startup_notification(self, message_id, channel_id):
+        session = self.Session()
+        try:
+            notification = session.query(StartupNotification).first()
+            if not notification:
+                notification = StartupNotification(
+                    notify_on_startup=True, message_id=message_id, channel_id=channel_id
+                )
+                session.add(notification)
+            else:
+                notification.notify_on_startup = True
+                notification.message_id = message_id
+                notification.channel_id = channel_id
+            session.commit()
+        except Exception as e:
+            print(f"Error setting startup notification: {e}")
+            session.rollback()
+        finally:
+            session.close()
+
+    def get_startup_notification(self):
+        session = self.Session()
+        try:
+            notification = session.query(StartupNotification).first()
+            if notification and notification.notify_on_startup:
+                return notification.message_id, notification.channel_id
+            return None, None
         finally:
             session.close()

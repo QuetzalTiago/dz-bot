@@ -12,4 +12,9 @@ class RestartCommand(BaseCommand):
 
     async def execute(self):
         await self.message.add_reaction("🔄")
+
+        self.client.db_service.set_startup_notification(
+            self.message.id, self.message.channel.id
+        )
+
         await self.client.reset()

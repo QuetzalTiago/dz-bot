@@ -35,6 +35,7 @@ def register_commands(client):
 
     # Stop
     client.command_service.register_command("stop", StopCommand, False, music_service)
+    client.command_service.register_command("leave", StopCommand, False, music_service)
 
     # Clear
     client.command_service.register_command("clear", ClearCommand, False, music_service)

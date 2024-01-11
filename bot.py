@@ -52,6 +52,7 @@ class MyClient(discord.Client):
         await self.set_first_text_channel_as_main()
         quote = random.choice(self.dj_khaled_quotes)
         # await self.main_channel.send(f"**{quote}**")#
+        # To be changed so it checks db state if it should notify after reset
         await self.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.playing, name="another one"

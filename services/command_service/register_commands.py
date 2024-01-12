@@ -18,10 +18,10 @@ from services.command_service.commands.status import StatusCommand
 
 
 def register_commands(client):
+    # TODO Remove these services from the parameters and directly call client.[service_name]
     music_service = client.music_service
     command_service = client.command_service
     db_service = client.db_service
-    job_service = client.job_service
 
     # Play
     client.command_service.register_command("play", PlayCommand, True, music_service)
@@ -76,8 +76,6 @@ def register_commands(client):
 
     # Chess
     client.command_service.register_command("chess", ChessCommand, True)
-    client.command_service.register_command("chess top", ChessLeaderboardCommand, True)
-    client.command_service.register_command("chesstop", ChessLeaderboardCommand, True)
     client.command_service.register_command("ctop", ChessLeaderboardCommand, True)
 
     # Dv

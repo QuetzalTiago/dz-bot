@@ -136,3 +136,15 @@ class DatabaseService:
             return None, None
         finally:
             session.close()
+
+    def get_chess_games(self):
+        session = self.Session()
+        try:
+            chess_games = session.query(ChessGame).all()
+
+            return chess_games
+
+        except Exception as e:
+            print(f"Error fetching chess games: {e}")
+        finally:
+            session.close()

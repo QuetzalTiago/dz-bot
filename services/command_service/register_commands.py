@@ -1,3 +1,4 @@
+from services.command_service.commands.chess_leaderboard import ChessLeaderboardCommand
 from services.command_service.commands.leaderboard import LeaderboardCommand
 from services.command_service.commands.music.play import PlayCommand
 from services.command_service.commands.music.stop import StopCommand
@@ -75,6 +76,9 @@ def register_commands(client):
 
     # Chess
     client.command_service.register_command("chess", ChessCommand, True)
+    client.command_service.register_command("chess top", ChessLeaderboardCommand, True)
+    client.command_service.register_command("chesstop", ChessLeaderboardCommand, True)
+    client.command_service.register_command("ctop", ChessLeaderboardCommand, True)
 
     # Dv
     client.command_service.register_command("div", DivCommand)

@@ -21,6 +21,10 @@ class Job:
         self.start_time = None
 
     async def run(self):
+        current_time = time.time()
+
+        self.last_run = current_time
+        self.start_time = current_time
+
         coroutine = self.coro_func()  # Call the coroutine function without arguments
         await coroutine  # Await the coroutine
-        self.last_run = time.time()  # Update last run time

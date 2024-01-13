@@ -8,3 +8,4 @@ class JobType(Enum):
     SAVE_MATCH = "SAVE_MATCH"
     MUSIC = "MUSIC"
     PRINT_JOBS = "PRINT_JOBS"
+    PROCESS_DB_QUEUE = "PROCESS_DB_QUEUE"

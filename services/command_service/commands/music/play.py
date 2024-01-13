@@ -1,5 +1,6 @@
-import asyncio
 from services.file_service import FileService
+from services.job_service.job import Job
+from services.job_service.job_types import JobType
 from services.music_service import MusicService
 from ..base import BaseCommand
 
@@ -33,7 +34,33 @@ class PlayCommand(BaseCommand):
                 song_names = await self.file_service.get_spotify_playlist_songs(
                     song_name
                 )
-                await self.play_songs_from_list(song_names)
+
+                for song_name in song_names:
+                    if song_name not in self.music_service.dl_queue:
+                        self.music_service.dl_queue.append(song_name)
+
+                existing_process_db_queue_job = any(
+                    map(
+                        lambda job: job.job_type == JobType.PROCESS_DB_QUEUE,
+                        self.client.job_service.jobs,
+                    )
+                )
+
+                if not existing_process_db_queue_job:
+                    # create job
+                    process_dl_queue_job = Job(
+                        lambda: self.client.music_service.process_dl_queue(
+                            self.message
+                        ),
+                        10,
+                        JobType.PROCESS_DB_QUEUE,
+                        5400,  # 90 minutes
+                    )
+
+                    await process_dl_queue_job.run()
+
+                    self.client.job_service.add_job(process_dl_queue_job)
+
             else:
                 spotify_name = await self.file_service.get_spotify_name(song_name)
                 path, info = await self.file_service.download_from_youtube(
@@ -56,27 +83,6 @@ class PlayCommand(BaseCommand):
                 song_name, self.message
             )
             await self.play_song(path, info)
-
-        await self.message.clear_reactions()
-        await self.message.add_reaction("✅")
-
-    async def play_song(self, path, info):
-        if not self.music_service.is_playing():
-            await self.music_service.join_voice_channel(self.message)
-        await self.music_service.add_to_queue(path, info, self.message)
-
-    async def play_songs_from_list(self, song_names):
-        for next_song_name in song_names:
-            (
-                next_song_path,
-                next_song_info,
-            ) = await self.file_service.download_from_youtube(
-                next_song_name, self.message
-            )
-
-            await self.play_song(next_song_path, next_song_info)
-
-            await asyncio.sleep(5)
 
         await self.message.clear_reactions()
         await self.message.add_reaction("✅")

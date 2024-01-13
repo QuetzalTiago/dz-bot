@@ -12,6 +12,7 @@ class MusicService:
     def __init__(self, client):
         self.client = client
         self.queue = []
+        self.dl_queue = []
         self.current_song = None
         self.voice_client = None
         self.loop = False
@@ -139,3 +140,19 @@ class MusicService:
     async def toggle_loop(self):
         self.loop = not self.loop
         return "on" if self.loop else "off"
+
+
+async def process_dl_queue(self, message):
+    if self.dl_queue.__len__() == 0:
+        self.client.job_service.remove_job(JobType.PROCESS_DB_QUEUE)
+        return
+
+    next_song_name = self.dl_queue.pop(0)
+    (
+        next_song_path,
+        next_song_info,
+    ) = await self.file_service.download_from_youtube(next_song_name, message)
+
+    if not self.is_playing():
+        await self.join_voice_channel(message)
+    await self.add_to_queue(next_song_path, next_song_info, message)

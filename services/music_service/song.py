@@ -3,11 +3,12 @@ import discord
 
 
 class Song:
-    def __init__(self, path, info, message):
+    def __init__(self, path, info, message, lyrics=None):
         self.path = path
         self.info = info
         self.message = message
         self.message_to_delete = None
+        self._lyrics = lyrics
 
     @property
     def title(self):
@@ -70,6 +71,10 @@ class Song:
                 return "today"
 
         return "N/A"
+
+    @property
+    def lyrics(self):
+        return self._lyrics if self._lyrics else "Lyrics not available"
 
     def to_embed(self):
         embed = discord.Embed(

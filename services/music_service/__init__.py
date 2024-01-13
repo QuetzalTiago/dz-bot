@@ -1,6 +1,11 @@
+import html
 import os
+import re
+from bs4 import BeautifulSoup
 import discord
 import time
+
+import requests
 
 from services.file_service import FileService
 from services.job_service.job import Job
@@ -70,10 +75,12 @@ class MusicService:
         return self.voice_client
 
     async def add_to_queue(self, song_path, song_info, message):
+        lyrics = await self.fetch_lyrics(song_info["title"])
+        song = Song(song_path, song_info, message, lyrics)
+
         if not self.is_playing():
             await self.join_voice_channel(message)
 
-        song = Song(song_path, song_info, message)
         self.queue.append(song)
         self.disconnect_timer = None  # Reset timer when a new song is added
 
@@ -160,3 +167,39 @@ class MusicService:
         ) = await self.file_service.download_from_youtube(next_song_name, message)
 
         await self.add_to_queue(next_song_path, next_song_info, message)
+
+    async def fetch_lyrics(self, song_name):
+        base_url = "https://api.genius.com"
+        headers = {
+            "Authorization": "Bearer "
+            + "bnYy6f7T2v_YPfhmT9nvkXHZd5SIsSQ8gDKRQrMmz4ipZ6C_aM8dpTMPb3GDkm4p"
+        }
+
+        # Search for the song
+        search_url = base_url + f"/search?q={song_name}"
+        response = requests.get(search_url, headers=headers)
+        json = response.json()
+
+        # Check if there are any hits
+        if not json["response"]["hits"]:
+            return None
+
+        # Extract the first song's page URL
+        song_url = json["response"]["hits"][0]["result"]["url"]
+
+        # Scrape the lyrics from the song's page
+        page = requests.get(song_url)
+        html_content = BeautifulSoup(page.text, "html.parser")
+        [h.extract() for h in html_content("script")]  # Remove scripts
+
+        lyrics = ""
+        lyrics_divs = html_content.find_all("div", {"data-lyrics-container": "true"})
+        for div in lyrics_divs:
+            lyrics += div.get_text(separator="\n") + "\n\n"
+
+        lyrics = html.unescape(lyrics)  # Convert HTML entities to normal text
+
+        # Bold the sections in brackets
+        lyrics = re.sub(r"(\[.*?\])", r"\n**\1**", lyrics)
+
+        return lyrics

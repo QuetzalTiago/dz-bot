@@ -47,7 +47,7 @@ class MusicService:
             ):
                 if self.disconnect_timer is None:
                     self.disconnect_timer = time.time()
-                elif time.time() - self.disconnect_timer >= 30:
+                elif time.time() - self.disconnect_timer >= 300:
                     await self.stop()
                     self.disconnect_timer = None
             else:

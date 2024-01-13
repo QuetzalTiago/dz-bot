@@ -134,6 +134,7 @@ class MusicService:
         self.disconnect_timer = None  # Reset timer when stopped
 
     async def clear(self, message):
+        self.dl_queue = []
         self.queue = []
         await message.channel.send("Queue has been cleared!")
 

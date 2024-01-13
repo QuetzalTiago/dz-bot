@@ -110,7 +110,10 @@ class MusicService:
 
         queue_info = "Current Queue:\n"
         for index, song in enumerate(self.queue, 1):
-            queue_info += f"{index}. **{song.title}** \n"
+            if index < 20:
+                queue_info += f"{index}. **{song.title}** \n"
+            if index == 19:
+                queue_info += f"rest of the queue..."
 
         return queue_info
 

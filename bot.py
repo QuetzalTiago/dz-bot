@@ -40,7 +40,7 @@ async def fetch_message_by_id(client, channel_id, message_id):
     return None
 
 
-class MyClient(discord.Client):
+class Khaled(discord.Client):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.online_users = {}
@@ -138,7 +138,7 @@ def run_bot():
     intents = discord.Intents.default()
     intents.message_content = True
     intents.voice_states = True
-    client = MyClient(intents=intents)
+    client = Khaled(intents=intents)
     client.run(token)
 
 

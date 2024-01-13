@@ -7,7 +7,7 @@ class Song:
         self.path = path
         self.info = info
         self.message = message
-        self.message_to_delete = None
+        self.messages_to_delete = []
         self._lyrics = lyrics
 
     @property

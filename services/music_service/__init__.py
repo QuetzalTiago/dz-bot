@@ -33,7 +33,8 @@ class MusicService:
     async def background_task(self):
         if not self.is_playing() and not self.file_service.is_downloading():
             if self.last_song and self.last_song.message:
-                await self.delete_song_log(self.last_song.message_to_delete)
+                await self.delete_song_log(self.last_song)
+                self.last_song = None
             if self.loop and self.current_song:
                 await self.play_song(self.current_song, True)
             elif self.queue:
@@ -57,13 +58,13 @@ class MusicService:
             if members_in_channel == 1:
                 await self.stop()
 
-    async def delete_song_log(self, message):
-        try:
-            await message.delete()
-        except discord.NotFound:
-            pass
-        except discord.HTTPException:
-            print("Failed to delete the song log message.")
+    async def delete_song_log(self, song):
+        for message in song.messages_to_delete:
+            try:
+                await message.delete()
+            except:
+                pass
+        song.message_to_delete = []
 
     async def join_voice_channel(self, message):
         voice_channel = message.author.voice.channel
@@ -75,7 +76,14 @@ class MusicService:
         return self.voice_client
 
     async def add_to_queue(self, song_path, song_info, message):
-        lyrics = await self.fetch_lyrics(song_info["title"])
+        if message.content.startswith("play"):
+            query = message.content[5:].strip()
+        else:
+            query = message.content[2:].strip()
+
+        if not "spotify.com" in query and not "list=" in query:
+            lyrics = await self.fetch_lyrics(query)
+
         song = Song(song_path, song_info, message, lyrics)
 
         if not self.is_playing():
@@ -103,7 +111,21 @@ class MusicService:
         if not silent:
             embed = song.to_embed()
             msg = await song.message.channel.send(embed=embed)
-            song.message_to_delete = msg
+            song.messages_to_delete.append(msg)
+
+            if song.lyrics and song.lyrics != "Lyrics not available":
+                lyrics_file_name = f"{song.title}_lyrics.txt"
+                with open(lyrics_file_name, "w", encoding="utf-8") as file:
+                    file.write(song.lyrics)
+
+                with open(lyrics_file_name, "rb") as file:
+                    lyrics_msg = await song.message.channel.send(
+                        file=discord.File(file, lyrics_file_name)
+                    )
+                    song.messages_to_delete.append(lyrics_msg)
+
+                # Remove the temporary file after sending
+                os.remove(lyrics_file_name)
 
         self.last_song = song
 
@@ -128,8 +150,9 @@ class MusicService:
         return queue_info
 
     async def stop(self, message=None):
-        if self.last_song and self.last_song.message_to_delete:
-            await self.delete_song_log(self.last_song.message_to_delete)
+        if self.last_song and self.last_song.messages_to_delete:
+            await self.delete_song_log(self.last_song)
+            self.last_song = None
 
         if self.voice_client and self.voice_client.is_connected():
             if self.voice_client.is_playing():
@@ -200,6 +223,6 @@ class MusicService:
         lyrics = html.unescape(lyrics)  # Convert HTML entities to normal text
 
         # Bold the sections in brackets
-        lyrics = re.sub(r"(\[.*?\])", r"\n**\1**", lyrics)
+        lyrics = re.sub(r"(\[.*?\])", r"\n\1", lyrics)
 
         return lyrics

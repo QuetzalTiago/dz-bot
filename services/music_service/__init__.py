@@ -213,17 +213,33 @@ class MusicService:
         # Scrape the lyrics from the song's page
         page = requests.get(song_url)
         html_content = BeautifulSoup(page.text, "html.parser")
-        [h.extract() for h in html_content("script")]  # Remove scripts
 
+        lyrics = self.format_lyrics(html_content)
+        return lyrics
+
+    def format_lyrics(self, html_content):
+        # Remove scripts from HTML content
+        [h.extract() for h in html_content("script")]
+
+        # Extracting lyrics from the divs
         lyrics = ""
         lyrics_divs = html_content.find_all("div", {"data-lyrics-container": "true"})
         for div in lyrics_divs:
             lyrics += div.get_text(separator="\n") + "\n\n"
 
-        lyrics = html.unescape(lyrics)  # Convert HTML entities to normal text
+        # Convert HTML entities to normal text
+        lyrics = html.unescape(lyrics)
 
-        lyrics = re.sub(r"(\[.*?\])", r"\n\1", lyrics)
-        # Remove new lines following '&' or '('
-        lyrics = re.sub(r"([&\(\)])\n", r"\1", lyrics)
+        # Remove new lines after '(' and '&'
+        lyrics = re.sub(r"([&\(])\n", r"\1", lyrics)
+
+        # Remove new lines before ')'
+        lyrics = re.sub(r"\n(\))", r"\1", lyrics)
+
+        # Add a new line after ']'
+        lyrics = re.sub(r"(\])", r"\1\n", lyrics)
+
+        # Add a new line before '['
+        lyrics = re.sub(r"(\[)", r"\n\1", lyrics)
 
         return lyrics

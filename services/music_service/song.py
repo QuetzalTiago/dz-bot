@@ -8,7 +8,7 @@ class Song:
         self.info = info
         self.message = message
         self.messages_to_delete = []
-        self.lyrics = lyrics
+        self._lyrics = lyrics
 
     @property
     def title(self):
@@ -74,7 +74,7 @@ class Song:
 
     @property
     def lyrics(self):
-        return self.lyrics
+        return self._lyrics
 
     def to_embed(self):
         embed = discord.Embed(

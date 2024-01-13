@@ -70,6 +70,9 @@ class MusicService:
         return self.voice_client
 
     async def add_to_queue(self, song_path, song_info, message):
+        if not self.is_playing():
+            await self.join_voice_channel(message)
+
         song = Song(song_path, song_info, message)
         self.queue.append(song)
         self.disconnect_timer = None  # Reset timer when a new song is added
@@ -156,6 +159,4 @@ class MusicService:
             next_song_info,
         ) = await self.file_service.download_from_youtube(next_song_name, message)
 
-        if not self.is_playing():
-            await self.join_voice_channel(message)
         await self.add_to_queue(next_song_path, next_song_info, message)

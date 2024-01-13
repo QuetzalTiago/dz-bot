@@ -66,7 +66,7 @@ class PlayCommand(BaseCommand):
                 path, info = await self.file_service.download_from_youtube(
                     spotify_name, self.message
                 )
-                await self.play_song(path, info)
+                await self.music_service.add_to_queue(path, info, self.message)
 
         elif "list=" in song_name:  # YouTube playlist
             await self.message.clear_reactions()
@@ -82,7 +82,7 @@ class PlayCommand(BaseCommand):
             path, info = await self.file_service.download_from_youtube(
                 song_name, self.message
             )
-            await self.play_song(path, info)
+            await self.music_service.add_to_queue(path, info, self.message)
 
         await self.message.clear_reactions()
         await self.message.add_reaction("✅")

@@ -8,7 +8,7 @@ class Song:
         self.info = info
         self.message = message
         self.messages_to_delete = []
-        self._lyrics = lyrics
+        self.lyrics = lyrics
 
     @property
     def title(self):
@@ -74,7 +74,7 @@ class Song:
 
     @property
     def lyrics(self):
-        return self._lyrics if self._lyrics else "Lyrics not available"
+        return self.lyrics
 
     def to_embed(self):
         embed = discord.Embed(

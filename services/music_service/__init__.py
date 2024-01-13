@@ -92,7 +92,7 @@ class MusicService:
         self.queue.append(song)
         self.disconnect_timer = None  # Reset timer when a new song is added
 
-    async def play_song(self, song, silent=False):
+    async def play_song(self, song: Song, silent=False):
         if self.is_playing() or self.file_service.is_downloading():
             return
 
@@ -113,8 +113,8 @@ class MusicService:
             msg = await song.message.channel.send(embed=embed)
             song.messages_to_delete.append(msg)
 
-            if song.lyrics and song.lyrics != "Lyrics not available":
-                lyrics_file_name = f"{song.title}_lyrics.txt"
+            if song.lyrics:
+                lyrics_file_name = "lyrics.txt"
                 with open(lyrics_file_name, "w", encoding="utf-8") as file:
                     file.write(song.lyrics)
 
@@ -222,7 +222,8 @@ class MusicService:
 
         lyrics = html.unescape(lyrics)  # Convert HTML entities to normal text
 
-        # Bold the sections in brackets
         lyrics = re.sub(r"(\[.*?\])", r"\n\1", lyrics)
+        # Remove new lines following '&' or '('
+        lyrics = re.sub(r"([&\(\)])\n", r"\1", lyrics)
 
         return lyrics

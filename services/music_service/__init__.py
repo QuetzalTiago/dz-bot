@@ -92,41 +92,56 @@ class MusicService:
         self.queue.append(song)
         self.disconnect_timer = None  # Reset timer when a new song is added
 
-    async def play_song(self, song: Song, silent=False):
-        if self.is_playing() or self.file_service.is_downloading():
-            return
+    async def check_play_state(self):
+        return self.is_playing() or self.file_service.is_downloading()
 
+    def cleanup_files(self, current_song, queue):
         for file_name in os.listdir("."):
             if (
                 file_name.endswith(".mp3")
-                and file_name != song.path
-                and all(file_name != s.path for s in self.queue)
+                and file_name != current_song.path
+                and all(file_name != s.path for s in queue)
             ):
                 self.file_service.delete_file(file_name)
 
-        source = discord.FFmpegPCMAudio(song.path)
+    def play_audio(self, song_path):
+        source = discord.FFmpegPCMAudio(song_path)
         self.voice_client.play(source)
+
+    async def send_song_embed(self, song: Song):
+        embed = song.to_embed()
+        msg = await song.message.channel.send(embed=embed)
+        return msg
+
+    async def handle_lyrics(self, song: Song):
+        if song.lyrics:
+            lyrics_file_name = "lyrics.txt"
+            with open(lyrics_file_name, "w", encoding="utf-8") as file:
+                file.write(song.lyrics)
+            lyrics_msg = await self.send_lyrics_file(
+                song.message.channel, lyrics_file_name
+            )
+            os.remove(lyrics_file_name)
+            return lyrics_msg
+
+    async def send_lyrics_file(self, channel, file_name):
+        with open(file_name, "rb") as file:
+            return await channel.send(file=discord.File(file, file_name))
+
+    async def play_song(self, song: Song):
+        if await self.check_play_state():
+            return
+
+        self.cleanup_files(song, self.queue)
+        self.play_audio(song.path)
         self.current_song = song
 
-        if not silent:
-            embed = song.to_embed()
-            msg = await song.message.channel.send(embed=embed)
-            song.messages_to_delete.append(msg)
-            song.messages_to_delete.append(song.message)
+        embed_msg = await self.send_song_embed(song)
+        song.messages_to_delete.extend([embed_msg, song.message])
 
-            if song.lyrics:
-                lyrics_file_name = "lyrics.txt"
-                with open(lyrics_file_name, "w", encoding="utf-8") as file:
-                    file.write(song.lyrics)
-
-                with open(lyrics_file_name, "rb") as file:
-                    lyrics_msg = await song.message.channel.send(
-                        file=discord.File(file, lyrics_file_name)
-                    )
-                    song.messages_to_delete.append(lyrics_msg)
-
-                # Remove the temporary file after sending
-                os.remove(lyrics_file_name)
+        lyrics_msg = await self.handle_lyrics(song)
+        if lyrics_msg:
+            song.messages_to_delete.append(lyrics_msg)
 
         self.last_song = song
 

@@ -64,7 +64,7 @@ class MusicService:
                 await message.delete()
             except:
                 pass
-        song.message_to_delete = []
+        song.messages_to_delete = []
 
     async def join_voice_channel(self, message):
         voice_channel = message.author.voice.channel
@@ -137,7 +137,8 @@ class MusicService:
         self.current_song = song
 
         embed_msg = await self.send_song_embed(song)
-        song.messages_to_delete.extend([embed_msg, song.message])
+        song.messages_to_delete.append(embed_msg)
+        song.messages_to_delete.append(song.message)
 
         lyrics_msg = await self.handle_lyrics(song)
         if lyrics_msg:

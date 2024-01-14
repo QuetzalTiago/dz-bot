@@ -112,6 +112,7 @@ class MusicService:
             embed = song.to_embed()
             msg = await song.message.channel.send(embed=embed)
             song.messages_to_delete.append(msg)
+            song.messages_to_delete.append(song.message)
 
             if song.lyrics:
                 lyrics_file_name = "lyrics.txt"

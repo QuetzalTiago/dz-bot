@@ -1,16 +1,23 @@
 import html
+import json
 import os
 import re
+import uuid
 from bs4 import BeautifulSoup
 import discord
 import time
 
 import requests
-
+import yt_dlp
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
 from services.file_service import FileService
 from services.job_service.job import Job
 from services.job_service.job_types import JobType
 from services.music_service.song import Song
+
+with open("config.json") as f:
+    config = json.load(f)
 
 
 class MusicService:
@@ -24,6 +31,12 @@ class MusicService:
         self.file_service = FileService()
         self.last_song = None
         self.disconnect_timer = None
+        self.spotify = spotipy.Spotify(
+            auth_manager=SpotifyClientCredentials(
+                client_id=config["secrets"]["spotifyClientId"],
+                client_secret=config["secrets"]["spotifyClientSecret"],
+            )
+        )
 
     async def initialize(self):
         music_job = Job(lambda: self.background_task(), 1, JobType.MUSIC)
@@ -81,8 +94,11 @@ class MusicService:
         else:
             query = message.content[2:].strip()
 
-        if not "spotify.com" in query and not "list=" in query:
-            lyrics = await self.fetch_lyrics(query)
+        if "spotify.com" and "track" in query:
+            query = await self.get_spotify_name(query)
+            query = re.sub(r"\([^)]*\)", "", query)
+
+        lyrics = await self.fetch_lyrics(query)
 
         song = Song(song_path, song_info, message, lyrics)
 
@@ -153,18 +169,24 @@ class MusicService:
         if self.voice_client and self.voice_client.is_playing():
             self.voice_client.stop()
 
-    def get_queue_info(self):
-        if not self.queue:
-            return "The queue is empty."
+    def get_queue_info_embed(self):
+        embed = discord.Embed(color=0x1ABC9C)
+        embed.title = "Current Queue"
 
-        queue_info = "Current Queue:\n"
+        if not self.queue:
+            embed.description = "The queue is empty."
+            return embed
+
+        description = ""
         for index, song in enumerate(self.queue, 1):
             if index < 20:
-                queue_info += f"{index}. **{song.title}** \n"
-            if index == 19:
-                queue_info += f"rest of the queue..."
+                description += f"{index}. **{song.title}**\n"
+            elif index == 20:
+                description += f"and more..."
+                break
 
-        return queue_info
+        embed.description = description
+        return embed
 
     async def stop(self, message=None):
         if self.last_song and self.last_song.messages_to_delete:
@@ -209,6 +231,9 @@ class MusicService:
         await self.add_to_queue(next_song_path, next_song_info, message)
 
     async def fetch_lyrics(self, song_name):
+        if "/playlist/" in song_name or "list=" in song_name:
+            return None
+
         base_url = "https://api.genius.com"
         headers = {
             "Authorization": "Bearer "
@@ -232,6 +257,10 @@ class MusicService:
         html_content = BeautifulSoup(page.text, "html.parser")
 
         lyrics = self.format_lyrics(html_content)
+
+        if "\n" not in lyrics[:35]:
+            return None
+
         return lyrics
 
     def format_lyrics(self, html_content):
@@ -260,3 +289,62 @@ class MusicService:
         lyrics = re.sub(r"(\[)", r"\n\1", lyrics)
 
         return lyrics
+
+    async def get_youtube_playlist_songs(self, playlist_url):
+        song_names = []
+
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": self.audio_format,
+                    "preferredquality": str(self.audio_quality),
+                },
+            ],
+            "outtmpl": f"%(title)s_{uuid.uuid4().int}.%(ext)s",
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            playlist_info = ydl.extract_info(playlist_url, download=False)
+            if not playlist_info.get("_type", "") == "playlist":
+                print(f"This doesn't seem like a playlist URL.")
+                return []
+
+            for entry in playlist_info["entries"]:
+                song_names.append(entry["title"])
+
+        return song_names
+
+    async def get_spotify_name(self, song_name):
+        track_id = song_name.split("/")[-1].split("?")[0]
+        track = self.spotify.track(track_id)
+
+        artist = track["artists"][0]["name"]
+        song_name = track["name"]
+
+        return f"{artist} - {song_name}"
+
+    async def get_spotify_playlist_songs(self, playlist_url):
+        playlist_id = playlist_url.split("/")[-1].split("?")[0]
+        results = self.spotify.playlist_tracks(playlist_id)
+        songs = []
+        for item in results["items"]:
+            track = item["track"]
+            artist = track["artists"][0]["name"]
+            song_name = track["name"]
+            songs.append(f"{artist} - {song_name}")
+
+        return songs
+
+    async def get_spotify_album_songs(self, album_url):
+        album_id = album_url.split("/")[-1].split("?")[0]
+        results = self.spotify.album_tracks(album_id)
+        songs = []
+
+        for item in results["items"]:
+            artist = item["artists"][0]["name"]
+            song_name = item["name"]
+            songs.append(f"{artist} - {song_name}")
+
+        return songs

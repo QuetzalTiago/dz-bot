@@ -12,6 +12,6 @@ class QueueCommand(BaseCommand):
         return "Displays the current queue of songs."
 
     async def execute(self):
-        queue_info = self.music_service.get_queue_info()
+        queue_info_embed = self.music_service.get_queue_info_embed()
 
-        await self.message.channel.send(queue_info)
+        await self.message.channel.send(embed=queue_info_embed)

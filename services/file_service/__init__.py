@@ -4,21 +4,10 @@ import uuid
 import datetime
 import yt_dlp
 from youtube_search import YoutubeSearch
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
-
-with open("config.json") as f:
-    config = json.load(f)
 
 
 class FileService:
     def __init__(self):
-        self.spotify = spotipy.Spotify(
-            auth_manager=SpotifyClientCredentials(
-                client_id=config["secrets"]["spotifyClientId"],
-                client_secret=config["secrets"]["spotifyClientSecret"],
-            )
-        )
         self.max_duration = 1200  # in seconds, 20 minutes
         self.audio_quality = 96  # kb/s, max discord channel quality is
         self.audio_format = "mp3"
@@ -57,8 +46,10 @@ class FileService:
                 max_duration_readable = str(
                     datetime.timedelta(seconds=self.max_duration)
                 )
+                song_title = info["title"]
+
                 await message.channel.send(
-                    f"Video too long. Duration: **{duration_readable}**\nMax duration is **{max_duration_readable}**."
+                    f"**{song_title}** is too long. Duration: **{duration_readable}**.\nMax duration allowed is **{max_duration_readable}**."
                 )
                 await message.clear_reactions()
                 await message.add_reaction("❌")
@@ -71,53 +62,6 @@ class FileService:
         self.downloading = False
 
         return f"{file_name}.{self.audio_format}", info
-
-    async def get_youtube_playlist_songs(self, playlist_url):
-        song_names = []
-
-        ydl_opts = {
-            "format": "bestaudio/best",
-            "postprocessors": [
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": self.audio_format,
-                    "preferredquality": str(self.audio_quality),
-                },
-            ],
-            "outtmpl": f"%(title)s_{uuid.uuid4().int}.%(ext)s",
-        }
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            playlist_info = ydl.extract_info(playlist_url, download=False)
-            if not playlist_info.get("_type", "") == "playlist":
-                print(f"This doesn't seem like a playlist URL.")
-                return []
-
-            for entry in playlist_info["entries"]:
-                song_names.append(entry["title"])
-
-        return song_names
-
-    async def get_spotify_name(self, song_name):
-        track_id = song_name.split("/")[-1].split("?")[0]
-        track = self.spotify.track(track_id)
-
-        artist = track["artists"][0]["name"]
-        song_name = track["name"]
-
-        return f"{artist} - {song_name}"
-
-    async def get_spotify_playlist_songs(self, playlist_url):
-        playlist_id = playlist_url.split("/")[-1].split("?")[0]
-        results = self.spotify.playlist_tracks(playlist_id)
-        songs = []
-        for item in results["items"]:
-            track = item["track"]
-            artist = track["artists"][0]["name"]
-            song_name = track["name"]
-            songs.append(f"{artist} - {song_name}")
-
-        return songs
 
     def delete_file(self, file_path):
         try:

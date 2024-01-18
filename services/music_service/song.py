@@ -31,6 +31,10 @@ class Song:
         return self.info["original_url"]
 
     @property
+    def thumbnail_url(self):
+        return self.info.get["thumbnail", None]
+
+    @property
     def uploader(self):
         return self.info.get("uploader", "N/A")
 
@@ -91,6 +95,9 @@ class Song:
             f"Requested by <@{self.message.author.id}>"
         )
         embed.add_field(name=self.duration, value=details, inline=False)
-        embed.set_thumbnail(self.info["thumbnail_url"])
+
+        thumbnail = self.thumbnail_url
+        if thumbnail:
+            embed.set_thumbnail(thumbnail)
 
         return embed

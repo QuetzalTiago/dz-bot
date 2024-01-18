@@ -158,10 +158,10 @@ class MusicService:
         await embed_msg.add_reaction("📖")
 
         send_lyrics_job = Job(
-            lambda: self.check_reaction(embed_msg.id, song), 1, JobType.SEND_LYRICS
+            lambda: self.check_reaction(embed_msg, song), 1, JobType.SEND_LYRICS
         )
 
-        self.job_service.add_job(send_lyrics_job)
+        self.client.job_service.add_job(send_lyrics_job)
         self.last_song = song
 
     def is_playing(self):
@@ -351,22 +351,15 @@ class MusicService:
 
         return songs
 
-    async def check_reaction(self, message_id, song):
-        try:
-            message = await song.message.channel.fetch_message(message_id)
-        except:
-            # Message not found, possibly deleted
-            self.client.job_service.remove_job(JobType.SEND_LYRICS)
-            return
-
+    async def check_reaction(self, message, song):
         # Check reactions
-        for reaction in message.reactions:
-            if str(reaction.emoji) == "📖":  # Check for book/paper emoji
-                users = await reaction.users().flatten()
-                if any(
-                    user != self.client.user for user in users
-                ):  # Reaction from a user other than the bot
-                    lyrics_msg = await self.handle_lyrics(song)
-                    if lyrics_msg:
-                        song.messages_to_delete.append(lyrics_msg)
-                    break
+        if message:
+            for reaction in message.reactions:
+                print(reaction)
+                if str(reaction.emoji) == "📖":
+                    users = [user async for user in reaction.users()]
+                    if any(user != self.client.user for user in users):
+                        lyrics_msg = await self.handle_lyrics(song)
+                        if lyrics_msg:
+                            song.messages_to_delete.append(lyrics_msg)
+                        break

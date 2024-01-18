@@ -18,28 +18,6 @@ token = config["secrets"]["discordToken"]
 db_url = "mysql+pymysql://root:root@localhost"
 
 
-# TODO Move to utils file
-async def fetch_message_by_id(client, channel_id, message_id):
-    try:
-        # Convert the IDs to integers
-        channel_id = int(channel_id)
-        message_id = int(message_id)
-    except ValueError:
-        print("Invalid channel or message ID. IDs must be integers.")
-        return None
-
-    channel = client.get_channel(channel_id)
-    if channel:
-        try:
-            message = await channel.fetch_message(message_id)
-            return message
-        except Exception as e:
-            print(f"Failed to fetch message: {e}")
-    else:
-        print(f"Channel with ID {channel_id} not found.")
-    return None
-
-
 class Khaled(discord.Client):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -86,7 +64,7 @@ class Khaled(discord.Client):
         # Notify after reset
         message_id, channel_id = self.db_service.get_startup_notification()
         if message_id and channel_id:
-            message = await fetch_message_by_id(self, channel_id, message_id)
+            message = await self.fetch_message_by_id(channel_id, message_id)
             if message:
                 await message.clear_reactions()
                 await message.add_reaction("✅")
@@ -132,6 +110,26 @@ class Khaled(discord.Client):
     async def reset(self):
         subprocess.call(["aws/scripts/application-start.sh"])
         await self.close()
+
+    async def fetch_message_by_id(self, channel_id, message_id):
+        try:
+            # Convert the IDs to integers
+            channel_id = int(channel_id)
+            message_id = int(message_id)
+        except ValueError:
+            print("Invalid channel or message ID. IDs must be integers.")
+            return None
+
+        channel = self.get_channel(channel_id)
+        if channel:
+            try:
+                message = await channel.fetch_message(message_id)
+                return message
+            except Exception as e:
+                print(f"Failed to fetch message: {e}")
+        else:
+            print(f"Channel with ID {channel_id} not found.")
+            return None
 
 
 def run_bot():

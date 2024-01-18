@@ -1,3 +1,4 @@
+import asyncio
 import html
 import json
 import os
@@ -73,10 +74,17 @@ class MusicService:
 
     async def delete_song_log(self, song):
         for message in song.messages_to_delete:
-            try:
-                await message.delete()
-            except:
-                pass
+            retries = 3
+            for attempt in range(retries):
+                try:
+                    await message.delete()
+                    break
+                except Exception as e:
+                    if attempt < retries - 1:
+                        await asyncio.sleep(1)
+                        continue
+                    else:
+                        pass
         song.messages_to_delete = []
 
     async def join_voice_channel(self, message):
@@ -161,7 +169,7 @@ class MusicService:
 
             send_lyrics_job = Job(
                 lambda: self.check_reaction(embed_msg, song),
-                1,
+                2,
                 JobType.SEND_LYRICS,
                 self.client.max_duration,
             )

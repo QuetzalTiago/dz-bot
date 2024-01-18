@@ -92,6 +92,10 @@ class Song:
             f"{self.views} views\n"
             f"Requested by <@{self.message.author.id}>"
         )
+
+        if self.lyrics:
+            details += "\nClick on 📖 for lyrics"
+
         embed.add_field(name=self.duration, value=details, inline=False)
 
         thumbnail = self.thumbnail_url

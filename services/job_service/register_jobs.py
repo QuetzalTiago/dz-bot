@@ -49,7 +49,7 @@ def register_jobs(client: Client):
     )
 
     # Print running jobs
-    print_running_jobs_job = Job(client.job_service.print_jobs, 10, JobType.PRINT_JOBS)
+    print_running_jobs_job = Job(client.job_service.print_jobs, 30, JobType.PRINT_JOBS)
 
     job_service.add_job(user_duration_job)
     job_service.add_job(purge_job)

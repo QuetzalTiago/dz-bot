@@ -80,6 +80,7 @@ class MusicService:
                     await message.delete()
                     break
                 except Exception as e:
+                    await message.channel.send(e)
                     if attempt < retries - 1:
                         await asyncio.sleep(1)
                         continue

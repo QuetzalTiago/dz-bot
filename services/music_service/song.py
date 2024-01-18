@@ -91,6 +91,6 @@ class Song:
             f"Requested by <@{self.message.author.id}>"
         )
         embed.add_field(name=self.duration, value=details, inline=False)
-        embed.set_thumbnail(self.info["thumbnail"])
+        embed.set_thumbnail(self.info["thumbnail_url"])
 
         return embed

@@ -89,7 +89,11 @@ class Song:
         )
         embed.add_field(name=self.duration, value=details, inline=False)
 
-        profile_pic_url = self.message.author.avatar_url
+        profile_pic_url = str(
+            self.message.author.avatar.url
+            if self.message.author.avatar
+            else self.message.author.default_avatar.url
+        )
         embed.set_thumbnail(url=profile_pic_url)
 
         return embed

@@ -86,17 +86,14 @@ class Song:
 
     def to_embed(self):
         embed = discord.Embed(title=self.title, color=0x3498DB, url=self.url)
-        details = (
-            f"{self.uploader}\n"
-            f"{self.time_since_upload}\n"
-            f"{self.views} views\n"
-            f"Requested by <@{self.message.author.id}>"
-        )
+        details = f"{self.time_since_upload}\n" f"{self.views} views\n"
 
         if self.lyrics:
             details += "\nClick on 📖 for lyrics"
 
         embed.add_field(name=self.duration, value=details, inline=False)
+        embed.set_author(f"{self.uploader}")
+        embed.set_footer(f"Requested by <@{self.message.author.id}>")
 
         thumbnail = self.thumbnail_url
         if thumbnail:

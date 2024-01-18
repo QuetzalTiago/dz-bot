@@ -32,7 +32,7 @@ class Song:
 
     @property
     def thumbnail_url(self):
-        return self.info.get["thumbnail", None]
+        return self.info.get("thumbnail", None)
 
     @property
     def uploader(self):
@@ -85,9 +85,7 @@ class Song:
         return self._lyrics
 
     def to_embed(self):
-        embed = discord.Embed(
-            title=f"Now Playing: {self.title}", color=0x3498DB, url=self.url
-        )
+        embed = discord.Embed(title=self.title, color=0x3498DB, url=self.url)
         details = (
             f"{self.uploader}\n"
             f"{self.time_since_upload}\n"
@@ -98,6 +96,6 @@ class Song:
 
         thumbnail = self.thumbnail_url
         if thumbnail:
-            embed.set_thumbnail(thumbnail)
+            embed.set_thumbnail(url=thumbnail)  # Corrected this line
 
         return embed

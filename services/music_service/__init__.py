@@ -107,7 +107,7 @@ class MusicService:
             await self.join_voice_channel(message)
 
         self.queue.append(song)
-        self.disconnect_timer = None  # Reset timer when a new song is added
+        self.disconnect_timer = None
 
     async def check_play_state(self):
         return self.is_playing() or self.file_service.is_downloading()
@@ -219,7 +219,7 @@ class MusicService:
         self.queue = []
         self.current_song = None
         self.last_song = None
-        self.disconnect_timer = None  # Reset timer when stopped
+        self.disconnect_timer = None
 
     async def clear(self, message):
         self.dl_queue = []
@@ -362,8 +362,8 @@ class MusicService:
 
         return songs
 
-    async def check_reaction(self, msg, song):
-        # Check reactions
+    async def check_reaction(self, message, song):
+        msg = await message.channel.fetch_message(message.id)
         if msg:
             for reaction in msg.reactions:
                 if str(reaction.emoji) == "📖":

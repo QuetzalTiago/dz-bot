@@ -160,7 +160,9 @@ class MusicService:
         self.play_audio(song.path)
         self.current_song = song
 
-        embed_msg = await self.send_song_embed(song)
+        embed = await self.send_song_embed(song)
+        embed_msg = await song.message.channel.fetch_message(embed.id)
+
         song.messages_to_delete.append(embed_msg)
         song.messages_to_delete.append(song.message)
 
@@ -364,9 +366,8 @@ class MusicService:
 
         return songs
 
-    async def check_reaction(self, message, song):
+    async def check_reaction(self, msg, song):
         # Check reactions
-        msg = await message.channel.fetch_message(message.id)
         if msg:
             for reaction in msg.reactions:
                 if str(reaction.emoji) == "📖":

@@ -377,3 +377,5 @@ class MusicService:
                             song.messages_to_delete.append(lyrics_msg)
                         self.client.job_service.remove_job(JobType.SEND_LYRICS)
                         break
+        else:
+            self.client.job_service.remove_job(JobType.SEND_LYRICS)

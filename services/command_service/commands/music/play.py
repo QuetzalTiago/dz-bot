@@ -46,7 +46,7 @@ class PlayCommand(BaseCommand):
         if not existing_job:
             process_job = Job(
                 lambda: self.client.music_service.process_dl_queue(self.message),
-                10,
+                20,
                 JobType.PROCESS_DB_QUEUE,
                 5400,  # 90 minutes
             )

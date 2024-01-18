@@ -74,18 +74,10 @@ class MusicService:
 
     async def delete_song_log(self, song):
         for message in song.messages_to_delete:
-            retries = 3
-            for attempt in range(retries):
-                try:
-                    await message.delete()
-                    break
-                except Exception as e:
-                    await message.channel.send(e)
-                    if attempt < retries - 1:
-                        await asyncio.sleep(1)
-                        continue
-                    else:
-                        pass
+            try:
+                await message.delete()
+            except Exception as e:
+                continue
         song.messages_to_delete = []
 
     async def join_voice_channel(self, message):
@@ -156,6 +148,9 @@ class MusicService:
     async def play_song(self, song: Song):
         if await self.check_play_state():
             return
+
+        if self.last_song:
+            await self.delete_song_log(self.last_song)
 
         self.cleanup_files(song, self.queue)
         self.play_audio(song.path)

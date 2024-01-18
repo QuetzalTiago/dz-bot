@@ -27,6 +27,10 @@ class Song:
         return "{:,}".format(self.info["view_count"])
 
     @property
+    def url(self):
+        return self.info["url"]
+
+    @property
     def uploader(self):
         return self.info.get("uploader", "N/A")
 
@@ -78,8 +82,7 @@ class Song:
 
     def to_embed(self):
         embed = discord.Embed(
-            title=f"Now Playing: {self.title}",
-            color=0x3498DB,
+            title=f"Now Playing: {self.title}", color=0x3498DB, url=self.url
         )
         details = (
             f"{self.uploader}\n"

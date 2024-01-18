@@ -96,6 +96,6 @@ class Song:
 
         thumbnail = self.thumbnail_url
         if thumbnail:
-            embed.set_thumbnail(url=thumbnail)  # Corrected this line
+            embed.set_thumbnail(url=thumbnail)
 
         return embed

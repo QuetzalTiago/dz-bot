@@ -81,7 +81,6 @@ class Song:
         return self._lyrics
 
     def to_embed(self):
-        print(self.info)
         embed = discord.Embed(
             title=f"Now Playing: {self.title}", color=0x3498DB, url=self.url
         )
@@ -92,12 +91,6 @@ class Song:
             f"Requested by <@{self.message.author.id}>"
         )
         embed.add_field(name=self.duration, value=details, inline=False)
-
-        profile_pic_url = str(
-            self.message.author.avatar.url
-            if self.message.author.avatar
-            else self.message.author.default_avatar.url
-        )
-        embed.set_thumbnail(url=profile_pic_url)
+        embed.set_thumbnail(self.info["thumbnail"])
 
         return embed

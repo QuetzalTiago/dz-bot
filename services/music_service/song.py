@@ -28,7 +28,7 @@ class Song:
 
     @property
     def url(self):
-        return self.info["url"]
+        return self.info["original_url"]
 
     @property
     def uploader(self):
@@ -81,6 +81,7 @@ class Song:
         return self._lyrics
 
     def to_embed(self):
+        print(self.info)
         embed = discord.Embed(
             title=f"Now Playing: {self.title}", color=0x3498DB, url=self.url
         )

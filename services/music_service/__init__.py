@@ -28,7 +28,7 @@ class MusicService:
         self.current_song = None
         self.voice_client = None
         self.loop = False
-        self.file_service = FileService()
+        self.file_service = FileService(client)
         self.last_song = None
         self.disconnect_timer = None
         self.spotify = spotipy.Spotify(
@@ -155,13 +155,18 @@ class MusicService:
         embed_msg = await self.send_song_embed(song)
         song.messages_to_delete.append(embed_msg)
         song.messages_to_delete.append(song.message)
-        await embed_msg.add_reaction("📖")
 
-        send_lyrics_job = Job(
-            lambda: self.check_reaction(embed_msg, song), 1, JobType.SEND_LYRICS
-        )
+        if song.lyrics:
+            await embed_msg.add_reaction("📖")
 
-        self.client.job_service.add_job(send_lyrics_job)
+            send_lyrics_job = Job(
+                lambda: self.check_reaction(embed_msg, song),
+                1,
+                JobType.SEND_LYRICS,
+                self.client.max_duration,
+            )
+
+            self.client.job_service.add_job(send_lyrics_job)
         self.last_song = song
 
     def is_playing(self):
@@ -353,13 +358,14 @@ class MusicService:
 
     async def check_reaction(self, message, song):
         # Check reactions
-        if message:
-            for reaction in message.reactions:
-                print(reaction)
+        msg = await message.channel.fetch_message(message.id)
+        if msg:
+            for reaction in msg.reactions:
                 if str(reaction.emoji) == "📖":
                     users = [user async for user in reaction.users()]
                     if any(user != self.client.user for user in users):
                         lyrics_msg = await self.handle_lyrics(song)
                         if lyrics_msg:
                             song.messages_to_delete.append(lyrics_msg)
+                        self.client.job_service.remove_job(JobType.SEND_LYRICS)
                         break

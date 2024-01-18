@@ -7,11 +7,11 @@ from youtube_search import YoutubeSearch
 
 
 class FileService:
-    def __init__(self):
-        self.max_duration = 1200  # in seconds, 20 minutes
+    def __init__(self, client):
         self.audio_quality = 96  # kb/s, max discord channel quality is
         self.audio_format = "mp3"
         self.downloading = False
+        self.client = client
 
     async def download_from_youtube(self, song_name, message):
         file_name = f"{uuid.uuid4().int}"
@@ -41,10 +41,10 @@ class FileService:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(song_name, download=False)
 
-            if info["duration"] > self.max_duration:
+            if info["duration"] > self.client.max_duration:
                 duration_readable = str(datetime.timedelta(seconds=info["duration"]))
                 max_duration_readable = str(
-                    datetime.timedelta(seconds=self.max_duration)
+                    datetime.timedelta(seconds=self.client.max_duration)
                 )
                 song_title = info["title"]
 

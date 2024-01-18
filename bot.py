@@ -31,6 +31,7 @@ class Khaled(discord.Client):
             "Bless up.",
             "Call me asparagus!",
         ]
+        self.max_duration = 1200  # in seconds, 20 minutes
 
     async def initialize_services(self):
         self.command_service = CommandService(self)

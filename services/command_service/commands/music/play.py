@@ -9,7 +9,7 @@ class PlayCommand(BaseCommand):
     def __init__(self, client, message, music_service: MusicService):
         super().__init__(client, message)
         self.music_service = music_service
-        self.file_service = FileService()
+        self.file_service = FileService(client)
 
     @staticmethod
     def __str__():

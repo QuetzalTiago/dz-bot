@@ -139,6 +139,8 @@ class MusicService:
                 song.message.channel, lyrics_file_name
             )
             os.remove(lyrics_file_name)
+            song.lyrics_sent = True
+
             return lyrics_msg
 
     async def send_lyrics_file(self, channel, file_name):
@@ -363,6 +365,10 @@ class MusicService:
         return songs
 
     async def check_reaction(self, message, song):
+        if song.lyrics_sent:
+            self.client.job_service.remove_job(JobType.SEND_LYRICS)
+            return
+
         msg = await message.channel.fetch_message(message.id)
         if msg:
             for reaction in msg.reactions:

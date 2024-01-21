@@ -9,6 +9,7 @@ class Song:
         self.message = message
         self.messages_to_delete = []
         self._lyrics = lyrics
+        self.lyrics_sent = False
 
     @property
     def title(self):

@@ -138,8 +138,8 @@ class MusicService:
             lyrics_msg = await self.send_lyrics_file(
                 song.message.channel, lyrics_file_name
             )
-            os.remove(lyrics_file_name)
             song.lyrics_sent = True
+            os.remove(lyrics_file_name)
 
             return lyrics_msg
 
@@ -369,16 +369,16 @@ class MusicService:
             self.client.job_service.remove_job(JobType.SEND_LYRICS)
             return
 
-        msg = await message.channel.fetch_message(message.id)
-        if msg:
-            for reaction in msg.reactions:
-                if str(reaction.emoji) == "📖":
-                    users = [user async for user in reaction.users()]
-                    if any(user != self.client.user for user in users):
-                        lyrics_msg = await self.handle_lyrics(song)
-                        if lyrics_msg:
-                            song.messages_to_delete.append(lyrics_msg)
-                        self.client.job_service.remove_job(JobType.SEND_LYRICS)
-                        break
-        else:
+        try:
+            msg = await message.channel.fetch_message(message.id)
+            if msg:
+                for reaction in msg.reactions:
+                    if str(reaction.emoji) == "📖":
+                        users = [user async for user in reaction.users()]
+                        if any(user != self.client.user for user in users):
+                            lyrics_msg = await self.handle_lyrics(song)
+                            if lyrics_msg:
+                                song.messages_to_delete.append(lyrics_msg)
+                            break
+        except Exception as e:
             self.client.job_service.remove_job(JobType.SEND_LYRICS)

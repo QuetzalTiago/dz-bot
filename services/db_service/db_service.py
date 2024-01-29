@@ -5,6 +5,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from services.db_service.entities.btc_price import BitcoinPrice
 
 from services.db_service.entities.chess_game import ChessGame
 from services.db_service.entities.startup_notification import StartupNotification
@@ -146,5 +147,29 @@ class DatabaseService:
 
         except Exception as e:
             print(f"Error fetching chess games: {e}")
+        finally:
+            session.close()
+
+    def update_bitcoin_price(self, new_price):
+        session = self.Session()
+        try:
+            btc_price = session.query(BitcoinPrice).filter(BitcoinPrice.id == 1).first()
+            if btc_price:
+                btc_price.price = new_price
+            else:
+                btc_price = BitcoinPrice(id=1, price=new_price)
+                session.add(btc_price)
+            session.commit()
+        except Exception as e:
+            print(f"Error updating Bitcoin price: {e}")
+            session.rollback()
+        finally:
+            session.close()
+
+    def get_bitcoin_price(self):
+        session = self.Session()
+        try:
+            btc_price = session.query(BitcoinPrice).filter(BitcoinPrice.id == 1).first()
+            return btc_price.price if btc_price else None
         finally:
             session.close()

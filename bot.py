@@ -40,10 +40,12 @@ class Khaled(discord.Client):
         self.job_service = JobService(self)
 
         register_commands(self)
-        register_jobs(self)
 
         await self.music_service.initialize()
         await self.db_service.async_initialize()
+
+        # Should be after db init
+        await register_jobs(self)
 
         # Should always be the last one
         await self.job_service.initialize()

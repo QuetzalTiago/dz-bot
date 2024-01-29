@@ -81,7 +81,7 @@ async def register_jobs(client: Client):
 
     btc_price_check_job = Job(
         check_and_notify_bitcoin_price_change,
-        10,  # Check every hour
+        3600,  # Check every hour
         JobType.CHECK_BTC_CHANGE,
     )
 

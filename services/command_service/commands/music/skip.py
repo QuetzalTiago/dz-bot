@@ -13,3 +13,4 @@ class SkipCommand(BaseCommand):
 
     async def execute(self):
         await self.music_service.skip_song()
+        await self.message.delete()

@@ -11,7 +11,7 @@ class RestartCommand(BaseCommand):
         return "Restarts the bot and resets its state."
 
     async def execute(self):
-        await self.message.add_reaction("🔄")
+        await self.message.add_reaction("⌛")
 
         self.client.db_service.set_startup_notification(
             self.message.id, self.message.channel.id

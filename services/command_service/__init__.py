@@ -29,7 +29,7 @@ class CommandService:
 
     async def purgeMessages(self, channel):
         await channel.purge(
-            limit=100,
+            limit=50,
             check=lambda m: m.author == self.client.user
             or any(
                 (params and m.content.lower().startswith(trigger))

@@ -13,3 +13,4 @@ class ClearCommand(BaseCommand):
 
     async def execute(self):
         await self.music_service.clear(self.message)
+        await self.message.delete()

@@ -13,3 +13,4 @@ class StopCommand(BaseCommand):
 
     async def execute(self):
         await self.music_service.stop(self.message)
+        await self.message.delete()

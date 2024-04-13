@@ -59,7 +59,7 @@ async def register_jobs(client: Client):
 
         last_price = client.db_service.get_bitcoin_price()
 
-        threshold = 0.05  # 5% change threshold
+        threshold = 0.025  # 2.5% change threshold
 
         if last_price is not None:
             price_change = current_price - last_price

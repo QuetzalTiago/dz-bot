@@ -98,4 +98,3 @@ async def register_jobs(client: Client):
     job_service.add_job(user_duration_job)
     job_service.add_job(purge_job)
     job_service.add_job(print_running_jobs_job)
-    job_service.add_job(print_running_jobs_job)

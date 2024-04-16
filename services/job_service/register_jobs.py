@@ -85,12 +85,17 @@ async def register_jobs(client: Client):
         JobType.CHECK_BTC_CHANGE,
     )
 
+    # Reset bot job, runs every 12 hours
+    reset_bot_job = Job(client.reset, 43200, JobType.RESET)
+
     try:
         await btc_price_check_job.run()
     except Exception as e:
         print(e)
 
     job_service.add_job(btc_price_check_job)
+    job_service.add_job(reset_bot_job)
     job_service.add_job(user_duration_job)
     job_service.add_job(purge_job)
+    job_service.add_job(print_running_jobs_job)
     job_service.add_job(print_running_jobs_job)

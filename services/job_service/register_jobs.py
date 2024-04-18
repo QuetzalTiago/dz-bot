@@ -85,8 +85,8 @@ async def register_jobs(client: Client):
         JobType.CHECK_BTC_CHANGE,
     )
 
-    # Reset bot job, runs every 12 hours
-    reset_bot_job = Job(client.reset, 43200, JobType.RESET)
+    # Reset bot job, runs every 6 hours
+    reset_bot_job = Job(client.reset, 21500, JobType.RESET)
 
     try:
         await btc_price_check_job.run()

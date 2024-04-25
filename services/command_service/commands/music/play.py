@@ -45,7 +45,7 @@ class PlayCommand(BaseCommand):
 
         if not existing_job:
             process_job = Job(
-                lambda: self.client.music_service.process_dl_queue(self.message),
+                lambda: self.music_service.process_dl_queue(self.message),
                 20,
                 JobType.PROCESS_DB_QUEUE,
                 5400,  # 90 minutes
@@ -87,7 +87,7 @@ class PlayCommand(BaseCommand):
             # await self.play_songs_from_list(song_names)
 
         else:
-            self.process_songs([song_name])
+            await self.process_songs([song_name])
 
         await self.message.clear_reactions()
         await self.message.add_reaction("✅")

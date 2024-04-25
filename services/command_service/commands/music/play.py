@@ -31,7 +31,7 @@ class PlayCommand(BaseCommand):
             return
 
         if song_names:
-            await self.process_songs(song_names)
+            await self.music_service.enqueue_songs(song_names, self.message)
 
     async def execute(self):
         if self.message.author.voice is None:
@@ -62,7 +62,7 @@ class PlayCommand(BaseCommand):
             # await self.play_songs_from_list(song_names)
 
         else:
-            await self.music_service.enqueue_songs([song_name])
+            await self.music_service.enqueue_songs([song_name], self.message)
 
         await self.message.clear_reactions()
         await self.message.add_reaction("✅")

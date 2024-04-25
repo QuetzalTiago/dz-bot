@@ -232,6 +232,31 @@ class MusicService:
         self.loop = not self.loop
         return "on" if self.loop else "off"
 
+    async def enqueue_songs(self, song_names):
+        for song_name in song_names:
+            if song_name not in self.dl_queue:
+                self.dl_queue.append(song_name)
+
+        existing_job = any(
+            job.job_type == JobType.PROCESS_DB_QUEUE
+            for job in self.client.job_service.jobs
+        )
+
+        if not existing_job:
+            process_job = Job(
+                lambda: self.process_dl_queue(self.message),
+                40,
+                JobType.PROCESS_DB_QUEUE,
+                5400,  # 90 minutes
+            )
+
+            try:
+                await process_job.run()
+            except:
+                pass
+
+            self.client.job_service.add_job(process_job)
+
     async def process_dl_queue(self, message):
         if self.dl_queue.__len__() == 0:
             self.client.job_service.remove_job(JobType.PROCESS_DB_QUEUE)

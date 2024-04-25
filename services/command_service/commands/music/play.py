@@ -33,31 +33,6 @@ class PlayCommand(BaseCommand):
         if song_names:
             await self.process_songs(song_names)
 
-    async def process_songs(self, song_names):
-        for song_name in song_names:
-            if song_name not in self.music_service.dl_queue:
-                self.music_service.dl_queue.append(song_name)
-
-        existing_job = any(
-            job.job_type == JobType.PROCESS_DB_QUEUE
-            for job in self.client.job_service.jobs
-        )
-
-        if not existing_job:
-            process_job = Job(
-                lambda: self.music_service.process_dl_queue(self.message),
-                20,
-                JobType.PROCESS_DB_QUEUE,
-                5400,  # 90 minutes
-            )
-
-            try:
-                await process_job.run()
-            except:
-                pass
-
-            self.client.job_service.add_job(process_job)
-
     async def execute(self):
         if self.message.author.voice is None:
             await self.message.channel.send("You are not connected to a voice channel!")
@@ -87,7 +62,7 @@ class PlayCommand(BaseCommand):
             # await self.play_songs_from_list(song_names)
 
         else:
-            await self.process_songs([song_name])
+            await self.music_service.enqueue_songs([song_name])
 
         await self.message.clear_reactions()
         await self.message.add_reaction("✅")

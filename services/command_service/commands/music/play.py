@@ -87,10 +87,13 @@ class PlayCommand(BaseCommand):
             # await self.play_songs_from_list(song_names)
 
         else:
-            path, info = await self.file_service.download_from_youtube(
-                song_name, self.message
-            )
-            await self.music_service.add_to_queue(path, info, self.message)
+            if not self.file_service.is_downloading():
+                path, info = await self.file_service.download_from_youtube(
+                    song_name, self.message
+                )
+                await self.music_service.add_to_queue(path, info, self.message)
+            else:
+                self.process_songs([song_name])
 
         await self.message.clear_reactions()
         await self.message.add_reaction("✅")

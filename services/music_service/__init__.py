@@ -90,6 +90,9 @@ class MusicService:
         return self.voice_client
 
     async def add_to_queue(self, song_path, song_info, message):
+        if not self.is_playing():
+            await self.join_voice_channel(message)
+
         if message.content.startswith("play"):
             query = message.content[5:].strip()
         else:
@@ -102,9 +105,6 @@ class MusicService:
         lyrics = await self.fetch_lyrics(query)
 
         song = Song(song_path, song_info, message, lyrics)
-
-        if not self.is_playing():
-            await self.join_voice_channel(message)
 
         self.queue.append(song)
         self.disconnect_timer = None

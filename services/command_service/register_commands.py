@@ -24,8 +24,8 @@ def register_commands(client):
     db_service = client.db_service
 
     # Play
-    client.command_service.register_command("play", PlayCommand, True, music_service)
-    client.command_service.register_command("p ", PlayCommand, True, music_service)
+    client.command_service.register_command("play", PlayCommand, True)
+    client.command_service.register_command("p ", PlayCommand, True)
 
     # Skip
     client.command_service.register_command("skip", SkipCommand, False, music_service)

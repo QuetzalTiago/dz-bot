@@ -6,10 +6,8 @@ from ..base import BaseCommand
 
 
 class PlayCommand(BaseCommand):
-    def __init__(self, client, message, music_service: MusicService):
+    def __init__(self, client, message):
         super().__init__(client, message)
-        self.music_service = music_service
-        self.file_service = FileService(client)
 
     @staticmethod
     def __str__():
@@ -19,19 +17,19 @@ class PlayCommand(BaseCommand):
         song_names = []
 
         if "/playlist/" in url:
-            song_names = await self.music_service.get_spotify_playlist_songs(url)
+            song_names = await self.client.music_service.get_spotify_playlist_songs(url)
         elif "/album/" in url:
-            song_names = await self.music_service.get_spotify_album_songs(url)
+            song_names = await self.client.music_service.get_spotify_album_songs(url)
         else:
-            spotify_name = await self.music_service.get_spotify_name(url)
-            path, info = await self.file_service.download_from_youtube(
+            spotify_name = await self.client.music_service.get_spotify_name(url)
+            path, info = await self.client.file_service.download_from_youtube(
                 spotify_name, self.message
             )
-            await self.music_service.add_to_queue(path, info, self.message)
+            await self.client.music_service.add_to_queue(path, info, self.message)
             return
 
         if song_names:
-            await self.music_service.enqueue_songs(song_names, self.message)
+            await self.client.music_service.enqueue_songs(song_names, self.message)
 
     async def execute(self):
         if self.message.author.voice is None:
@@ -58,11 +56,11 @@ class PlayCommand(BaseCommand):
                 "Youtube playlists not yet supported. Try a spotify link instead."
             )
             return
-            # song_names = await self.music_service.get_youtube_playlist_songs(song_name)
+            # song_names = await self.client.music_service.get_youtube_playlist_songs(song_name)
             # await self.play_songs_from_list(song_names)
 
         else:
-            await self.music_service.enqueue_songs([song_name], self.message)
+            await self.client.music_service.enqueue_songs([song_name], self.message)
 
         await self.message.clear_reactions()
         await self.message.add_reaction("✅")

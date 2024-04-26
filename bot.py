@@ -41,27 +41,27 @@ class Khaled(discord.Client):
         self.job_service = JobService(self)
         self.file_service = FileService(self)
 
+        # Commands
         register_commands(self)
 
+        # Music
         await self.music_service.initialize()
+
+        # Database
         await self.db_service.async_initialize()
 
-        # Should be after db init
+        # Register jobs (should be after db init)
         await register_jobs(self)
 
-        # Should always be the last one
+        # Job service (should always be the last one)
         await self.job_service.initialize()
 
     async def on_ready(self):
         print("Logged on as", self.user)
         await self.set_first_text_channel_as_main()
         quote = random.choice(self.dj_khaled_quotes)
-        # await self.main_channel.send(f"**{quote}**")#
-        # To be changed so it checks db state if it should notify after reset
         await self.change_presence(
-            activity=discord.Activity(
-                type=discord.ActivityType.playing, name="another one"
-            )
+            activity=discord.Activity(type=discord.ActivityType.playing, name=quote)
         )
 
         await self.initialize_services()

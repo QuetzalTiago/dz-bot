@@ -24,8 +24,10 @@ class PlayCommand(BaseCommand):
             spotify_name = await self.client.music_service.get_spotify_name(url)
             song_names.append(spotify_name)
 
+        songs = map((lambda song_name: (song_name, self.message)), song_names)
+
         if song_names:
-            await self.client.music_service.enqueue_songs(song_names, self.message)
+            await self.client.music_service.enqueue_songs(songs)
 
         await self.message.clear_reactions()
         await self.message.add_reaction("✅")
@@ -59,7 +61,7 @@ class PlayCommand(BaseCommand):
             # await self.play_songs_from_list(song_names)
 
         else:
-            await self.client.music_service.enqueue_songs([song_name], self.message)
+            await self.client.music_service.enqueue_songs([(song_name, self.message)])
 
         await self.message.clear_reactions()
         await self.message.add_reaction("✅")

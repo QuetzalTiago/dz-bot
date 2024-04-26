@@ -61,7 +61,7 @@ class Khaled(discord.Client):
         await self.set_first_text_channel_as_main()
         quote = random.choice(self.dj_khaled_quotes)
         await self.change_presence(
-            activity=discord.Activity(type=discord.ActivityType.playing, name=quote)
+            activity=discord.Activity(type=discord.ActivityType.custom, name=quote)
         )
 
         await self.initialize_services()

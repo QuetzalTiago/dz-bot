@@ -245,17 +245,17 @@ class MusicService:
         if not existing_job:
             process_job = Job(
                 lambda: self.process_dl_queue(message),
-                40,
+                60,
                 JobType.PROCESS_DB_QUEUE,
                 5400,  # 90 minutes
             )
+
+            self.client.job_service.add_job(process_job)
 
             try:
                 await process_job.run()
             except:
                 pass
-
-            self.client.job_service.add_job(process_job)
 
     async def process_dl_queue(self, message):
         if self.dl_queue.__len__() == 0:

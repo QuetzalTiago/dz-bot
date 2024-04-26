@@ -15,3 +15,8 @@ class QueueCommand(BaseCommand):
         queue_info_embed = self.music_service.get_queue_info_embed()
 
         await self.message.channel.send(embed=queue_info_embed)
+
+        if len(self.music_service.dl_queue) > 0:
+            await self.message.channel.send(
+                f"**{len(self.music_service.dl_queue)}** in the download queue."
+            )

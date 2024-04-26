@@ -22,15 +22,13 @@ class PlayCommand(BaseCommand):
             song_names = await self.client.music_service.get_spotify_album_songs(url)
         else:
             spotify_name = await self.client.music_service.get_spotify_name(url)
-            await self.client.music_service.enqueue_songs([spotify_name], self.message)
-
-            await self.message.clear_reactions()
-            await self.message.add_reaction("✅")
-
-            return
+            song_names.append(spotify_name)
 
         if song_names:
             await self.client.music_service.enqueue_songs(song_names, self.message)
+
+        await self.message.clear_reactions()
+        await self.message.add_reaction("✅")
 
     async def execute(self):
         if self.message.author.voice is None:

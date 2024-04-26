@@ -247,7 +247,7 @@ class MusicService:
                 lambda: self.process_dl_queue(),
                 60,
                 JobType.PROCESS_DB_QUEUE,
-                5400,  # 90 minutes
+                10800,  # 180 minutes
             )
 
             self.client.job_service.add_job(process_job)

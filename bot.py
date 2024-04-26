@@ -39,7 +39,7 @@ class Khaled(discord.Client):
         self.music_service = MusicService(self)
         self.db_service = DatabaseService(db_url)
         self.job_service = JobService(self)
-        self.job_service = FileService(self)
+        self.file_service = FileService(self)
 
         register_commands(self)
 

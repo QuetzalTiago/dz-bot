@@ -7,6 +7,7 @@ import subprocess
 from services.command_service import CommandService
 from services.command_service.register_commands import register_commands
 from services.db_service.db_service import DatabaseService
+from services.file_service import FileService
 from services.job_service import JobService
 from services.job_service.register_jobs import register_jobs
 from services.music_service import MusicService
@@ -38,6 +39,7 @@ class Khaled(discord.Client):
         self.music_service = MusicService(self)
         self.db_service = DatabaseService(db_url)
         self.job_service = JobService(self)
+        self.job_service = FileService(self)
 
         register_commands(self)
 

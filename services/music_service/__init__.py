@@ -200,6 +200,9 @@ class MusicService:
                 description += f"and more..."
                 break
 
+        if self.dl_queue.__len__ > 0:
+            description += f"and {self.dl_queue.__len__} more in the download queue"
+
         embed.description = description
         return embed
 

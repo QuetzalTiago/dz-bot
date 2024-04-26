@@ -26,6 +26,9 @@ class PlayCommand(BaseCommand):
                 spotify_name, self.message
             )
             await self.client.music_service.add_to_queue(path, info, self.message)
+
+            await self.message.clear_reactions()
+            await self.message.add_reaction("✅")
             return
 
         if song_names:

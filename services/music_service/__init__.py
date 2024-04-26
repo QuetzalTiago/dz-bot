@@ -238,7 +238,7 @@ class MusicService:
                 self.dl_queue.append(song)
 
         existing_job = any(
-            job.job_type == JobType.PROCESS_DB_QUEUE
+            job.job_type == JobType.PROCESS_DL_QUEUE
             for job in self.client.job_service.jobs
         )
 
@@ -246,7 +246,7 @@ class MusicService:
             process_job = Job(
                 lambda: self.process_dl_queue(),
                 60,
-                JobType.PROCESS_DB_QUEUE,
+                JobType.PROCESS_DL_QUEUE,
                 10800,  # 180 minutes
             )
 
@@ -259,7 +259,7 @@ class MusicService:
 
     async def process_dl_queue(self):
         if self.dl_queue.__len__() == 0:
-            self.client.job_service.remove_job(JobType.PROCESS_DB_QUEUE)
+            self.client.job_service.remove_job(JobType.PROCESS_DL_QUEUE)
             return
 
         next_song_name, message = self.dl_queue.pop(0)

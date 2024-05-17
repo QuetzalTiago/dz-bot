@@ -4,7 +4,7 @@ from sqlalchemy import (
     Integer,
     Text,
 )
-from services.db_service.base import Base
+from cogs.db.base import Base
 
 
 class StartupNotification(Base):

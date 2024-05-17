@@ -1,30 +1,27 @@
-import datetime
 from collections import defaultdict
-from discord import Embed, Message
+from discord import Embed
 
-from services.command_service.commands.base import BaseCommand
+from discord.ext import commands
 
+class ChessLeaderboard(commands.Cog):
 
-class ChessLeaderboardCommand(BaseCommand):
-    def __init__(self, client, message: Message):
-        super().__init__(client, message)
+    def __init__(self, bot):
+        self.bot = bot
+        self.description = "Shows the top 5 players on the chess leaderboard, including their win rates."
 
-    @staticmethod
-    def __str__():
-        return "Shows the top 5 players on the chess leaderboard, including their win rates."
-
-    async def execute(self):
-        matches = self.client.db_service.get_chess_games()
+    @commands.command(aliases=["clb", "chess leaderboard"])
+    async def chess_leaderboard(self, ctx):
+        matches = self.bot.get_cog('Database').get_chess_games()
         leaderboard = self.calculate_leaderboard(matches)
 
         if not leaderboard:
             # Send a message if the leaderboard is empty
-            await self.message.channel.send(
+            await ctx.message.channel.send(
                 "No games are available for the leaderboard."
             )
         else:
             embed = self.get_leaderboard_embed(leaderboard)
-            await self.message.channel.send(embed=embed)
+            await ctx.message.channel.send(embed=embed)
 
     def calculate_leaderboard(self, chess_games):
         player_stats = defaultdict(lambda: {"wins": 0, "games": 0})
@@ -64,3 +61,6 @@ class ChessLeaderboardCommand(BaseCommand):
             embed.add_field(name=username, value=description, inline=False)
 
         return embed
+
+async def setup(bot):
+    await bot.add_cog(ChessLeaderboard(bot))

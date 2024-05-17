@@ -4,16 +4,17 @@ import uuid
 import datetime
 import yt_dlp
 from youtube_search import YoutubeSearch
+from discord.ext import commands
 
 
-class FileService:
-    def __init__(self, client):
+class Files(commands.Cog):
+    def __init__(self, bot):
         self.audio_quality = 96  # kb/s, max discord channel quality is
         self.audio_format = "mp3"
         self.downloading = False
-        self.client = client
+        self.bot = bot
 
-    async def download_from_youtube(self, song_name, message):
+    async def download_from_youtube(self, song_url, message):
         file_name = f"{uuid.uuid4().int}"
 
         ydl_opts = {
@@ -31,20 +32,18 @@ class FileService:
 
         self.downloading = True
 
-        if "youtube.com" in song_name or "youtu.be" in song_name:
-            pass
-        else:
-            results = json.loads(YoutubeSearch(song_name, max_results=5).to_json())
+        if "youtube.com" not in song_url or "youtu.be" not in song_url:
+            results = json.loads(YoutubeSearch(song_url, max_results=5).to_json())
             url_suffix = results["videos"][0]["url_suffix"]
-            song_name = f"https://www.youtube.com{url_suffix}"
+            song_url = f"https://www.youtube.com{url_suffix}"
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(song_name, download=False)
+            info = ydl.extract_info(song_url, download=False)
 
-            if info["duration"] > self.client.max_duration:
+            if info["duration"] > self.bot.max_duration:
                 duration_readable = str(datetime.timedelta(seconds=info["duration"]))
                 max_duration_readable = str(
-                    datetime.timedelta(seconds=self.client.max_duration)
+                    datetime.timedelta(seconds=self.bot.max_duration)
                 )
                 song_title = info["title"]
 
@@ -57,7 +56,7 @@ class FileService:
                 self.downloading = False
                 return
 
-            info = ydl.extract_info(song_name, download=True)
+            info = ydl.extract_info(song_url, download=True)
 
         self.downloading = False
 
@@ -72,3 +71,6 @@ class FileService:
 
     def is_downloading(self):
         return self.downloading
+
+async def setup(bot):
+    await bot.add_cog(Files(bot))

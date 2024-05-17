@@ -1,4 +1,3 @@
-import asyncio
 import html
 import json
 import os
@@ -11,27 +10,22 @@ import time
 import requests
 import yt_dlp
 import spotipy
+from discord.ext import commands, tasks
 from spotipy.oauth2 import SpotifyClientCredentials
-from services.file_service import FileService
-from services.job_service.job import Job
-from services.job_service.job_types import JobType
-from services.music_service.song import Song
-
-with open("config.json") as f:
-    config = json.load(f)
+from .models.song import Song
 
 
-class MusicService:
-    def __init__(self, client):
-        self.client = client
+class Music(commands.Cog):
+    def __init__(self, bot, config):
+        self.bot = bot
         self.queue = []
         self.dl_queue = []
         self.current_song = None
         self.voice_client = None
         self.loop = False
-        self.file_service = FileService(client)
         self.last_song = None
         self.disconnect_timer = None
+        self.files = self.bot.get_cog('Files')
         self.spotify = spotipy.Spotify(
             auth_manager=SpotifyClientCredentials(
                 client_id=config["secrets"]["spotifyClientId"],
@@ -39,13 +33,9 @@ class MusicService:
             )
         )
 
-    async def initialize(self):
-        music_job = Job(lambda: self.background_task(), 1, JobType.MUSIC)
-        self.client.job_service.add_job(music_job)
-        print("Music service initialized.")
-
+    @tasks.loop(seconds=1)
     async def background_task(self):
-        if not self.is_playing() and not self.file_service.is_downloading():
+        if not self.is_playing() and not self.files.is_downloading():
             if self.last_song and self.last_song.message:
                 await self.delete_song_log(self.last_song)
                 self.last_song = None
@@ -71,6 +61,71 @@ class MusicService:
             members_in_channel = len(self.voice_client.channel.members)
             if members_in_channel == 1:
                 await self.stop()
+        
+    @background_task.before_loop
+    async def before_background_task(self):
+        await self.bot.wait_until_ready()
+
+    async def handle_spotify_url(self, url, message):
+        song_names = []
+
+        if "/playlist/" in url:
+            song_names = await self.get_spotify_playlist_songs(url)
+        elif "/album/" in url:
+            song_names = await self.get_spotify_album_songs(url)
+        else:
+            spotify_name = await self.get_spotify_name(url)
+            song_names.append(spotify_name)
+
+        songs = map((lambda song_name: (song_name, message)), song_names)
+
+        if song_names:
+            await self.enqueue_songs(songs)
+
+        await message.clear_reactions()
+        await message.add_reaction("✅")
+
+    @commands.command(aliases=["p"])
+    async def play(self, ctx, song_url):
+        """Plays a file from the local filesystem"""
+        if ctx.message.author.voice is None:
+            await ctx.message.channel.send("You are not connected to a voice channel!")
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction("❌")
+            return
+
+        if not song_url:
+            await ctx.message.channel.send("Missing URL use command like: play https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+            return
+
+        await ctx.message.add_reaction("⌛")
+
+        if not self.background_task.is_running():
+            self.background_task.start()
+
+        if "spotify.com" in song_url:
+            await self.handle_spotify_url(song_url, ctx.message)
+            return
+
+        elif "list=" in song_url:  # YouTube playlist
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction("❌")
+            await ctx.message.channel.send(
+                "Youtube playlists not yet supported. Try a spotify link instead."
+            )
+            return
+
+        else:
+            await self.enqueue_songs([(song_url, ctx.message)])
+
+        await ctx.message.clear_reactions()
+        await ctx.message.add_reaction("✅")
+
+    @commands.command()
+    async def loop(self, ctx):
+        """Toggle loop for current song"""
+        loop_state = await self.toggle_loop()
+        await ctx.message.channel.send(f"Loop is now **{loop_state}**.")
 
     async def delete_song_log(self, song):
         for message in song.messages_to_delete:
@@ -93,6 +148,9 @@ class MusicService:
         if not self.is_playing():
             await self.join_voice_channel(message)
 
+        if (message.content[:1] == '?'):
+            message.content = message.content[1:]
+
         if message.content.startswith("play"):
             query = message.content[5:].strip()
         else:
@@ -110,16 +168,16 @@ class MusicService:
         self.disconnect_timer = None
 
     async def check_play_state(self):
-        return self.is_playing() or self.file_service.is_downloading()
+        return self.is_playing() or self.files.is_downloading()
 
-    def cleanup_files(self, current_song, queue):
+    async def cleanup_files(self, current_song, queue):
         for file_name in os.listdir("."):
             if (
                 file_name.endswith(".mp3")
                 and file_name != current_song.path
                 and all(file_name != s.path for s in queue)
             ):
-                self.file_service.delete_file(file_name)
+                self.files.delete_file(file_name)
 
     def play_audio(self, song_path):
         source = discord.FFmpegPCMAudio(song_path)
@@ -154,7 +212,7 @@ class MusicService:
         if self.last_song:
             await self.delete_song_log(self.last_song)
 
-        self.cleanup_files(song, self.queue)
+        await self.cleanup_files(song, self.queue)
         self.play_audio(song.path)
         self.current_song = song
 
@@ -163,26 +221,17 @@ class MusicService:
 
         song.messages_to_delete.append(embed_msg)
         song.messages_to_delete.append(song.message)
-
-        if song.lyrics:
-            await embed_msg.add_reaction("📖")
-
-            send_lyrics_job = Job(
-                lambda: self.check_reaction(embed_msg, song),
-                2,
-                JobType.SEND_LYRICS,
-                self.client.max_duration,
-            )
-
-            self.client.job_service.add_job(send_lyrics_job)
         self.last_song = song
 
     def is_playing(self):
         return self.voice_client and self.voice_client.is_playing()
 
-    async def skip_song(self):
+    @commands.command(aliases=["skip", "s"])
+    async def skip_song(self, ctx):
+        """Skip current song"""
         if self.voice_client and self.voice_client.is_playing():
             self.voice_client.stop()
+            await ctx.message.delete()
 
     def get_queue_info_embed(self):
         embed = discord.Embed(color=0x1ABC9C)
@@ -203,7 +252,9 @@ class MusicService:
         embed.description = description
         return embed
 
-    async def stop(self, message=None):
+    @commands.command(aliases=["leave"])
+    async def stop(self, ctx):
+        """Stops and disconnects the bot from voice"""
         if self.last_song and self.last_song.messages_to_delete:
             await self.delete_song_log(self.last_song)
             self.last_song = None
@@ -215,18 +266,31 @@ class MusicService:
             if self.voice_client:
                 await self.voice_client.disconnect()
         else:
-            if message:
-                await message.channel.send("DJ Khaled is not playing anything!")
+            if ctx.message:
+                await ctx.message.channel.send("DJ Khaled is not playing anything!")
 
         self.queue = []
         self.current_song = None
         self.last_song = None
         self.disconnect_timer = None
+        self.background_task.stop()
+        self.process_dl_queue.stop()
 
-    async def clear(self, message):
+
+    @commands.command()
+    async def clear(self, ctx):
         self.dl_queue = []
         self.queue = []
-        await message.channel.send("Queue has been cleared!")
+        await ctx.message.channel.send("Queue has been cleared!")
+
+    @commands.command(aliases=["q"])
+    async def queue(self, ctx):
+        queue_info_embed = self.get_queue_info_embed()
+        await ctx.message.channel.send(embed=queue_info_embed)
+        if len(self.dl_queue) > 0:
+            await ctx.message.channel.send(
+                f"**{len(self.dl_queue)}** in the download queue."
+            )
 
     async def toggle_loop(self):
         self.loop = not self.loop
@@ -236,37 +300,21 @@ class MusicService:
         for song in songs:
             if song not in self.dl_queue:
                 self.dl_queue.append(song)
+        
+        self.process_dl_queue.start()
 
-        existing_job = any(
-            job.job_type == JobType.PROCESS_DL_QUEUE
-            for job in self.client.job_service.jobs
-        )
 
-        if not existing_job:
-            process_job = Job(
-                lambda: self.process_dl_queue(),
-                60,
-                JobType.PROCESS_DL_QUEUE,
-                10800,  # 180 minutes
-            )
-
-            self.client.job_service.add_job(process_job)
-
-            try:
-                await process_job.run()
-            except:
-                pass
-
+    @tasks.loop(seconds=15)
     async def process_dl_queue(self):
         if self.dl_queue.__len__() == 0:
-            self.client.job_service.remove_job(JobType.PROCESS_DL_QUEUE)
+            self.process_dl_queue.stop()
             return
 
         next_song_name, message = self.dl_queue.pop(0)
         (
             next_song_path,
             next_song_info,
-        ) = await self.file_service.download_from_youtube(next_song_name, message)
+        ) = await self.files.download_from_youtube(next_song_name, message)
 
         await self.add_to_queue(next_song_path, next_song_info, message)
 
@@ -390,20 +438,21 @@ class MusicService:
         return songs
 
     async def check_reaction(self, message, song):
-        if song.lyrics_sent:
-            self.client.job_service.remove_job(JobType.SEND_LYRICS)
-            return
-
         try:
             msg = await message.channel.fetch_message(message.id)
             if msg:
                 for reaction in msg.reactions:
                     if str(reaction.emoji) == "📖":
                         users = [user async for user in reaction.users()]
-                        if any(user != self.client.user for user in users):
+                        if any(user != self.bot.user for user in users):
                             lyrics_msg = await self.handle_lyrics(song)
                             if lyrics_msg:
                                 song.messages_to_delete.append(lyrics_msg)
                             break
         except Exception as e:
-            self.client.job_service.remove_job(JobType.SEND_LYRICS)
+            print(e)
+
+async def setup(bot):
+    with open("config.json") as f:
+        config = json.load(f)
+        await bot.add_cog(Music(bot, config))

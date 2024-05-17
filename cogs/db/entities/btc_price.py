@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, Float
-from services.db_service.base import Base
+from cogs.db.base import Base
 
 
 class BitcoinPrice(Base):

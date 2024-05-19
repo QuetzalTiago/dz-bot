@@ -148,7 +148,7 @@ async def main():
         intents = discord.Intents.default()
         intents.message_content = True
         intents.voice_states = True
-        async with Khaled("?", intents=intents, initial_extensions=exts) as bot:
+        async with Khaled("", intents=intents, initial_extensions=exts) as bot:
             await bot.start(token)
 
 asyncio.run(main())

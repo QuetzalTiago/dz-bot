@@ -153,9 +153,6 @@ class Music(commands.Cog):
         if not self.is_playing():
             await self.join_voice_channel(message)
 
-        if message.content[:1] == "?":
-            message.content = message.content[1:]
-
         if message.content.startswith("play"):
             query = message.content[5:].strip()
         else:

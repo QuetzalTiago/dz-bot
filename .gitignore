@@ -5,3 +5,5 @@ config.json
 __pycache__
 error.txt
 output.txt
+discord.log
+.cache

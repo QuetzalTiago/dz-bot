@@ -1,15 +1,17 @@
-from .base import BaseCommand
+from discord.ext import commands
 
 
-class EmojiCommand(BaseCommand):
-    @staticmethod
-    def __str__():
-        return "Converts the input text into emoji letters."
+class Emoji(commands.Cog):
 
-    async def execute(self):
-        text = self.message.content[6:].strip()
+    def __init__(self, bot):
+        self.bot = bot
+
+    @commands.command()
+    async def emoji(self, ctx):
+        """Converts the input text into emoji letters."""
+        text = ctx.message.content[6:].strip()
         emoji_text = await self.text_to_emoji(text)
-        await self.message.channel.send(emoji_text)
+        await ctx.message.channel.send(emoji_text)
 
     async def text_to_emoji(_, text):
         emoji_text = ""
@@ -25,3 +27,7 @@ class EmojiCommand(BaseCommand):
             else:
                 emoji_text += char + " "
         return emoji_text
+
+
+async def setup(bot):
+    await bot.add_cog(Emoji(bot))

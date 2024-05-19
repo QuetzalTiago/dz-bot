@@ -1,28 +1,26 @@
-import asyncio
+import datetime
 from sqlalchemy import (
     create_engine,
     text,
 )
-from sqlalchemy.ext.declarative import declarative_base
+from discord.ext import commands, tasks
+
 from sqlalchemy.orm import sessionmaker
-from services.db_service.entities.btc_price import BitcoinPrice
+from cogs.db.entities.btc_price import BitcoinPrice
 
-from services.db_service.entities.chess_game import ChessGame
-from services.db_service.entities.startup_notification import StartupNotification
-from services.db_service.entities.user import User
-from services.db_service.base import Base
+from cogs.db.entities.chess_game import ChessGame
+from cogs.db.entities.startup_notification import StartupNotification
+from cogs.db.entities.user import User
+from cogs.db.base import Base
 
 
-class DatabaseService:
-    def __init__(self, db_url):
+class Database(commands.Cog):
+    def __init__(self, bot, db_url):
+        self.bot = bot
         self.db_url = db_url
         self.db_name = "discord_bot"  # Set the database name here
 
-    async def async_initialize(self):
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, self.initialize)
-
-    def initialize(self):
+    async def cog_load(self):
         # Connect without a specific database to execute initial setup commands
         engine = create_engine(self.db_url)
         conn = engine.connect()
@@ -50,7 +48,6 @@ class DatabaseService:
         # Prepare session and create tables
         self.Session = sessionmaker(bind=self.engine)
         Base.metadata.create_all(self.engine)
-
         print("DB connection initialized")
 
     def update_user_duration(self, user_id, additional_seconds):
@@ -94,6 +91,15 @@ class DatabaseService:
             return user_hours
         finally:
             session.close()
+
+    @tasks.loop(hours=1)
+    async def update_user_durations(self):
+        for user_id in self.bot.online_users.keys():
+            join_time = self.bot.online_users[user_id]
+            leave_time = datetime.datetime.utcnow()
+            duration = leave_time - join_time
+
+            self.update_user_duration(user_id, int(duration.total_seconds()))
 
     def save_chess_game(self, game_data):
         session = self.Session()
@@ -173,3 +179,8 @@ class DatabaseService:
             return btc_price.price if btc_price else None
         finally:
             session.close()
+
+async def setup(bot):
+    db_url = "mysql+pymysql://root:root@localhost"
+    await bot.add_cog(Database(bot, db_url))
+    

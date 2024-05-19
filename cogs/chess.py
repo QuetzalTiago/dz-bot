@@ -1,39 +1,37 @@
-import asyncio
 import json
-from discord import Message
 import discord
 import requests
-from services.job_service import JobService
-from services.job_service.job import Job
-from services.job_service.job_types import JobType
-from .base import BaseCommand
-
-with open("config.json") as f:
-    config = json.load(f)
-
-lichess_token = config["secrets"]["lichessToken"]
-headers = {"Authorization": "Bearer " + lichess_token, "Accept": "application/json"}
+from discord.ext import commands, tasks
 
 
-class ChessCommand(BaseCommand):
-    def __init__(self, client, message: Message):
-        super().__init__(client, message)
+class Chess(commands.Cog):
 
-    @staticmethod
-    def __str__():
-        return "Creates an open chess challenge on Lichess."
+    def __init__(self, bot):
+        self.bot = bot
 
-    async def execute(self):
+    async def cog_load(self):
+        self.save_match.cancel()
+        with open("config.json") as f:
+            config = json.load(f)
+            self.lichess_token = config["secrets"]["lichessToken"]
+            self.headers = {
+                "Authorization": "Bearer " + self.lichess_token,
+                "Accept": "application/json",
+            }
+
+    @commands.command()
+    async def chess(self, ctx):
+        """Creates an open chess challenge on Lichess."""
         time_control = None
         increment = 3  # Default increment
 
-        message_parts = self.message.content.split(" ")
+        message_parts = ctx.message.content.split(" ")
 
         # Validate and set the time control
         if len(message_parts) > 1:
             time_control = int(message_parts[1])
             if time_control < 1 or time_control > 60:
-                await self.message.channel.send(
+                await ctx.message.channel.send(
                     "Invalid time control. Please specify a number of minutes between 1 and 60."
                 )
                 return
@@ -42,7 +40,7 @@ class ChessCommand(BaseCommand):
         if len(message_parts) > 2:
             increment = int(message_parts[2])
             if increment < 0 or increment > 60:  # Assuming 60 as maximum increment
-                await self.message.channel.send(
+                await ctx.message.channel.send(
                     "Invalid increment. Please specify a number of seconds between 0 and 60."
                 )
                 return
@@ -54,38 +52,29 @@ class ChessCommand(BaseCommand):
                 "limit": time_control * 60,  # Time control converted to seconds
             }
 
-        await self.message.add_reaction("⌛")
-        match_url = await self.fetch_match_url(payload)
+        await ctx.message.add_reaction("⌛")
+        match_url = await self.fetch_match_url(ctx, payload)
         match_id = self.get_match_id(match_url)
-        await self.message.channel.send(match_url)
-        await self.message.clear_reactions()
-        await self.message.add_reaction("✅")
+        await ctx.message.channel.send(match_url)
+        await ctx.message.clear_reactions()
+        await ctx.message.add_reaction("✅")
 
         print(match_id)
+        self.save_match.start(ctx, match_id)
 
-        # create job
-        save_match_job = Job(
-            lambda: self.save_match(match_id),
-            10,
-            JobType.SAVE_MATCH,
-            5400,  # 90 minutes
-        )
-
-        self.client.job_service.add_job(save_match_job)
-
-    async def fetch_match_url(self, payload):
+    async def fetch_match_url(self, ctx, payload):
         response = requests.post(
-            "https://lichess.org/api/challenge/open", headers=headers, json=payload
+            "https://lichess.org/api/challenge/open", headers=self.headers, json=payload
         )
         if response.status_code == 200:
             challenge_data = response.json()
             print(challenge_data)
             return challenge_data["challenge"]["url"]
         else:
-            await self.message.channel.send(
+            await ctx.message.channel.send(
                 "There was a problem creating the challenge."
             )
-            await self.message.channel.send(response)
+            await ctx.message.channel.send(response)
 
     def get_match_id(self, url):
         return url.rsplit("/", 1)[-1]
@@ -114,7 +103,8 @@ class ChessCommand(BaseCommand):
         )
         return embed
 
-    async def save_match(self, match_id):
+    @tasks.loop(seconds=10, count=1)
+    async def save_match(self, ctx, match_id):
         game_ended_statuses = [
             "mate",
             "resign",
@@ -131,12 +121,12 @@ class ChessCommand(BaseCommand):
 
         response = requests.get(
             f"https://lichess.org/game/export/{match_id}?moves=false&pgnInJson=false",
-            headers=headers,
+            headers=self.headers,
         )
 
         if response.status_code == 200:
             data = response.json()
-            print(data)
+            print(json.dumps(data, indent=2))
             game_status = data.get("status", "")
             players = data.get("players", {})
 
@@ -157,8 +147,11 @@ class ChessCommand(BaseCommand):
                     black_username,
                     winner,
                 )
-                await self.message.channel.send(embed=embed)
-                self.client.db_service.save_chess_game(data)
+                await ctx.message.channel.send(embed=embed)
+                self.bot.get_cog("Database").save_chess_game(data)
                 print("Chess game saved in db")
-                self.client.job_service.remove_job(JobType.SAVE_MATCH)
-                print(f"{JobType.SAVE_MATCH} ended.")
+                self.save_match.cancel()
+
+
+async def setup(bot):
+    await bot.add_cog(Chess(bot))

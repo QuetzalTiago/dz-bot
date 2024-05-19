@@ -1,27 +1,26 @@
-import datetime
+import asyncio
 import random
-import discord
-import json
 import subprocess
+import json
+import datetime
+import logging
+import logging.handlers
 
-from services.command_service import CommandService
-from services.command_service.register_commands import register_commands
-from services.db_service.db_service import DatabaseService
-from services.file_service import FileService
-from services.job_service import JobService
-from services.job_service.register_jobs import register_jobs
-from services.music_service import MusicService
+from typing import List
 
-with open("config.json") as f:
-    config = json.load(f)
+import discord
+from discord.ext import commands
 
-token = config["secrets"]["discordToken"]
-db_url = "mysql+pymysql://root:root@localhost"
+class Khaled(commands.Bot):
 
-
-class Khaled(discord.Client):
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        *args,
+        initial_extensions: List[str],
+        **kwargs
+        ):
         super().__init__(*args, **kwargs)
+        self.initial_extensions = initial_extensions,
         self.online_users = {}
         self.main_channel = None
         self.dj_khaled_quotes = [
@@ -34,40 +33,22 @@ class Khaled(discord.Client):
         ]
         self.max_duration = 1200  # in seconds, 20 minutes
 
-    async def initialize_services(self):
-        self.command_service = CommandService(self)
-        self.music_service = MusicService(self)
-        self.db_service = DatabaseService(db_url)
-        self.job_service = JobService(self)
-        self.file_service = FileService(self)
-
-        # Commands
-        register_commands(self)
-
-        # Music
-        await self.music_service.initialize()
-
-        # Database
-        await self.db_service.async_initialize()
-
-        # Register jobs (should be after db init)
-        await register_jobs(self)
-
-        # Job service (should always be the last one)
-        await self.job_service.initialize()
+    async def setup_hook(self):
+        for extension in self.initial_extensions[0]:
+            await self.load_extension(extension)
 
     async def on_ready(self):
         print("Logged on as", self.user)
+        db = self.get_cog('Database')
         await self.set_first_text_channel_as_main()
         quote = random.choice(self.dj_khaled_quotes)
         await self.change_presence(
             activity=discord.Activity(type=discord.ActivityType.playing, name=quote)
         )
 
-        await self.initialize_services()
         await self.update_online_users()
         # Notify after reset
-        message_id, channel_id = self.db_service.get_startup_notification()
+        message_id, channel_id = db.get_startup_notification()
         if message_id and channel_id:
             message = await self.fetch_message_by_id(channel_id, message_id)
             if message:
@@ -75,12 +56,7 @@ class Khaled(discord.Client):
                 await message.add_reaction("✅")
 
                 # Reset the notify_on_startup flag in the database
-                self.db_service.set_startup_notification(None, None)
-
-    async def on_message(self, message):
-        if message.author == self.user:
-            return
-        await self.command_service.handle_command(message)
+                await db.set_startup_notification(None, None)
 
     async def update_online_users(self):
         for guild in self.guilds:
@@ -101,7 +77,7 @@ class Khaled(discord.Client):
             print(f"Tracking {member.name}")
 
         if member == self.user and after is None:
-            await self.music_service.stop()
+            self.get_cog('Music').stop()
 
     async def set_first_text_channel_as_main(self):
         for guild in self.guilds:
@@ -112,9 +88,9 @@ class Khaled(discord.Client):
                 print(f"Main channel set to: {self.main_channel.name}")
                 break
 
-    async def reset(self):
+    def reset(self):
         subprocess.call(["aws/scripts/application-start.sh"])
-        await self.close()
+        self.close()
 
     async def fetch_message_by_id(self, channel_id, message_id):
         try:
@@ -137,13 +113,42 @@ class Khaled(discord.Client):
             return None
 
 
-def run_bot():
-    intents = discord.Intents.default()
-    intents.message_content = True
-    intents.voice_states = True
-    client = Khaled(intents=intents)
-    client.run(token)
+async def main():
+    logger = logging.getLogger('discord')
+    logger.setLevel(logging.INFO)
 
+    handler = logging.handlers.RotatingFileHandler(
+        filename='discord.log',
+        encoding='utf-8',
+        maxBytes=32 * 1024 * 1024,  # 32 MiB
+        backupCount=5,  # Rotate through 5 files
+    )
+    dt_fmt = '%Y-%m-%d %H:%M:%S'
+    formatter = logging.Formatter('[{asctime}] [{levelname:<8}] {name}: {message}', dt_fmt, style='{')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
-if __name__ == "__main__":
-    run_bot()
+    with open("config.json") as f:
+        config = json.load(f)
+        token = config["secrets"]["discordToken"]
+        exts = [
+            'cogs.btc',
+            'cogs.chess_leaderboard',
+            'cogs.chess',
+            'cogs.database',
+            'cogs.div',
+            'cogs.emoji', 
+            'cogs.files', 
+            'cogs.leaderboard', 
+            'cogs.music', 
+            'cogs.purge', 
+            'cogs.restart', 
+            'cogs.status'
+        ]
+        intents = discord.Intents.default()
+        intents.message_content = True
+        intents.voice_states = True
+        async with Khaled("", intents=intents, initial_extensions=exts) as bot:
+            await bot.start(token)
+
+asyncio.run(main())

@@ -1,5 +1,5 @@
 from sqlalchemy import Column, BigInteger, Integer
-from services.db_service.base import Base
+from cogs.db.base import Base
 
 
 class User(Base):

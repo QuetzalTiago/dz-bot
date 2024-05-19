@@ -6,7 +6,7 @@ from sqlalchemy import (
     Column,
     BigInteger,
 )
-from services.db_service.base import Base
+from cogs.db.base import Base
 
 
 class ChessGame(Base):

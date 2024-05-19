@@ -11,16 +11,12 @@ from typing import List
 import discord
 from discord.ext import commands
 
+
 class Khaled(commands.Bot):
 
-    def __init__(
-        self,
-        *args,
-        initial_extensions: List[str],
-        **kwargs
-        ):
+    def __init__(self, *args, initial_extensions: List[str], **kwargs):
         super().__init__(*args, **kwargs)
-        self.initial_extensions = initial_extensions,
+        self.initial_extensions = (initial_extensions,)
         self.online_users = {}
         self.main_channel = None
         self.dj_khaled_quotes = [
@@ -39,7 +35,7 @@ class Khaled(commands.Bot):
 
     async def on_ready(self):
         print("Logged on as", self.user)
-        db = self.get_cog('Database')
+        db = self.get_cog("Database")
         await self.set_first_text_channel_as_main()
         quote = random.choice(self.dj_khaled_quotes)
         await self.change_presence(
@@ -77,7 +73,7 @@ class Khaled(commands.Bot):
             print(f"Tracking {member.name}")
 
         if member == self.user and after is None:
-            self.get_cog('Music').stop()
+            self.get_cog("Music").stop()
 
     async def set_first_text_channel_as_main(self):
         for guild in self.guilds:
@@ -114,41 +110,47 @@ class Khaled(commands.Bot):
 
 
 async def main():
-    logger = logging.getLogger('discord')
+    logger = logging.getLogger("discord")
     logger.setLevel(logging.INFO)
 
     handler = logging.handlers.RotatingFileHandler(
-        filename='discord.log',
-        encoding='utf-8',
+        filename="discord.log",
+        encoding="utf-8",
         maxBytes=32 * 1024 * 1024,  # 32 MiB
         backupCount=5,  # Rotate through 5 files
     )
-    dt_fmt = '%Y-%m-%d %H:%M:%S'
-    formatter = logging.Formatter('[{asctime}] [{levelname:<8}] {name}: {message}', dt_fmt, style='{')
+    dt_fmt = "%Y-%m-%d %H:%M:%S"
+    formatter = logging.Formatter(
+        "[{asctime}] [{levelname:<8}] {name}: {message}", dt_fmt, style="{"
+    )
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
     with open("config.json") as f:
         config = json.load(f)
         token = config["secrets"]["discordToken"]
+        env = config["env"]
+        test_prefix = "?"
+        prefix = test_prefix if env and env == "LOCAL" else ""
         exts = [
-            'cogs.btc',
-            'cogs.chess_leaderboard',
-            'cogs.chess',
-            'cogs.database',
-            'cogs.div',
-            'cogs.emoji', 
-            'cogs.files', 
-            'cogs.leaderboard', 
-            'cogs.music', 
-            'cogs.purge', 
-            'cogs.restart', 
-            'cogs.status'
+            "cogs.btc",
+            "cogs.chess_leaderboard",
+            "cogs.chess",
+            "cogs.database",
+            "cogs.div",
+            "cogs.emoji",
+            "cogs.files",
+            "cogs.leaderboard",
+            "cogs.music",
+            "cogs.purge",
+            "cogs.restart",
+            "cogs.status",
         ]
         intents = discord.Intents.default()
         intents.message_content = True
         intents.voice_states = True
-        async with Khaled("", intents=intents, initial_extensions=exts) as bot:
+        async with Khaled(prefix, intents=intents, initial_extensions=exts) as bot:
             await bot.start(token)
+
 
 asyncio.run(main())

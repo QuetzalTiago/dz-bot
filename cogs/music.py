@@ -308,7 +308,7 @@ class Music(commands.Cog):
 
         self.process_dl_queue.start()
 
-    @tasks.loop(seconds=15)
+    @tasks.loop(seconds=30)
     async def process_dl_queue(self):
         if self.dl_queue.__len__() == 0:
             self.process_dl_queue.stop()

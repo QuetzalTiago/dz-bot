@@ -3,22 +3,25 @@ import discord
 import requests
 from discord.ext import commands, tasks
 
+
 class Chess(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.description = "Creates an open chess challenge on Lichess."
 
     async def cog_load(self):
         self.save_match.cancel()
         with open("config.json") as f:
             config = json.load(f)
             self.lichess_token = config["secrets"]["lichessToken"]
-            self.headers = {"Authorization": "Bearer " + self.lichess_token, "Accept": "application/json"}
-
+            self.headers = {
+                "Authorization": "Bearer " + self.lichess_token,
+                "Accept": "application/json",
+            }
 
     @commands.command()
     async def chess(self, ctx):
+        """Creates an open chess challenge on Lichess."""
         time_control = None
         increment = 3  # Default increment
 
@@ -100,7 +103,7 @@ class Chess(commands.Cog):
         )
         return embed
 
-    @tasks.loop(minutes=90, count=1)
+    @tasks.loop(seconds=10, count=1)
     async def save_match(self, ctx, match_id):
         game_ended_statuses = [
             "mate",
@@ -145,9 +148,10 @@ class Chess(commands.Cog):
                     winner,
                 )
                 await ctx.message.channel.send(embed=embed)
-                self.bot.get_cog('Database').save_chess_game(data)
+                self.bot.get_cog("Database").save_chess_game(data)
                 print("Chess game saved in db")
                 self.save_match.cancel()
+
 
 async def setup(bot):
     await bot.add_cog(Chess(bot))

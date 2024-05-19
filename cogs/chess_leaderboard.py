@@ -3,15 +3,16 @@ from discord import Embed
 
 from discord.ext import commands
 
+
 class ChessLeaderboard(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.description = "Shows the top 5 players on the chess leaderboard, including their win rates."
 
     @commands.command(aliases=["clb", "chess leaderboard"])
     async def chess_leaderboard(self, ctx):
-        matches = self.bot.get_cog('Database').get_chess_games()
+        """Shows the top 5 players on the chess leaderboard, including their win rates."""
+        matches = self.bot.get_cog("Database").get_chess_games()
         leaderboard = self.calculate_leaderboard(matches)
 
         if not leaderboard:
@@ -61,6 +62,7 @@ class ChessLeaderboard(commands.Cog):
             embed.add_field(name=username, value=description, inline=False)
 
         return embed
+
 
 async def setup(bot):
     await bot.add_cog(ChessLeaderboard(bot))

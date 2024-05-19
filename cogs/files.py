@@ -5,6 +5,7 @@ import datetime
 import yt_dlp
 from youtube_search import YoutubeSearch
 from discord.ext import commands
+from concurrent.futures import ThreadPoolExecutor
 
 
 class Files(commands.Cog):
@@ -13,6 +14,9 @@ class Files(commands.Cog):
         self.audio_format = "mp3"
         self.downloading = False
         self.bot = bot
+        self.executor = ThreadPoolExecutor(
+            max_workers=1
+        )  # Adjust max_workers if needed
 
     async def download_from_youtube(self, song_url, message):
         file_name = f"{uuid.uuid4().int}"
@@ -24,43 +28,58 @@ class Files(commands.Cog):
                     "key": "FFmpegExtractAudio",
                     "preferredcodec": self.audio_format,
                     "preferredquality": self.audio_quality,
-                },
+                }
             ],
             "outtmpl": f"{file_name}",
             "noplaylist": True,
+            "quiet": True,
+            "no_warnings": True,
         }
 
         self.downloading = True
 
-        if "youtube.com" not in song_url or "youtu.be" not in song_url:
+        if "youtube.com" not in song_url and "youtu.be" not in song_url:
             results = json.loads(YoutubeSearch(song_url, max_results=5).to_json())
             url_suffix = results["videos"][0]["url_suffix"]
             song_url = f"https://www.youtube.com{url_suffix}"
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(song_url, download=False)
+        def download_task():
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(song_url, download=False)
 
-            if info["duration"] > self.bot.max_duration:
-                duration_readable = str(datetime.timedelta(seconds=info["duration"]))
-                max_duration_readable = str(
-                    datetime.timedelta(seconds=self.bot.max_duration)
-                )
-                song_title = info["title"]
+                if info["duration"] > self.bot.max_duration:
+                    duration_readable = str(
+                        datetime.timedelta(seconds=info["duration"])
+                    )
+                    max_duration_readable = str(
+                        datetime.timedelta(seconds=self.bot.max_duration)
+                    )
+                    song_title = info["title"]
 
-                await message.channel.send(
-                    f"**{song_title}** is too long. Duration: **{duration_readable}**.\nMax duration allowed is **{max_duration_readable}**."
-                )
-                await message.clear_reactions()
-                await message.add_reaction("❌")
+                    return {
+                        "status": "error",
+                        "message": f"**{song_title}** is too long. Duration: **{duration_readable}**.\nMax duration allowed is **{max_duration_readable}**.",
+                    }
 
-                self.downloading = False
-                return
+                info = ydl.extract_info(song_url, download=True)
+                return {
+                    "status": "success",
+                    "file_path": f"{file_name}.{self.audio_format}",
+                    "info": info,
+                }
 
-            info = ydl.extract_info(song_url, download=True)
+        future = self.executor.submit(download_task)
+        result = await self.bot.loop.run_in_executor(None, future.result)
 
         self.downloading = False
 
-        return f"{file_name}.{self.audio_format}", info
+        if result["status"] == "error":
+            await message.channel.send(result["message"])
+            await message.clear_reactions()
+            await message.add_reaction("❌")
+            return None
+        else:
+            return result["file_path"], result["info"]
 
     def delete_file(self, file_path):
         try:
@@ -71,6 +90,7 @@ class Files(commands.Cog):
 
     def is_downloading(self):
         return self.downloading
+
 
 async def setup(bot):
     await bot.add_cog(Files(bot))

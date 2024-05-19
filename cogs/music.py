@@ -25,7 +25,7 @@ class Music(commands.Cog):
         self.loop = False
         self.last_song = None
         self.disconnect_timer = None
-        self.files = self.bot.get_cog('Files')
+        self.files = self.bot.get_cog("Files")
         self.spotify = spotipy.Spotify(
             auth_manager=SpotifyClientCredentials(
                 client_id=config["secrets"]["spotifyClientId"],
@@ -49,6 +49,9 @@ class Music(commands.Cog):
                 and self.voice_client.is_connected()
                 and not self.queue
             ):
+                print(self.disconnect_timer)
+                if self.disconnect_timer:
+                    print(time.time() - self.disconnect_timer)
                 if self.disconnect_timer is None:
                     self.disconnect_timer = time.time()
                 elif time.time() - self.disconnect_timer >= 300:
@@ -61,7 +64,7 @@ class Music(commands.Cog):
             members_in_channel = len(self.voice_client.channel.members)
             if members_in_channel == 1:
                 await self.stop()
-        
+
     @background_task.before_loop
     async def before_background_task(self):
         await self.bot.wait_until_ready()
@@ -95,7 +98,9 @@ class Music(commands.Cog):
             return
 
         if not song_url:
-            await ctx.message.channel.send("Missing URL use command like: play https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+            await ctx.message.channel.send(
+                "Missing URL use command like: play https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            )
             return
 
         await ctx.message.add_reaction("⌛")
@@ -148,7 +153,7 @@ class Music(commands.Cog):
         if not self.is_playing():
             await self.join_voice_channel(message)
 
-        if (message.content[:1] == '?'):
+        if message.content[:1] == "?":
             message.content = message.content[1:]
 
         if message.content.startswith("play"):
@@ -255,36 +260,39 @@ class Music(commands.Cog):
     @commands.command(aliases=["leave"])
     async def stop(self, ctx):
         """Stops and disconnects the bot from voice"""
-        if self.last_song and self.last_song.messages_to_delete:
-            await self.delete_song_log(self.last_song)
-            self.last_song = None
-
         if self.voice_client and self.voice_client.is_connected():
             if self.voice_client.is_playing():
                 self.voice_client.stop()
 
             if self.voice_client:
                 await self.voice_client.disconnect()
+
+            if self.last_song and self.last_song.messages_to_delete:
+                await self.delete_song_log(self.last_song)
+                self.last_song = None
+
         else:
-            if ctx.message:
+            if ctx and ctx.message:
                 await ctx.message.channel.send("DJ Khaled is not playing anything!")
 
         self.queue = []
+        self.dl_queue = []
         self.current_song = None
         self.last_song = None
         self.disconnect_timer = None
         self.background_task.stop()
         self.process_dl_queue.stop()
 
-
     @commands.command()
     async def clear(self, ctx):
+        """Clears the queue."""
         self.dl_queue = []
         self.queue = []
         await ctx.message.channel.send("Queue has been cleared!")
 
     @commands.command(aliases=["q"])
     async def queue(self, ctx):
+        """Prints the current queue."""
         queue_info_embed = self.get_queue_info_embed()
         await ctx.message.channel.send(embed=queue_info_embed)
         if len(self.dl_queue) > 0:
@@ -300,9 +308,8 @@ class Music(commands.Cog):
         for song in songs:
             if song not in self.dl_queue:
                 self.dl_queue.append(song)
-        
-        self.process_dl_queue.start()
 
+        self.process_dl_queue.start()
 
     @tasks.loop(seconds=15)
     async def process_dl_queue(self):
@@ -451,6 +458,7 @@ class Music(commands.Cog):
                             break
         except Exception as e:
             print(e)
+
 
 async def setup(bot):
     with open("config.json") as f:

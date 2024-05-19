@@ -5,10 +5,10 @@ class Emoji(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.description = "Converts the input text into emoji letters."
 
     @commands.command()
     async def emoji(self, ctx):
+        """Converts the input text into emoji letters."""
         text = ctx.message.content[6:].strip()
         emoji_text = await self.text_to_emoji(text)
         await ctx.message.channel.send(emoji_text)
@@ -27,6 +27,7 @@ class Emoji(commands.Cog):
             else:
                 emoji_text += char + " "
         return emoji_text
+
 
 async def setup(bot):
     await bot.add_cog(Emoji(bot))

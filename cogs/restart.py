@@ -7,7 +7,7 @@ class Restart(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.hybrid_command()
     async def restart(self, ctx):
         """Restarts the bot and resets its state."""
         await ctx.message.add_reaction("⌛")

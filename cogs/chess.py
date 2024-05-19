@@ -19,7 +19,7 @@ class Chess(commands.Cog):
                 "Accept": "application/json",
             }
 
-    @commands.command()
+    @commands.hybrid_command()
     async def chess(self, ctx):
         """Creates an open chess challenge on Lichess."""
         time_control = None

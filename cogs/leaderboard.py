@@ -6,7 +6,7 @@ class Leaderboard(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(aliases=["lb"])
+    @commands.hybrid_command(aliases=["lb"])
     async def leaderboard(self, ctx):
         """Gets the leaderboard for the top 5 users with most hours."""
         user_hours_list = self.bot.get_cog("Database").get_all_user_hours()

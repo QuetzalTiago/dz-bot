@@ -9,7 +9,7 @@ class ChessLeaderboard(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(aliases=["clb", "chess leaderboard"])
+    @commands.hybrid_command(aliases=["clb", "chess leaderboard"])
     async def chess_leaderboard(self, ctx):
         """Shows the top 5 players on the chess leaderboard, including their win rates."""
         matches = self.bot.get_cog("Database").get_chess_games()

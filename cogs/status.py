@@ -6,7 +6,7 @@ class Status(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.hybrid_command()
     async def status(self, ctx):
         """Gets the current status for a user."""
         user_hours = self.bot.get_cog("Database").get_user_hours(ctx.author.id)

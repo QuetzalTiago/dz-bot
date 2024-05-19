@@ -6,7 +6,7 @@ class Emoji(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.hybrid_command()
     async def emoji(self, ctx):
         """Converts the input text into emoji letters."""
         text = ctx.message.content[6:].strip()

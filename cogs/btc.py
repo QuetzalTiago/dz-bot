@@ -8,7 +8,7 @@ class Btc(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.hybrid_command()
     async def btc(self, ctx):
         """Returns the current price of Bitcoin."""
         await ctx.message.add_reaction("⌛")

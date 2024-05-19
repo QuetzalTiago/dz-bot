@@ -7,7 +7,7 @@ class Div(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.hybrid_command()
     async def div(self, ctx):
         """Returns the current price of the Divine in the specified league from the message."""
         await ctx.message.add_reaction("⌛")

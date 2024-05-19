@@ -19,7 +19,7 @@ class Purge(commands.Cog):
             m.content.lower().startswith(cmd) for cmd in self.cmd_list
         )
 
-    @commands.command()
+    @commands.hybrid_command()
     async def purge(self, ctx):
         """Purges bot messages and command queries in the current channel."""
         await ctx.message.add_reaction("⌛")

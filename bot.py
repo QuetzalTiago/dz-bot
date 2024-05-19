@@ -41,6 +41,7 @@ class Khaled(commands.Bot):
         await self.change_presence(
             activity=discord.Activity(type=discord.ActivityType.playing, name=quote)
         )
+        await self.tree.sync()
 
         await self.update_online_users()
         # Notify after reset

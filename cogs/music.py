@@ -88,7 +88,7 @@ class Music(commands.Cog):
         await message.clear_reactions()
         await message.add_reaction("✅")
 
-    @commands.command(aliases=["p"])
+    @commands.hybrid_command(aliases=["p"])
     async def play(self, ctx, song_url):
         """Plays a file from the local filesystem"""
         if ctx.message.author.voice is None:
@@ -126,7 +126,7 @@ class Music(commands.Cog):
         await ctx.message.clear_reactions()
         await ctx.message.add_reaction("✅")
 
-    @commands.command()
+    @commands.hybrid_command()
     async def loop(self, ctx):
         """Toggle loop for current song"""
         loop_state = await self.toggle_loop()
@@ -228,7 +228,7 @@ class Music(commands.Cog):
     def is_playing(self):
         return self.voice_client and self.voice_client.is_playing()
 
-    @commands.command(aliases=["skip", "s"])
+    @commands.hybrid_command(aliases=["skip", "s"])
     async def skip_song(self, ctx):
         """Skip current song"""
         if self.voice_client and self.voice_client.is_playing():
@@ -254,7 +254,7 @@ class Music(commands.Cog):
         embed.description = description
         return embed
 
-    @commands.command(aliases=["leave"])
+    @commands.hybrid_command(aliases=["leave"])
     async def stop(self, ctx):
         """Stops and disconnects the bot from voice"""
         if self.voice_client and self.voice_client.is_connected():
@@ -280,14 +280,14 @@ class Music(commands.Cog):
         self.background_task.stop()
         self.process_dl_queue.stop()
 
-    @commands.command()
+    @commands.hybrid_command()
     async def clear(self, ctx):
         """Clears the queue."""
         self.dl_queue = []
         self.queue = []
         await ctx.message.channel.send("Queue has been cleared!")
 
-    @commands.command(aliases=["q"])
+    @commands.hybrid_command(aliases=["q"])
     async def queue(self, ctx):
         """Prints the current queue."""
         queue_info_embed = self.get_queue_info_embed()

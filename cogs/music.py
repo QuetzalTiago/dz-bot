@@ -92,13 +92,13 @@ class Music(commands.Cog):
     async def play(self, ctx, song_url):
         """Plays a file from the local filesystem"""
         if ctx.message.author.voice is None:
-            await ctx.message.channel.send("You are not connected to a voice channel!")
+            await ctx.send("You are not connected to a voice channel!")
             await ctx.message.clear_reactions()
             await ctx.message.add_reaction("❌")
             return
 
         if not song_url:
-            await ctx.message.channel.send(
+            await ctx.send(
                 "Missing URL use command like: play https://www.youtube.com/watch?v=dQw4w9WgXcQ"
             )
             return
@@ -115,7 +115,7 @@ class Music(commands.Cog):
         elif "list=" in song_url:  # YouTube playlist
             await ctx.message.clear_reactions()
             await ctx.message.add_reaction("❌")
-            await ctx.message.channel.send(
+            await ctx.send(
                 "Youtube playlists not yet supported. Try a spotify link instead."
             )
             return
@@ -130,7 +130,7 @@ class Music(commands.Cog):
     async def loop(self, ctx):
         """Toggle loop for current song"""
         loop_state = await self.toggle_loop()
-        await ctx.message.channel.send(f"Loop is now **{loop_state}**.")
+        await ctx.send(f"Loop is now **{loop_state}**.")
 
     async def delete_song_log(self, song):
         for message in song.messages_to_delete:
@@ -270,7 +270,7 @@ class Music(commands.Cog):
 
         else:
             if ctx and ctx.message:
-                await ctx.message.channel.send("DJ Khaled is not playing anything!")
+                await ctx.send("DJ Khaled is not playing anything!")
 
         self.queue = []
         self.dl_queue = []
@@ -285,17 +285,15 @@ class Music(commands.Cog):
         """Clears the queue."""
         self.dl_queue = []
         self.queue = []
-        await ctx.message.channel.send("Queue has been cleared!")
+        await ctx.send("Queue has been cleared!")
 
     @commands.hybrid_command(aliases=["q"])
     async def queue(self, ctx):
         """Prints the current queue."""
         queue_info_embed = self.get_queue_info_embed()
-        await ctx.message.channel.send(embed=queue_info_embed)
+        await ctx.send(embed=queue_info_embed)
         if len(self.dl_queue) > 0:
-            await ctx.message.channel.send(
-                f"**{len(self.dl_queue)}** in the download queue."
-            )
+            await ctx.send(f"**{len(self.dl_queue)}** in the download queue.")
 
     async def toggle_loop(self):
         self.loop = not self.loop

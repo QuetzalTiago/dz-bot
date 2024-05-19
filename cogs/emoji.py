@@ -11,7 +11,7 @@ class Emoji(commands.Cog):
         """Converts the input text into emoji letters."""
         text = ctx.message.content[6:].strip()
         emoji_text = await self.text_to_emoji(text)
-        await ctx.message.channel.send(emoji_text)
+        await ctx.send(emoji_text)
 
     async def text_to_emoji(_, text):
         emoji_text = ""

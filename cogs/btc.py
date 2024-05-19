@@ -13,7 +13,7 @@ class Btc(commands.Cog):
         """Returns the current price of Bitcoin."""
         await ctx.message.add_reaction("⌛")
         btc_price = await self.fetch_btc_price()
-        await ctx.message.channel.send(f"Current Bitcoin price: **{btc_price} USD**")
+        await ctx.send(f"Current Bitcoin price: **{btc_price} USD**")
         await ctx.message.clear_reactions()
         await ctx.message.add_reaction("✅")
 

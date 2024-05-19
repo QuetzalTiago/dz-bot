@@ -31,7 +31,7 @@ class Chess(commands.Cog):
         if len(message_parts) > 1:
             time_control = int(message_parts[1])
             if time_control < 1 or time_control > 60:
-                await ctx.message.channel.send(
+                await ctx.send(
                     "Invalid time control. Please specify a number of minutes between 1 and 60."
                 )
                 return
@@ -40,7 +40,7 @@ class Chess(commands.Cog):
         if len(message_parts) > 2:
             increment = int(message_parts[2])
             if increment < 0 or increment > 60:  # Assuming 60 as maximum increment
-                await ctx.message.channel.send(
+                await ctx.send(
                     "Invalid increment. Please specify a number of seconds between 0 and 60."
                 )
                 return
@@ -55,7 +55,7 @@ class Chess(commands.Cog):
         await ctx.message.add_reaction("⌛")
         match_url = await self.fetch_match_url(ctx, payload)
         match_id = self.get_match_id(match_url)
-        await ctx.message.channel.send(match_url)
+        await ctx.send(match_url)
         await ctx.message.clear_reactions()
         await ctx.message.add_reaction("✅")
 
@@ -71,10 +71,8 @@ class Chess(commands.Cog):
             print(challenge_data)
             return challenge_data["challenge"]["url"]
         else:
-            await ctx.message.channel.send(
-                "There was a problem creating the challenge."
-            )
-            await ctx.message.channel.send(response)
+            await ctx.send("There was a problem creating the challenge.")
+            await ctx.send(response)
 
     def get_match_id(self, url):
         return url.rsplit("/", 1)[-1]
@@ -147,7 +145,7 @@ class Chess(commands.Cog):
                     black_username,
                     winner,
                 )
-                await ctx.message.channel.send(embed=embed)
+                await ctx.send(embed=embed)
                 self.bot.get_cog("Database").save_chess_game(data)
                 print("Chess game saved in db")
                 self.save_match.cancel()

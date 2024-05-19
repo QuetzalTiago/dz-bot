@@ -17,12 +17,10 @@ class ChessLeaderboard(commands.Cog):
 
         if not leaderboard:
             # Send a message if the leaderboard is empty
-            await ctx.message.channel.send(
-                "No games are available for the leaderboard."
-            )
+            await ctx.send("No games are available for the leaderboard.")
         else:
             embed = self.get_leaderboard_embed(leaderboard)
-            await ctx.message.channel.send(embed=embed)
+            await ctx.send(embed=embed)
 
     def calculate_leaderboard(self, chess_games):
         player_stats = defaultdict(lambda: {"wins": 0, "games": 0})

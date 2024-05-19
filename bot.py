@@ -41,8 +41,6 @@ class Khaled(commands.Bot):
         await self.change_presence(
             activity=discord.Activity(type=discord.ActivityType.playing, name=quote)
         )
-        await self.tree.sync()
-
         await self.update_online_users()
         # Notify after reset
         message_id, channel_id = db.get_startup_notification()
@@ -152,6 +150,7 @@ async def main():
         intents.voice_states = True
         async with Khaled(prefix, intents=intents, initial_extensions=exts) as bot:
             await bot.start(token)
+            await bot.tree.sync()
 
 
 asyncio.run(main())

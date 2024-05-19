@@ -29,7 +29,7 @@ class Leaderboard(commands.Cog):
                 f"**#{index} {username}** - {round(hours, 2)} hours\n"
             )
 
-        await ctx.message.channel.send(leaderboard_message)
+        await ctx.send(leaderboard_message)
         await ctx.message.clear_reactions()
         await ctx.message.add_reaction("✅")
 

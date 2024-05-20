@@ -11,8 +11,6 @@ from typing import List
 import discord
 from discord.ext import commands, tasks
 
-from cogs.purge import Purge
-
 
 class Khaled(commands.Bot):
 
@@ -127,6 +125,9 @@ async def main():
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
+    async def show_cmd_confirmation(ctx):
+        await ctx.message.add_reaction("👍")
+
     with open("config.json") as f:
         config = json.load(f)
         token = config["secrets"]["discordToken"]
@@ -151,6 +152,7 @@ async def main():
         intents.message_content = True
         intents.voice_states = True
         async with Khaled(prefix, intents=intents, initial_extensions=exts) as bot:
+            bot.before_invoke(show_cmd_confirmation)
             await bot.start(token)
             await bot.tree.sync()
 

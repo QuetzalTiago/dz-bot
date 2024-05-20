@@ -100,8 +100,6 @@ class Music(commands.Cog):
             )
             return
 
-        await ctx.message.add_reaction("⌛")
-
         if not self.background_task.is_running():
             self.background_task.start()
 
@@ -311,10 +309,14 @@ class Music(commands.Cog):
             return
 
         next_song_name, message = self.dl_queue.pop(0)
+        await message.add_reaction("⌛")
         (
             next_song_path,
             next_song_info,
         ) = await self.files.download_from_youtube(next_song_name, message)
+
+        await message.clear_reactions()
+        await message.add_reaction("✅")
 
         await self.add_to_queue(next_song_path, next_song_info, message)
 

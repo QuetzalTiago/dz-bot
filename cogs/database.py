@@ -19,6 +19,7 @@ class Database(commands.Cog):
         self.bot = bot
         self.db_url = db_url
         self.db_name = "discord_bot"  # Set the database name here
+        self.update_user_durations.start()
 
     async def cog_load(self):
         # Connect without a specific database to execute initial setup commands
@@ -180,7 +181,7 @@ class Database(commands.Cog):
         finally:
             session.close()
 
+
 async def setup(bot):
     db_url = "mysql+pymysql://root:root@localhost"
     await bot.add_cog(Database(bot, db_url))
-    

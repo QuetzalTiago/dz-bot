@@ -82,9 +82,6 @@ class Music(commands.Cog):
         if song_names:
             await self.enqueue_songs(songs)
 
-        await message.clear_reactions()
-        await message.add_reaction("✅")
-
     @commands.hybrid_command(aliases=["p"])
     async def play(self, ctx, song_url):
         """Plays a file from the local filesystem"""

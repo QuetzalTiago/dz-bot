@@ -55,8 +55,6 @@ class Khaled(commands.Bot):
                 # Reset the notify_on_startup flag in the database
                 await db.set_startup_notification(None, None)
 
-        Purge()
-
     async def update_online_users(self):
         for guild in self.guilds:
             for voice_channel in guild.voice_channels:

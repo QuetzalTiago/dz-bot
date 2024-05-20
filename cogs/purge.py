@@ -7,6 +7,7 @@ class Purge(commands.Cog):
         self.bot = bot
         self.cmd_list = []
         self.set_cmd_list()
+        self.purge_job.start()
 
     def set_cmd_list(self):
         for cmd in self.bot.walk_commands():

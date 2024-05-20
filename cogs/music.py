@@ -49,9 +49,6 @@ class Music(commands.Cog):
                 and self.voice_client.is_connected()
                 and not self.queue
             ):
-                print(self.disconnect_timer)
-                if self.disconnect_timer:
-                    print(time.time() - self.disconnect_timer)
                 if self.disconnect_timer is None:
                     self.disconnect_timer = time.time()
                 elif time.time() - self.disconnect_timer >= 300:
@@ -162,9 +159,9 @@ class Music(commands.Cog):
             query = await self.get_spotify_name(query)
             query = re.sub(r"\([^)]*\)", "", query)
 
-        lyrics = await self.fetch_lyrics(query)
+        # lyrics = await self.fetch_lyrics(query)
 
-        song = Song(song_path, song_info, message, lyrics)
+        song = Song(song_path, song_info, message, None)
 
         self.queue.append(song)
         self.disconnect_timer = None
@@ -211,19 +208,20 @@ class Music(commands.Cog):
         if await self.check_play_state():
             return
 
-        if self.last_song:
-            await self.delete_song_log(self.last_song)
-
-        await self.cleanup_files(song, self.queue)
         self.play_audio(song.path)
         self.current_song = song
 
         embed = await self.send_song_embed(song)
         embed_msg = await song.message.channel.fetch_message(embed.id)
 
+        if self.last_song:
+            await self.delete_song_log(self.last_song)
+
         song.messages_to_delete.append(embed_msg)
         song.messages_to_delete.append(song.message)
+
         self.last_song = song
+        await self.cleanup_files(song, self.queue)
 
     def is_playing(self):
         return self.voice_client and self.voice_client.is_playing()

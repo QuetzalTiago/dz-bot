@@ -9,7 +9,9 @@ import logging.handlers
 from typing import List
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
+
+from cogs.purge import Purge
 
 
 class Khaled(commands.Bot):
@@ -52,6 +54,8 @@ class Khaled(commands.Bot):
 
                 # Reset the notify_on_startup flag in the database
                 await db.set_startup_notification(None, None)
+
+        Purge()
 
     async def update_online_users(self):
         for guild in self.guilds:

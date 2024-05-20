@@ -1,3 +1,5 @@
+import asyncio
+from discord.ext import commands
 import json
 import os
 import uuid
@@ -74,12 +76,21 @@ class Files(commands.Cog):
         self.downloading = False
 
         if result["status"] == "error":
-            await message.channel.send(result["message"])
+            sent_message = await message.channel.send(result["message"])
             await message.clear_reactions()
             await message.add_reaction("❌")
+            self.bot.loop.create_task(self.delete_log(message, sent_message))
             return None
         else:
             return result["file_path"], result["info"]
+
+    async def delete_log(self, message, sent_message, delay=30):
+        await asyncio.sleep(delay)
+        try:
+            await sent_message.delete()
+            await message.delete()
+        except Exception as e:
+            print(f"Failed to delete message: {e}")  # Log the exception if any
 
     def delete_file(self, file_path):
         try:

@@ -28,7 +28,7 @@ class Purge(commands.Cog):
 
     @tasks.loop(hours=2)
     async def purge_job(self):
-        if hasattr(self.bot, "main_channel"):
+        if self.bot.main_channel is not None:
             await self.bot.main_channel.purge(limit=50, check=self.is_bot_or_command)
 
 

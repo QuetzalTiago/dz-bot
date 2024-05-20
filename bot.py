@@ -151,6 +151,7 @@ async def main():
         intents = discord.Intents.default()
         intents.message_content = True
         intents.voice_states = True
+
         async with Khaled(prefix, intents=intents, initial_extensions=exts) as bot:
             bot.before_invoke(show_cmd_confirmation)
             await bot.start(token)

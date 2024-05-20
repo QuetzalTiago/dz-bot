@@ -12,6 +12,10 @@ class Div(commands.Cog):
         """Returns the current price of the Divine in the specified league from the message."""
         await ctx.message.add_reaction("⌛")
         league = ctx.message.content.split("div", 1)[1].strip()
+        if not league:
+            await ctx.message.clear_reactions()
+            await ctx.add_reaction("❌")
+            await ctx.send("Specify the league, for example: 'div necropolis'")
         div_price = await self.fetch_div_price(league)
         await ctx.send(
             f"Current Divine price in {league.title()} league: **{div_price} Chaos**"

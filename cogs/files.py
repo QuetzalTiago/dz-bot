@@ -32,7 +32,6 @@ class Files(commands.Cog):
             ],
             "outtmpl": f"{file_name}",
             "noplaylist": True,
-            "quiet": True,
             "no_warnings": True,
         }
 

@@ -22,11 +22,13 @@ class Music(commands.Cog):
         self.queue = []
         self.dl_queue = []
         self.current_song = None
+        self.dl_queue_cancelled = False
         self.voice_client = None
         self.loop = False
         self.last_song = None
         self.music_end_timestamp = None
         self.idle_timeout = 150
+        self.audio_source = None
         self.files: Files = self.bot.get_cog("Files")
         self.spotify = spotipy.Spotify(
             auth_manager=SpotifyClientCredentials(
@@ -69,6 +71,7 @@ class Music(commands.Cog):
             members_in_channel = len(self.voice_client.channel.members)
             if members_in_channel == 1:
                 await self.stop(None)
+                await self.clear(None)
 
     @background_task.before_loop
     async def before_background_task(self):
@@ -105,6 +108,8 @@ class Music(commands.Cog):
                 "Missing URL use command like: play https://www.youtube.com/watch?v=dQw4w9WgXcQ"
             )
             return
+
+        self.dl_queue_cancelled = False
 
         if "spotify.com" in song_url:
             await self.handle_spotify_url(song_url, ctx.message)
@@ -166,8 +171,8 @@ class Music(commands.Cog):
                 self.files.delete_file(file_name)
 
     def play_audio(self, song_path):
-        source = discord.FFmpegPCMAudio(song_path)
-        self.voice_client.play(source)
+        self.audio_source = discord.FFmpegPCMAudio(song_path)
+        self.voice_client.play(self.audio_source)
 
     async def send_song_embed(self, song: Song):
         embed = song.to_embed()
@@ -248,6 +253,15 @@ class Music(commands.Cog):
     @commands.hybrid_command(aliases=["leave"])
     async def stop(self, ctx):
         """Stops and disconnects the bot from voice"""
+
+        if ctx:
+            await self.clear(None)
+            self.dl_queue_cancelled = True
+
+        self.current_song = None
+        self.last_song = None
+        self.music_end_timestamp = None
+
         if self.voice_client and self.voice_client.is_connected():
             if self.voice_client.is_playing():
                 self.voice_client.stop()
@@ -263,20 +277,13 @@ class Music(commands.Cog):
             if ctx and ctx.message:
                 await ctx.send("DJ Khaled is not playing anything!")
 
-        self.queue = []
-        self.dl_queue = []
-        self.current_song = None
-        self.last_song = None
-        self.music_end_timestamp = None
-        self.background_task.stop()
-        self.process_dl_queue.stop()
-
     @commands.hybrid_command()
     async def clear(self, ctx):
         """Clears the queue."""
         self.dl_queue = []
         self.queue = []
-        await ctx.send("Queue has been cleared!")
+        if ctx:
+            await ctx.send("Queue has been cleared!")
 
     @commands.hybrid_command(aliases=["q"])
     async def queue(self, ctx):
@@ -295,9 +302,13 @@ class Music(commands.Cog):
             if song not in self.dl_queue:
                 self.dl_queue.append(song)
 
-        self.process_dl_queue.start()
-        self.background_task.start()
+        if not self.process_dl_queue.is_running():
+            self.process_dl_queue.start()
 
+        if not self.background_task.is_running():
+            self.background_task.start()
+
+    # This task cannot be forcefully cancelled
     @tasks.loop(seconds=30)
     async def process_dl_queue(self):
         if self.dl_queue.__len__() == 0:
@@ -306,16 +317,25 @@ class Music(commands.Cog):
 
         next_song_name, message = self.dl_queue.pop(0)
         await message.add_reaction("⌛")
-        (
-            next_song_path,
-            next_song_info,
-        ) = await self.files.download_from_youtube(next_song_name, message)
+        try:
+            (
+                next_song_path,
+                next_song_info,
+            ) = await self.files.download_from_youtube(next_song_name, message)
+        except Exception as e:
+            print(e)
 
         if all(message is not item[1] for item in self.dl_queue):
             await message.clear_reactions()
             await message.add_reaction("✅")
 
-        await self.add_to_queue(next_song_path, next_song_info, message)
+        if self.dl_queue_cancelled:
+            print("stopping dl queue")
+            self.dl_queue_cancelled = False
+            self.process_dl_queue.stop()
+            self.background_task.stop()
+        else:
+            await self.add_to_queue(next_song_path, next_song_info, message)
 
     async def fetch_lyrics(self, song_name):
         if "/playlist/" in song_name or "list=" in song_name:

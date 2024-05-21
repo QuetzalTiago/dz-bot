@@ -7,6 +7,7 @@ class Btc(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self.check_and_notify_bitcoin_price_change.start()
 
     @commands.hybrid_command()
     async def btc(self, ctx):

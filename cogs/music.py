@@ -104,9 +104,6 @@ class Music(commands.Cog):
             )
             return
 
-        if not self.background_task.is_running():
-            self.background_task.start()
-
         if "spotify.com" in song_url:
             await self.handle_spotify_url(song_url, ctx.message)
             return
@@ -148,17 +145,6 @@ class Music(commands.Cog):
     async def add_to_queue(self, song_path, song_info, message):
         if not self.is_playing():
             await self.join_voice_channel(message)
-
-        if message.content.startswith("play"):
-            query = message.content[5:].strip()
-        else:
-            query = message.content[2:].strip()
-
-        if "spotify.com" and "track" in query:
-            query = await self.get_spotify_name(query)
-            query = re.sub(r"\([^)]*\)", "", query)
-
-        # lyrics = await self.fetch_lyrics(query)
 
         song = Song(song_path, song_info, message, None)
 
@@ -308,6 +294,7 @@ class Music(commands.Cog):
                 self.dl_queue.append(song)
 
         self.process_dl_queue.start()
+        self.background_task.start()
 
     @tasks.loop(seconds=30)
     async def process_dl_queue(self):

@@ -20,7 +20,6 @@ class Files(commands.Cog):
 
     async def download_from_youtube(self, song_url, message):
         file_name = f"{uuid.uuid4().int}"
-        song_url = f"ytsearch:{song_url}"
 
         ydl_opts = {
             "format": "bestaudio/best",
@@ -35,14 +34,19 @@ class Files(commands.Cog):
             "noplaylist": True,
             "quiet": True,
             "no_warnings": True,
-            "default-search": "ytsearch",
         }
 
         self.downloading = True
 
-        def download_task():
+        def download_task(song_url):
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(song_url, download=False)["entries"][0]
+                is_query = "youtube.com" not in song_url and "youtu.be" not in song_url
+                if is_query:
+                    song_url = f"ytsearch:{song_url}"
+
+                info = ydl.extract_info(song_url, download=False)
+                if is_query:
+                    info = info["entries"][0]
 
                 if info["duration"] > self.bot.max_duration:
                     duration_readable = str(
@@ -58,14 +62,16 @@ class Files(commands.Cog):
                         "message": f"**{song_title}** is too long. Duration: **{duration_readable}**.\nMax duration allowed is **{max_duration_readable}**.",
                     }
 
-                info = ydl.extract_info(song_url, download=True)["entries"][0]
+                info = ydl.extract_info(song_url, download=True)
+                if is_query:
+                    info = info["entries"][0]
                 return {
                     "status": "success",
                     "file_path": f"{file_name}.{self.audio_format}",
                     "info": info,
                 }
 
-        future = self.executor.submit(download_task)
+        future = self.executor.submit(download_task, song_url)
         result = await self.bot.loop.run_in_executor(None, future.result)
 
         self.downloading = False

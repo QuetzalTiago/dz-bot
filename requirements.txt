@@ -1,5 +1,4 @@
 discord
-youtube_search
 yt-dlp
 PyNaCl
 ffmpeg

@@ -12,6 +12,7 @@ import yt_dlp
 import spotipy
 from discord.ext import commands, tasks
 from spotipy.oauth2 import SpotifyClientCredentials
+from cogs.files import Files
 from .models.song import Song
 
 
@@ -24,8 +25,9 @@ class Music(commands.Cog):
         self.voice_client = None
         self.loop = False
         self.last_song = None
-        self.disconnect_timer = None
-        self.files = self.bot.get_cog("Files")
+        self.music_end_timestamp = None
+        self.idle_timeout = 150
+        self.files: Files = self.bot.get_cog("Files")
         self.spotify = spotipy.Spotify(
             auth_manager=SpotifyClientCredentials(
                 client_id=config["secrets"]["spotifyClientId"],
@@ -50,23 +52,23 @@ class Music(commands.Cog):
                 next_song = self.queue.pop(0)
                 await self.play_song(next_song)
 
-            # Handle disconnection timer
+            # Handle idle
             elif (
                 self.voice_client
                 and self.voice_client.is_connected()
                 and not self.queue
             ):
-                if self.disconnect_timer is None:
-                    self.disconnect_timer = time.time()
-                elif time.time() - self.disconnect_timer >= 300:
-                    await self.stop()
-                    self.disconnect_timer = None
+                if self.music_end_timestamp is None:
+                    self.music_end_timestamp = time.time()
+                elif time.time() - self.music_end_timestamp >= self.idle_timeout:
+                    await self.stop(None)
+                    self.music_end_timestamp = None
 
         # Leave if alone in channel
         if self.voice_client and self.voice_client.channel:
             members_in_channel = len(self.voice_client.channel.members)
             if members_in_channel == 1:
-                await self.stop()
+                await self.stop(None)
 
     @background_task.before_loop
     async def before_background_task(self):
@@ -149,7 +151,7 @@ class Music(commands.Cog):
         song = Song(song_path, song_info, message, None)
 
         self.queue.append(song)
-        self.disconnect_timer = None
+        self.music_end_timestamp = None
 
     async def check_play_state(self):
         return self.is_playing() or self.files.is_downloading()
@@ -265,7 +267,7 @@ class Music(commands.Cog):
         self.dl_queue = []
         self.current_song = None
         self.last_song = None
-        self.disconnect_timer = None
+        self.music_end_timestamp = None
         self.background_task.stop()
         self.process_dl_queue.stop()
 

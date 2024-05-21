@@ -1,11 +1,9 @@
 import asyncio
 from discord.ext import commands
-import json
 import os
 import uuid
 import datetime
 import yt_dlp
-from youtube_search import YoutubeSearch
 from discord.ext import commands
 from concurrent.futures import ThreadPoolExecutor
 
@@ -22,6 +20,7 @@ class Files(commands.Cog):
 
     async def download_from_youtube(self, song_url, message):
         file_name = f"{uuid.uuid4().int}"
+        song_url = f"ytsearch:{song_url}"
 
         ydl_opts = {
             "format": "bestaudio/best",
@@ -36,18 +35,14 @@ class Files(commands.Cog):
             "noplaylist": True,
             "quiet": True,
             "no_warnings": True,
+            "default-search": "ytsearch",
         }
 
         self.downloading = True
 
-        if "youtube.com" not in song_url and "youtu.be" not in song_url:
-            results = json.loads(YoutubeSearch(song_url, max_results=5).to_json())
-            url_suffix = results["videos"][0]["url_suffix"]
-            song_url = f"https://www.youtube.com{url_suffix}"
-
         def download_task():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(song_url, download=False)
+                info = ydl.extract_info(song_url, download=False)["entries"][0]
 
                 if info["duration"] > self.bot.max_duration:
                     duration_readable = str(
@@ -63,7 +58,7 @@ class Files(commands.Cog):
                         "message": f"**{song_title}** is too long. Duration: **{duration_readable}**.\nMax duration allowed is **{max_duration_readable}**.",
                     }
 
-                info = ydl.extract_info(song_url, download=True)
+                info = ydl.extract_info(song_url, download=True)["entries"][0]
                 return {
                     "status": "success",
                     "file_path": f"{file_name}.{self.audio_format}",

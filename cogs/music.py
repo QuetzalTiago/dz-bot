@@ -39,9 +39,7 @@ class Music(commands.Cog):
             if (
                 self.last_song
                 and self.last_song.message
-                and all(
-                    self.last_song.message is not item.message for item in self.dl_queue
-                )
+                and all(self.last_song.message is not item[1] for item in self.dl_queue)
             ):
                 await self.delete_song_log(self.last_song)
                 self.last_song = None
@@ -216,7 +214,7 @@ class Music(commands.Cog):
         embed_msg = await song.message.channel.fetch_message(embed.id)
 
         if self.last_song and all(
-            self.last_song.message is not item.message for item in self.dl_queue
+            self.last_song.message is not item[1] for item in self.dl_queue
         ):
             await self.delete_song_log(self.last_song)
 
@@ -320,7 +318,7 @@ class Music(commands.Cog):
             next_song_info,
         ) = await self.files.download_from_youtube(next_song_name, message)
 
-        if all(message is not item.message for item in self.dl_queue):
+        if all(message is not item[1] for item in self.dl_queue):
             await message.clear_reactions()
             await message.add_reaction("✅")
 

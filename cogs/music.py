@@ -61,8 +61,6 @@ class Music(commands.Cog):
                 elif time.time() - self.disconnect_timer >= 300:
                     await self.stop()
                     self.disconnect_timer = None
-            else:
-                self.disconnect_timer = None
 
         # Leave if alone in channel
         if self.voice_client and self.voice_client.channel:

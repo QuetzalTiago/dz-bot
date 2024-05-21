@@ -36,7 +36,13 @@ class Music(commands.Cog):
     @tasks.loop(seconds=1)
     async def background_task(self):
         if not self.is_playing() and not self.files.is_downloading():
-            if self.last_song and self.last_song.message:
+            if (
+                self.last_song
+                and self.last_song.message
+                and all(
+                    self.last_song.message is not item.message for item in self.dl_queue
+                )
+            ):
                 await self.delete_song_log(self.last_song)
                 self.last_song = None
             if self.loop and self.current_song:
@@ -209,7 +215,9 @@ class Music(commands.Cog):
         embed = await self.send_song_embed(song)
         embed_msg = await song.message.channel.fetch_message(embed.id)
 
-        if self.last_song:
+        if self.last_song and all(
+            self.last_song.message is not item.message for item in self.dl_queue
+        ):
             await self.delete_song_log(self.last_song)
 
         song.messages_to_delete.append(embed_msg)
@@ -312,8 +320,9 @@ class Music(commands.Cog):
             next_song_info,
         ) = await self.files.download_from_youtube(next_song_name, message)
 
-        await message.clear_reactions()
-        await message.add_reaction("✅")
+        if all(message is not item.message for item in self.dl_queue):
+            await message.clear_reactions()
+            await message.add_reaction("✅")
 
         await self.add_to_queue(next_song_path, next_song_info, message)
 

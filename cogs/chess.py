@@ -101,7 +101,7 @@ class Chess(commands.Cog):
         )
         return embed
 
-    @tasks.loop(seconds=10, count=1)
+    @tasks.loop(seconds=20, count=270)
     async def save_match(self, ctx, match_id):
         game_ended_statuses = [
             "mate",

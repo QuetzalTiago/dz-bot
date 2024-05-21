@@ -36,18 +36,28 @@ class Music(commands.Cog):
     @tasks.loop(seconds=1)
     async def background_task(self):
         if not self.is_playing() and not self.files.is_downloading():
+            # Clear song log
             if (
                 self.last_song
                 and self.last_song.message
                 and all(self.last_song.message is not item[1] for item in self.dl_queue)
+                and all(
+                    self.last_song.message is not song.message for song in self.queue
+                )
             ):
                 await self.delete_song_log(self.last_song)
                 self.last_song = None
+
+            # Loop
             if self.loop and self.current_song:
                 await self.play_song(self.current_song, True)
+
+            # Process music queue
             elif self.queue:
                 next_song = self.queue.pop(0)
                 await self.play_song(next_song)
+
+            # Handle disconnection timer
             elif (
                 self.voice_client
                 and self.voice_client.is_connected()
@@ -61,6 +71,7 @@ class Music(commands.Cog):
             else:
                 self.disconnect_timer = None
 
+        # Leave if alone in channel
         if self.voice_client and self.voice_client.channel:
             members_in_channel = len(self.voice_client.channel.members)
             if members_in_channel == 1:
@@ -88,7 +99,8 @@ class Music(commands.Cog):
 
     @commands.hybrid_command(aliases=["p"])
     async def play(self, ctx, song_url):
-        """Plays a file from the local filesystem"""
+        """Plays a song from either a query or url"""
+
         if ctx.message.author.voice is None:
             await ctx.send("You are not connected to a voice channel!")
             await ctx.message.clear_reactions()
@@ -118,9 +130,6 @@ class Music(commands.Cog):
 
         else:
             await self.enqueue_songs([(song_url, ctx.message)])
-
-        await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
 
     @commands.hybrid_command()
     async def loop(self, ctx):
@@ -213,10 +222,14 @@ class Music(commands.Cog):
         embed = await self.send_song_embed(song)
         embed_msg = await song.message.channel.fetch_message(embed.id)
 
-        if self.last_song and all(
-            self.last_song.message is not item[1] for item in self.dl_queue
+        last_song = self.last_song
+
+        if (
+            last_song
+            and all(last_song.message is not item[1] for item in self.dl_queue)
+            and all(last_song.message is not song.message for song in self.queue)
         ):
-            await self.delete_song_log(self.last_song)
+            await self.delete_song_log(last_song)
 
         song.messages_to_delete.append(embed_msg)
         song.messages_to_delete.append(song.message)

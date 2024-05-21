@@ -43,7 +43,7 @@ class Music(commands.Cog):
 
             # Loop
             if self.loop and self.current_song:
-                await self.play_song(self.current_song, True)
+                await self.play_song(self.current_song)
 
             # Process music queue
             elif self.queue:

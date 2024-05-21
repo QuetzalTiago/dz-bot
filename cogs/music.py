@@ -222,8 +222,8 @@ class Music(commands.Cog):
 
         song.messages_to_delete.append(embed_msg)
 
-        if all(last_song.message is not item[1] for item in self.dl_queue) and all(
-            last_song.message is not song.message for song in self.queue
+        if all(song.message is not item[1] for item in self.dl_queue) and all(
+            song.message is not song.message for song in self.queue
         ):
             song.messages_to_delete.append(song.message)
 

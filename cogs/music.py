@@ -37,7 +37,7 @@ class Music(commands.Cog):
     async def background_task(self):
         if not self.is_playing() and not self.files.is_downloading():
             # Clear song log
-            if self.last_song and self.last_song.message:
+            if self.last_song:
                 await self.delete_song_log(self.last_song)
                 self.last_song = None
 

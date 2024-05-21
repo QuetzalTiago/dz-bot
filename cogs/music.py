@@ -37,14 +37,7 @@ class Music(commands.Cog):
     async def background_task(self):
         if not self.is_playing() and not self.files.is_downloading():
             # Clear song log
-            if (
-                self.last_song
-                and self.last_song.message
-                and all(self.last_song.message is not item[1] for item in self.dl_queue)
-                and all(
-                    self.last_song.message is not song.message for song in self.queue
-                )
-            ):
+            if self.last_song and self.last_song.message:
                 await self.delete_song_log(self.last_song)
                 self.last_song = None
 
@@ -224,15 +217,15 @@ class Music(commands.Cog):
 
         last_song = self.last_song
 
-        if (
-            last_song
-            and all(last_song.message is not item[1] for item in self.dl_queue)
-            and all(last_song.message is not song.message for song in self.queue)
-        ):
+        if last_song:
             await self.delete_song_log(last_song)
 
         song.messages_to_delete.append(embed_msg)
-        song.messages_to_delete.append(song.message)
+
+        if all(last_song.message is not item[1] for item in self.dl_queue) and all(
+            last_song.message is not song.message for song in self.queue
+        ):
+            song.messages_to_delete.append(song.message)
 
         self.last_song = song
         await self.cleanup_files(song, self.queue)

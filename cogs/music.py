@@ -94,8 +94,16 @@ class Music(commands.Cog):
             await self.enqueue_songs(songs)
 
     @commands.hybrid_command(aliases=["p"])
-    async def play(self, ctx, song_url):
+    async def play(self, ctx):
         """Plays a song from either a query or url"""
+        content = ctx.message.content
+        print(content)
+        song_url = ""
+
+        if content.startswith("play "):
+            song_url = content[5:].split()[0]
+        elif content.startswith("p "):
+            song_url = content[2:].split()[0]
 
         if ctx.message.author.voice is None:
             await ctx.send("You are not connected to a voice channel!")

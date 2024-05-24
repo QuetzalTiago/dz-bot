@@ -152,7 +152,9 @@ async def main():
         intents.message_content = True
         intents.voice_states = True
 
-        async with Khaled(prefix, intents=intents, initial_extensions=exts) as bot:
+        async with Khaled(
+            prefix, case_insensitive=True, intents=intents, initial_extensions=exts
+        ) as bot:
             bot.before_invoke(show_cmd_confirmation)
             await bot.start(token)
             await bot.tree.sync()

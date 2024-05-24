@@ -147,6 +147,7 @@ async def main():
             "cogs.purge",
             "cogs.restart",
             "cogs.status",
+            "cogs.ai",
         ]
         intents = discord.Intents.default()
         intents.message_content = True

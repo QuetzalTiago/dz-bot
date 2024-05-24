@@ -96,8 +96,7 @@ class Music(commands.Cog):
     @commands.hybrid_command(aliases=["p"])
     async def play(self, ctx):
         """Plays a song from either a query or url"""
-        content = ctx.message.content
-
+        content = ctx.message.content.lower()
         if content.startswith("play "):
             song_url = content[5:]
         elif content.startswith("p "):

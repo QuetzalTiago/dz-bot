@@ -97,17 +97,21 @@ class Music(commands.Cog):
     @commands.hybrid_command(aliases=["p"])
     async def play(self, ctx):
         """Plays a song from either a query or url"""
-        env = self.config.get("env", "")
-        test_prefix = self.config.get("test_prefix", "")
-        prefix = test_prefix if env and env == "LOCAL" else ""
+        prefix = self.config.get("prefix", "")
 
         content = ctx.message.content
 
         if content.lower().startswith(f"{prefix}play "):
-            char_count = 6 if test_prefix else 5
+            char_count = 5
+            if prefix:
+                char_count += len(prefix)
+
             song_url = content[char_count:]
         elif content.lower().startswith(f"{prefix}p "):
-            char_count = 3 if test_prefix else 2
+            char_count = 2
+            if prefix:
+                char_count += len(prefix)
+
             song_url = content[char_count:]
 
         if ctx.message.author.voice is None:

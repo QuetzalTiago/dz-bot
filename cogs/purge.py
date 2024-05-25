@@ -18,9 +18,7 @@ class Purge(commands.Cog):
                 self.cmd_list.append(alias)
 
     def is_bot_or_command(self, m):
-        env = self.config.get("env", "")
-        test_prefix = self.config.get("test_prefix", "")
-        prefix = test_prefix if env and env == "LOCAL" else ""
+        prefix = self.config.get("prefix", "")
 
         return m.author == self.bot.user or any(
             m.content.lower().startswith(prefix + cmd) for cmd in self.cmd_list

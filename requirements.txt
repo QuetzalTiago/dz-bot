@@ -8,4 +8,4 @@ Pillow
 sqlalchemy
 PyMySQL
 beautifulsoup4
-google.generativeai
+google-generativeai==0.3.1

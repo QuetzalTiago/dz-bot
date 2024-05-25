@@ -144,10 +144,11 @@ async def main():
             "cogs.files",
             "cogs.leaderboard",
             "cogs.music",
-            "cogs.purge",
             "cogs.restart",
             "cogs.status",
             "cogs.ai",
+            # should be the last one
+            "cogs.purge",
         ]
         intents = discord.Intents.default()
         intents.message_content = True

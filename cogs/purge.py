@@ -22,6 +22,7 @@ class Purge(commands.Cog):
 
     @commands.hybrid_command()
     async def purge(self, ctx):
+        self.set_cmd_list()
         """Purges bot messages and command queries in the current channel."""
         await ctx.message.add_reaction("⌛")
         await ctx.channel.purge(limit=50, check=self.is_bot_or_command)

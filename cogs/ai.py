@@ -23,7 +23,7 @@ class AI(commands.Cog):
         text = text.replace("•", "  *")
         return textwrap.indent(text, "> ", predicate=lambda _: True)
 
-    @commands.hybrid_command()
+    @commands.hybrid_command(aliases=["gpt", "ai", "gen"])
     async def ask(self, ctx, question):
         """Returns an answer to a question"""
         await ctx.message.add_reaction("⌛")

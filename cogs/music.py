@@ -104,9 +104,11 @@ class Music(commands.Cog):
         content = ctx.message.content
 
         if content.lower().startswith(f"{prefix}play "):
-            song_url = content[6:]
+            char_count = 6 if test_prefix else 5
+            song_url = content[char_count:]
         elif content.lower().startswith(f"{prefix}p "):
-            song_url = content[3:]
+            char_count = 3 if test_prefix else 2
+            song_url = content[char_count:]
 
         if ctx.message.author.voice is None:
             await ctx.send("You are not connected to a voice channel!")

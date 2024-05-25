@@ -1,5 +1,5 @@
 #!/bin/bash
 
-pip3 install -r /dz-bot/requirements.txt
+python3.9 -m pip install -r /dz-bot/requirements.txt
 cd /dz-bot/
-python3 bot.py > output.txt 2> error.txt < /dev/null &
+python3.9 bot.py > output.txt 2> error.txt < /dev/null &

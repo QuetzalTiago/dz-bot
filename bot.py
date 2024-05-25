@@ -132,7 +132,7 @@ async def main():
         config = json.load(f)
         token = config["secrets"]["discordToken"]
         env = config.get("env", "")
-        test_prefix = "?"
+        test_prefix = config.get("test_prefix", "")
         prefix = test_prefix if env and env == "LOCAL" else ""
         exts = [
             "cogs.btc",

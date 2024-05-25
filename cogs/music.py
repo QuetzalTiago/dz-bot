@@ -30,6 +30,7 @@ class Music(commands.Cog):
         self.idle_timeout = 150
         self.audio_source = None
         self.files: Files = self.bot.get_cog("Files")
+        self.config = config
         self.spotify = spotipy.Spotify(
             auth_manager=SpotifyClientCredentials(
                 client_id=config["secrets"]["spotifyClientId"],
@@ -96,11 +97,16 @@ class Music(commands.Cog):
     @commands.hybrid_command(aliases=["p"])
     async def play(self, ctx):
         """Plays a song from either a query or url"""
-        content = ctx.message.content.lower()
-        if content.startswith("play "):
-            song_url = content[5:]
-        elif content.startswith("p "):
-            song_url = content[2:]
+        env = self.config.get("env", "")
+        test_prefix = self.config.get("test_prefix", "")
+        prefix = test_prefix if env and env == "LOCAL" else ""
+
+        content = ctx.message.content
+
+        if content.lower().startswith(f"{prefix}play "):
+            song_url = content[6:]
+        elif content.lower().startswith(f"{prefix}p "):
+            song_url = content[3:]
 
         if ctx.message.author.voice is None:
             await ctx.send("You are not connected to a voice channel!")

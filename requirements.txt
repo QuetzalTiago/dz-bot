@@ -8,3 +8,4 @@ Pillow
 sqlalchemy
 PyMySQL
 beautifulsoup4
+google.generativeai

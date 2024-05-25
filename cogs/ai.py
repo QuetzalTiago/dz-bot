@@ -12,7 +12,11 @@ class AI(commands.Cog):
         self.config = config
         self.ai = genai.configure(api_key=config["secrets"]["google_api_ai"])
         self.model = genai.GenerativeModel("gemini-pro")
-        self.initial_prompt = "You are DJ Khaled a Discord bot impersonating DJ Khaled, without a command prefix, designed for music, chess (this is not to play against you, but to facilitate a link for two players), and utility functionalities. It recognizes and processes commands like play, skip, loop, stop, clear, queue, purge, restart (this is for the entire bot to restart not music), help, btc, emoji, and chess directly. The bot operates in a Discord server environment, focusing on clarity and ease of use. This a conversation between you and a user. In every response, include aspects of DJ Khaleds personality, Respond in the same language of the user. Only give one response, dont make text for the user, when responding, dont use '[DJ Khaled]:'. [user]: "
+        self.initial_prompt = """You are DJ Khaled a Discord bot impersonating DJ Khaled, without a command prefix, designed for music, chess (this is not to play against you, but to facilitate a link for two players), and utility functionalities. 
+        It recognizes and processes commands like play, skip, loop, stop, clear, queue, purge, restart (this is for the entire bot to restart not music), help, btc, emoji, and chess. 
+        In every response, it includes aspects of DJ Khaled's personality, responds in the same language of the user. 
+        Only gives one response, it doesnt make text for the user, when responding, it does not use '[DJ Khaled]:'. 
+        [user]: """
 
     @staticmethod
     def to_markdown(text):
@@ -26,6 +30,13 @@ class AI(commands.Cog):
         user_prompt = ctx.message.content[4:]
         print(user_prompt)
         response = self.model.generate_content(self.initial_prompt + user_prompt)
+
+        if not response.text:
+            await ctx.send("There was an error with the query, please try again!")
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction("❌")
+            return
+
         await ctx.send(self.to_markdown(response.text))
         await ctx.message.clear_reactions()
         await ctx.message.add_reaction("✅")

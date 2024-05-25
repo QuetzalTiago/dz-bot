@@ -1,13 +1,15 @@
+import json
 from discord.ext import commands, tasks
 
 
 class Purge(commands.Cog):
 
-    def __init__(self, bot):
+    def __init__(self, bot, config):
         self.bot = bot
         self.cmd_list = []
         self.set_cmd_list()
         self.purge_job.start()
+        self.config = config
 
     def set_cmd_list(self):
         for cmd in self.bot.walk_commands():
@@ -16,8 +18,12 @@ class Purge(commands.Cog):
                 self.cmd_list.append(alias)
 
     def is_bot_or_command(self, m):
+        env = self.config.get("env", "")
+        test_prefix = self.config.get("test_prefix", "")
+        prefix = test_prefix if env and env == "LOCAL" else ""
+
         return m.author == self.bot.user or any(
-            m.content.lower().startswith(cmd) for cmd in self.cmd_list
+            m.content.lower().startswith(prefix + cmd) for cmd in self.cmd_list
         )
 
     @commands.hybrid_command()
@@ -34,4 +40,6 @@ class Purge(commands.Cog):
 
 
 async def setup(bot):
-    await bot.add_cog(Purge(bot))
+    with open("config.json") as f:
+        config = json.load(f)
+        await bot.add_cog(Purge(bot, config))

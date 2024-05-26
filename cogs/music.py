@@ -267,7 +267,6 @@ class Music(commands.Cog):
 
         self.last_song = song
         self.bot.get_cog("Database").save_song(song.info, song.message.author.id)
-        print(song.message.author.id)
         await self.cleanup_files(song, self.queue)
 
     def is_playing(self):
@@ -280,22 +279,24 @@ class Music(commands.Cog):
             self.voice_client.stop()
             await ctx.message.delete()
 
-    @commands.hybrid_command(aliases=["top songs", "top5", "mtop"])
+    @commands.hybrid_command(aliases=["top songs", "top", "mtop"])
     async def most_played(self, ctx):
         """Shows most played songs"""
         most_played_songs = self.bot.get_cog("Database").get_most_played_songs()
 
         embed = discord.Embed(title="Top 5 Most Played Songs 🎵", color=0x3498DB)
-        for url, title, total_plays in most_played_songs:
+        for index, (url, title, total_plays) in enumerate(most_played_songs, start=1):
             embed.add_field(
-                name=f"Played {total_plays} times",
-                value=f"[{title}]({url})",
+                name=f"{index}.",
+                value=f"[{title}]({url}) played **{total_plays}** time{'s' if total_plays > 1 else ''}",
                 inline=False,
             )
 
         await ctx.send(embed=embed)
 
-    @commands.hybrid_command(aliases=["top users", "topreq", "mrtop", "top dj"])
+    @commands.hybrid_command(
+        aliases=["top users", "topreq", "rtop", "topdj", "plays", "reqs"]
+    )
     async def most_requested(self, ctx):
         """Shows the top 5 users with most song requests"""
         top_users = self.bot.get_cog("Database").get_most_song_requests()
@@ -306,7 +307,7 @@ class Music(commands.Cog):
         for index, (id, total_requests) in enumerate(top_users, start=1):
             embed.add_field(
                 name=f"{index}.",
-                value=f"<@{id}>\n**{total_requests}** song{'s' if total_requests > 1 else ''} requested",
+                value=f"<@{id}> **{total_requests}** song{'s' if total_requests > 1 else ''} requested",
                 inline=False,
             )
 
@@ -314,7 +315,7 @@ class Music(commands.Cog):
 
     def get_playlist_embed(self):
         embed = discord.Embed(color=0x1ABC9C)
-        embed.title = "Current playlist"
+        embed.title = "Current playlist 🎵"
 
         if not self.queue:
             embed.description = "The playlist is empty."

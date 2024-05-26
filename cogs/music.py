@@ -155,7 +155,7 @@ class Music(commands.Cog):
         loop_state = await self.toggle_loop()
         await ctx.send(f"Loop is now **{loop_state}**.")
 
-    @commands.hybrid_command()
+    @commands.hybrid_command(aliases=["random"])
     async def shuffle(self, ctx):
         """Toggle shuffle for playlist"""
         shuffle_state = await self.toggle_shuffle()

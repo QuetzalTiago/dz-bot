@@ -266,6 +266,8 @@ class Music(commands.Cog):
             song.messages_to_delete.append(song.message)
 
         self.last_song = song
+        self.bot.get_cog("Database").save_song(song.info, song.message.author.id)
+        print(song.message.author.id)
         await self.cleanup_files(song, self.queue)
 
     def is_playing(self):
@@ -277,6 +279,38 @@ class Music(commands.Cog):
         if self.voice_client and self.voice_client.is_playing():
             self.voice_client.stop()
             await ctx.message.delete()
+
+    @commands.hybrid_command(aliases=["top songs", "top5", "mtop"])
+    async def most_played(self, ctx):
+        """Shows most played songs"""
+        most_played_songs = self.bot.get_cog("Database").get_most_played_songs()
+
+        embed = discord.Embed(title="Top 5 Most Played Songs 🎵", color=0x3498DB)
+        for url, title, total_plays in most_played_songs:
+            embed.add_field(
+                name=f"Played {total_plays} times",
+                value=f"[{title}]({url})",
+                inline=False,
+            )
+
+        await ctx.send(embed=embed)
+
+    @commands.hybrid_command(aliases=["top users", "topreq", "mrtop", "top dj"])
+    async def most_requested(self, ctx):
+        """Shows the top 5 users with most song requests"""
+        top_users = self.bot.get_cog("Database").get_most_song_requests()
+
+        embed = discord.Embed(
+            title="Top 5 users with most requested songs 🎵", color=0x3498DB
+        )
+        for index, (id, total_requests) in enumerate(top_users, start=1):
+            embed.add_field(
+                name=f"{index}.",
+                value=f"<@{id}>\n**{total_requests}** song{'s' if total_requests > 1 else ''} requested",
+                inline=False,
+            )
+
+        await ctx.send(embed=embed)
 
     def get_playlist_embed(self):
         embed = discord.Embed(color=0x1ABC9C)
@@ -336,7 +370,7 @@ class Music(commands.Cog):
 
     @commands.hybrid_command(aliases=["q", "queue", "pl"])
     async def playlist(self, ctx):
-        """Prints the current playlist"""
+        """Shows the current playlist"""
         playlist_embed = self.get_playlist_embed()
         await ctx.send(embed=playlist_embed)
         if len(self.dl_queue) > 0:

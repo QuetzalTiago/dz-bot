@@ -1,6 +1,7 @@
 import datetime
 from sqlalchemy import (
     create_engine,
+    func,
     text,
 )
 from discord.ext import commands, tasks
@@ -11,6 +12,7 @@ from cogs.db.entities.btc_price import BitcoinPrice
 from cogs.db.entities.chess_game import ChessGame
 from cogs.db.entities.startup_notification import StartupNotification
 from cogs.db.entities.user import User
+from cogs.db.entities.song import Song
 from cogs.db.base import Base
 
 
@@ -178,6 +180,61 @@ class Database(commands.Cog):
         try:
             btc_price = session.query(BitcoinPrice).filter(BitcoinPrice.id == 1).first()
             return btc_price.price if btc_price else None
+        finally:
+            session.close()
+
+    def save_song(self, song_data, requested_by_user_id):
+        session = self.Session()
+        try:
+            song = Song(song_data, requested_by_user_id)
+            session.add(song)
+            session.commit()
+        except Exception as e:
+            print(f"Error saving song: {e}")
+            print(e)
+            session.rollback()
+        finally:
+            session.close()
+
+    def get_most_played_songs(self):
+        session = self.Session()
+        try:
+            most_played_songs = (
+                session.query(
+                    Song.original_url,
+                    Song.title,
+                    func.count(Song.id).label("total_plays"),
+                )
+                .group_by(Song.original_url, Song.title)
+                .order_by(func.count(Song.id).desc())
+                .limit(5)
+                .all()
+            )
+
+            return [
+                (song.original_url, song.title, song.total_plays)
+                for song in most_played_songs
+            ]
+        finally:
+            session.close()
+
+    def get_most_song_requests(self):
+        session = self.Session()
+        try:
+            top_users = (
+                session.query(
+                    Song.requested_by_user_id,
+                    func.count(Song.id).label("total_requests"),
+                )
+                .group_by(Song.requested_by_user_id)
+                .order_by(func.count(Song.id).desc())
+                .limit(5)
+                .all()
+            )
+
+            return [
+                (user.requested_by_user_id, user.total_requests) for user in top_users
+            ]
         finally:
             session.close()
 

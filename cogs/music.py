@@ -25,7 +25,7 @@ class Music(commands.Cog):
         self.current_song = None
         self.dl_queue_cancelled = False
         self.voice_client = None
-        self.loop = False
+        self._loop = False
         self._shuffle = False
         self.last_song = None
         self.music_end_timestamp = None
@@ -49,7 +49,7 @@ class Music(commands.Cog):
                 self.last_song = None
 
             # Loop
-            if self.loop and self.current_song:
+            if self._loop and self.current_song:
                 await self.play_song(self.current_song)
 
             # Process music queue
@@ -323,8 +323,8 @@ class Music(commands.Cog):
             await ctx.send(f"**{len(self.dl_queue)}** in the download queue.")
 
     async def toggle_loop(self):
-        self.loop = not self.loop
-        return "on" if self.loop else "off"
+        self._loop = not self._loop
+        return "on" if self._loop else "off"
 
     async def toggle_shuffle(self):
         self._shuffle = not self._shuffle

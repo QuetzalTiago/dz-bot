@@ -26,7 +26,7 @@ class Music(commands.Cog):
         self.dl_queue_cancelled = False
         self.voice_client = None
         self.loop = False
-        self.shuffle = False
+        self._shuffle = False
         self.last_song = None
         self.music_end_timestamp = None
         self.idle_timeout = 150
@@ -54,7 +54,7 @@ class Music(commands.Cog):
 
             # Process music queue
             elif self.queue:
-                if self.shuffle:
+                if self._shuffle:
                     # Handle shuffle
                     ran_index = random.randint(0, len(self.queue) - 1)
                     next_song = self.queue.pop(ran_index)
@@ -327,8 +327,8 @@ class Music(commands.Cog):
         return "on" if self.loop else "off"
 
     async def toggle_shuffle(self):
-        self.shuffle = not self.shuffle
-        return "on" if self.shuffle else "off"
+        self._shuffle = not self._shuffle
+        return "on" if self._shuffle else "off"
 
     async def enqueue_songs(self, songs):
         for song in songs:

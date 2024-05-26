@@ -54,12 +54,12 @@ class Music(commands.Cog):
 
             # Process music queue
             elif self.queue:
+                # Handle shuffle
+                pop_index = 0
                 if self.shuffle:
-                    # Handle shuffle
-                    ran_index = random.randint(0, len(self.queue) - 1)
-                    next_song = self.queue.pop(ran_index)
-                else:
-                    next_song = self.queue.pop(0)
+                    pop_index = random.randint(0, len(self.queue) - 1)
+
+                next_song = self.queue.pop(pop_index)
 
                 await self.play_song(next_song)
 
@@ -348,7 +348,12 @@ class Music(commands.Cog):
             self.process_dl_queue.stop()
             return
 
-        next_song_name, message = self.dl_queue.pop(0)
+        pop_index = 0
+        if self.shuffle:
+            pop_index = random.randint(0, len(self.queue) - 1)
+
+        next_song_name, message = self.dl_queue.pop(pop_index)
+
         await message.add_reaction("⌛")
         try:
             (

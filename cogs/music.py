@@ -350,7 +350,7 @@ class Music(commands.Cog):
 
         pop_index = 0
         if self.shuffle:
-            pop_index = random.randint(0, len(self.queue) - 1)
+            pop_index = random.randint(0, len(self.dl_queue) - 1)
 
         next_song_name, message = self.dl_queue.pop(pop_index)
 

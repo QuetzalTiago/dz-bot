@@ -98,7 +98,9 @@ class Music(commands.Cog):
             song_names.append(spotify_name)
 
         if song_names:
-            songs = map((lambda song_name: (f"{song_name} lyrics", message)), song_names)
+            songs = map(
+                (lambda song_name: (f"{song_name} lyrics", message)), song_names
+            )
             await self.enqueue_songs(songs)
 
     @commands.hybrid_command(aliases=["p"])
@@ -156,7 +158,7 @@ class Music(commands.Cog):
     @commands.hybrid_command()
     async def shuffle(self, ctx):
         """Toggle shuffle for playlist"""
-        shuffle_state = await self.toggle_loop()
+        shuffle_state = await self.toggle_shuffle()
         await ctx.send(f"Shuffle is now **{shuffle_state}**.")
 
     async def delete_song_log(self, song):

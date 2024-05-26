@@ -1,6 +1,7 @@
 import html
 import json
 import os
+import random
 import re
 import uuid
 from bs4 import BeautifulSoup
@@ -25,6 +26,7 @@ class Music(commands.Cog):
         self.dl_queue_cancelled = False
         self.voice_client = None
         self.loop = False
+        self.shuffle = False
         self.last_song = None
         self.music_end_timestamp = None
         self.idle_timeout = 150
@@ -52,7 +54,13 @@ class Music(commands.Cog):
 
             # Process music queue
             elif self.queue:
-                next_song = self.queue.pop(0)
+                if self.shuffle:
+                    # Handle shuffle
+                    next_song = random.choice(self.queue)
+                    self.queue.remove(next_song)
+                else:
+                    next_song = self.queue.pop(0)
+
                 await self.play_song(next_song)
 
             # Handle idle
@@ -97,33 +105,30 @@ class Music(commands.Cog):
     @commands.hybrid_command(aliases=["p"])
     async def play(self, ctx):
         """Plays a song from either a query or url"""
-        prefix = self.config.get("prefix", "")
-
-        content = ctx.message.content
-
-        if content.lower().startswith(f"{prefix}play "):
-            char_count = 5
-            if prefix:
-                char_count += len(prefix)
-
-            song_url = content[char_count:]
-        elif content.lower().startswith(f"{prefix}p "):
-            char_count = 2
-            if prefix:
-                char_count += len(prefix)
-
-            song_url = content[char_count:]
-
         if ctx.message.author.voice is None:
             await ctx.send("You are not connected to a voice channel!")
             await ctx.message.clear_reactions()
             await ctx.message.add_reaction("❌")
             return
 
+        prefix = self.config.get("prefix", "")
+
+        content = ctx.message.content
+
+        command_length = (
+            len(prefix) + 5
+            if content.lower().startswith(f"{prefix}play ")
+            else len(prefix) + 2
+        )
+
+        song_url = content[command_length:]
+
         if not song_url:
             await ctx.send(
                 "Missing URL use command like: play https://www.youtube.com/watch?v=dQw4w9WgXcQ"
             )
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction("❌")
             return
 
         self.dl_queue_cancelled = False
@@ -148,6 +153,12 @@ class Music(commands.Cog):
         """Toggle loop for current song"""
         loop_state = await self.toggle_loop()
         await ctx.send(f"Loop is now **{loop_state}**.")
+
+    @commands.hybrid_command()
+    async def shuffle(self, ctx):
+        """Toggle shuffle for playlist"""
+        shuffle_state = await self.toggle_loop()
+        await ctx.send(f"Shuffle is now **{shuffle_state}**.")
 
     async def delete_song_log(self, song):
         for message in song.messages_to_delete:
@@ -248,12 +259,12 @@ class Music(commands.Cog):
             self.voice_client.stop()
             await ctx.message.delete()
 
-    def get_queue_info_embed(self):
+    def get_playlist_embed(self):
         embed = discord.Embed(color=0x1ABC9C)
-        embed.title = "Current Queue"
+        embed.title = "Current playlist"
 
         if not self.queue:
-            embed.description = "The queue is empty."
+            embed.description = "The playlist is empty."
             return embed
 
         description = ""
@@ -296,23 +307,27 @@ class Music(commands.Cog):
 
     @commands.hybrid_command()
     async def clear(self, ctx):
-        """Clears the queue."""
+        """Clears the playlist."""
         self.dl_queue = []
         self.queue = []
         if ctx:
-            await ctx.send("Queue has been cleared!")
+            await ctx.send("The playlist has been cleared!")
 
-    @commands.hybrid_command(aliases=["q"])
-    async def queue(self, ctx):
-        """Prints the current queue."""
-        queue_info_embed = self.get_queue_info_embed()
-        await ctx.send(embed=queue_info_embed)
+    @commands.hybrid_command(aliases=["q", "queue", "pl"])
+    async def playlist(self, ctx):
+        """Prints the current playlist."""
+        playlist_embed = self.get_playlist_embed()
+        await ctx.send(embed=playlist_embed)
         if len(self.dl_queue) > 0:
             await ctx.send(f"**{len(self.dl_queue)}** in the download queue.")
 
     async def toggle_loop(self):
         self.loop = not self.loop
         return "on" if self.loop else "off"
+
+    async def toggle_shuffle(self):
+        self.shuffle = not self.shuffle
+        return "on" if self.shuffle else "off"
 
     async def enqueue_songs(self, songs):
         for song in songs:

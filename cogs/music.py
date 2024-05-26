@@ -56,8 +56,8 @@ class Music(commands.Cog):
             elif self.queue:
                 if self.shuffle:
                     # Handle shuffle
-                    next_song = random.choice(self.queue)
-                    self.queue.remove(next_song)
+                    ran_index = random.randint(0, len(self.queue) - 1)
+                    next_song = self.queue.pop(ran_index)
                 else:
                     next_song = self.queue.pop(0)
 
@@ -97,9 +97,8 @@ class Music(commands.Cog):
             spotify_name = await self.get_spotify_name(url)
             song_names.append(spotify_name)
 
-        songs = map((lambda song_name: (song_name, message)), song_names)
-
         if song_names:
+            songs = map((lambda song_name: (f"{song_name} lyrics", message)), song_names)
             await self.enqueue_songs(songs)
 
     @commands.hybrid_command(aliases=["p"])

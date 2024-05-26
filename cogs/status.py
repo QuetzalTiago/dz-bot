@@ -20,8 +20,8 @@ class Status(commands.Cog):
             await ctx.send(
                 f"You have spent **{user_hours}** hours in the server since 2024."
             )
-        await ctx.message.channel.clear_reactions()
-        await ctx.message.channel.add_reaction("✅")
+        await ctx.message.clear_reactions()
+        await ctx.message.add_reaction("✅")
 
 
 async def setup(bot):

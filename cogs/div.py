@@ -9,7 +9,7 @@ class Div(commands.Cog):
 
     @commands.hybrid_command()
     async def div(self, ctx):
-        """Returns the current price of the Divine in the specified league from the message."""
+        """Returns the current price of the Divine in the specified league from the message"""
         league = ctx.message.content.split("div", 1)[1].strip()
         if not league:
             await ctx.message.clear_reactions()

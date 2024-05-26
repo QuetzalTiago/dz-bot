@@ -8,10 +8,12 @@ class Emoji(commands.Cog):
 
     @commands.hybrid_command()
     async def emoji(self, ctx):
-        """Converts the input text into emoji letters."""
+        """Converts the input text into emoji letters"""
         text = ctx.message.content[6:].strip()
         emoji_text = await self.text_to_emoji(text)
         await ctx.send(emoji_text)
+        await ctx.message.clear_reactions()
+        await ctx.message.add_reaction("✅")
 
     async def text_to_emoji(_, text):
         emoji_text = ""

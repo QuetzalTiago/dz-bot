@@ -6,10 +6,10 @@ class Purge(commands.Cog):
 
     def __init__(self, bot, config):
         self.bot = bot
+        self.config = config
         self.cmd_list = []
         self.set_cmd_list()
         self.purge_job.start()
-        self.config = config
 
     def set_cmd_list(self):
         for cmd in self.bot.walk_commands():
@@ -26,14 +26,15 @@ class Purge(commands.Cog):
 
     @commands.hybrid_command()
     async def purge(self, ctx):
+        """Purges bot messages and command queries in the current channel"""
         self.set_cmd_list()
-        """Purges bot messages and command queries in the current channel."""
         await ctx.message.add_reaction("⌛")
         await ctx.channel.purge(limit=50, check=self.is_bot_or_command)
 
     @tasks.loop(hours=2)
     async def purge_job(self):
         if self.bot.main_channel is not None:
+            self.set_cmd_list()
             await self.bot.main_channel.purge(limit=50, check=self.is_bot_or_command)
 
 

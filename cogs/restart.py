@@ -9,7 +9,7 @@ class Restart(commands.Cog):
 
     @commands.hybrid_command()
     async def restart(self, ctx):
-        """Restarts the bot and resets its state."""
+        """Restarts the bot and resets its state"""
         await ctx.message.add_reaction("⌛")
 
         self.bot.get_cog("Database").set_startup_notification(

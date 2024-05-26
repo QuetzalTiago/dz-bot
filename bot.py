@@ -20,12 +20,14 @@ class Khaled(commands.Bot):
         self.online_users = {}
         self.main_channel = None
         self.dj_khaled_quotes = [
-            "Another one.",
-            "We the best.",
-            "Major key.",
-            "They don't want us to win.",
-            "Bless up.",
-            "Call me asparagus!",
+            "Another one",
+            "We the best",
+            "Major key",
+            "They don't want us to win",
+            "Bless up",
+            "You loyal",
+            "God did",
+            "They ain't believe in us",
         ]
         self.max_duration = 1200  # in seconds, 20 minutes
 

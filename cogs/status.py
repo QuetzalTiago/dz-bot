@@ -8,7 +8,7 @@ class Status(commands.Cog):
 
     @commands.hybrid_command()
     async def status(self, ctx):
-        """Gets the current status for a user."""
+        """Gets the current status for a user"""
         user_hours = self.bot.get_cog("Database").get_user_hours(ctx.author.id)
         user_hours = round(user_hours, 2)  # rounding off to 2 decimal   places
 

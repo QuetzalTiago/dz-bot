@@ -11,7 +11,7 @@ class ChessLeaderboard(commands.Cog):
 
     @commands.hybrid_command(aliases=["clb", "chess leaderboard"])
     async def chess_leaderboard(self, ctx):
-        """Shows the top 5 players on the chess leaderboard, including their win rates."""
+        """Shows the top 5 players on the chess leaderboard, including their win rates"""
         matches = self.bot.get_cog("Database").get_chess_games()
         leaderboard = self.calculate_leaderboard(matches)
 
@@ -21,6 +21,9 @@ class ChessLeaderboard(commands.Cog):
         else:
             embed = self.get_leaderboard_embed(leaderboard)
             await ctx.send(embed=embed)
+
+        await ctx.message.clear_reactions()
+        await ctx.message.add_reaction("✅")
 
     def calculate_leaderboard(self, chess_games):
         player_stats = defaultdict(lambda: {"wins": 0, "games": 0})

@@ -8,7 +8,7 @@ class Leaderboard(commands.Cog):
 
     @commands.hybrid_command(aliases=["lb"])
     async def leaderboard(self, ctx):
-        """Gets the leaderboard for the top 5 users with most hours."""
+        """Gets the leaderboard for the top 5 users with most hours"""
         user_hours_list = self.bot.get_cog("Database").get_all_user_hours()
 
         # Filter out the bot's own user ID to prevent it from appearing in the leaderboard

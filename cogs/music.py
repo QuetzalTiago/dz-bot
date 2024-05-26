@@ -1,3 +1,4 @@
+import asyncio
 import html
 import json
 import os
@@ -107,9 +108,8 @@ class Music(commands.Cog):
     async def play(self, ctx):
         """Plays a song from either a query or url"""
         if ctx.message.author.voice is None:
-            await ctx.send("You are not connected to a voice channel!")
-            await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
+            sent_message = await ctx.send("You are not connected to a voice channel!")
+            await self.cog_failure(sent_message, ctx.message)
             return
 
         prefix = self.config.get("prefix", "")
@@ -125,11 +125,10 @@ class Music(commands.Cog):
         song_url = content[command_length:]
 
         if not song_url:
-            await ctx.send(
+            sent_message = await ctx.send(
                 "Missing URL use command like: play https://www.youtube.com/watch?v=dQw4w9WgXcQ"
             )
-            await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
+            await self.cog_failure(sent_message, ctx.message)
             return
 
         self.dl_queue_cancelled = False
@@ -139,11 +138,10 @@ class Music(commands.Cog):
             return
 
         elif "list=" in song_url:  # YouTube playlist
-            await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
-            await ctx.send(
+            sent_message = await ctx.send(
                 "Youtube playlists not yet supported. Try a spotify link instead."
             )
+            await self.cog_failure(sent_message, ctx.message)
             return
 
         else:
@@ -154,12 +152,14 @@ class Music(commands.Cog):
         """Toggle loop for current song"""
         loop_state = await self.toggle_loop()
         await ctx.send(f"Loop is now **{loop_state}**.")
+        await self.cog_success(ctx.message)
 
     @commands.hybrid_command(aliases=["random"])
     async def shuffle(self, ctx):
         """Toggle shuffle for playlist"""
         shuffle_state = await self.toggle_shuffle()
         await ctx.send(f"Shuffle is now **{shuffle_state}**.")
+        await self.cog_success(ctx.message)
 
     async def delete_song_log(self, song):
         for message in song.messages_to_delete:
@@ -207,6 +207,24 @@ class Music(commands.Cog):
         embed = song.to_embed()
         msg = await song.message.channel.send(embed=embed)
         return msg
+
+    async def cog_success(self, message):
+        await message.clear_reactions()
+        await message.add_reaction("✅")
+
+    async def cog_failure(self, sent_message, query_message):
+        await query_message.clear_reactions()
+        await query_message.add_reaction("❌")
+
+        async def delete_error_log(sent_message, query_message):
+            await asyncio.sleep(30)
+            try:
+                await sent_message.delete()
+                await query_message.delete()
+            except Exception as e:
+                print(f"Failed to delete message: {e}")
+
+        self.bot.loop.create_task(delete_error_log(sent_message, query_message))
 
     async def handle_lyrics(self, song: Song):
         if song.lyrics:
@@ -286,6 +304,7 @@ class Music(commands.Cog):
         if ctx:
             await self.clear(None)
             self.dl_queue_cancelled = True
+            await self.cog_success(ctx.message)
 
         self.current_song = None
         self.last_song = None
@@ -308,19 +327,21 @@ class Music(commands.Cog):
 
     @commands.hybrid_command()
     async def clear(self, ctx):
-        """Clears the playlist."""
+        """Clears the playlist"""
         self.dl_queue = []
         self.queue = []
         if ctx:
             await ctx.send("The playlist has been cleared!")
+            await self.cog_success(ctx.message)
 
     @commands.hybrid_command(aliases=["q", "queue", "pl"])
     async def playlist(self, ctx):
-        """Prints the current playlist."""
+        """Prints the current playlist"""
         playlist_embed = self.get_playlist_embed()
         await ctx.send(embed=playlist_embed)
         if len(self.dl_queue) > 0:
             await ctx.send(f"**{len(self.dl_queue)}** in the download queue.")
+        await self.cog_success(ctx.message)
 
     async def toggle_loop(self):
         self.loop = not self.loop
@@ -364,8 +385,7 @@ class Music(commands.Cog):
             print(e)
 
         if all(message is not item[1] for item in self.dl_queue):
-            await message.clear_reactions()
-            await message.add_reaction("✅")
+            await self.cog_success(message)
 
         if self.dl_queue_cancelled:
             print("stopping dl queue")

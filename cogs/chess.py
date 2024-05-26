@@ -21,7 +21,7 @@ class Chess(commands.Cog):
 
     @commands.hybrid_command()
     async def chess(self, ctx):
-        """Creates an open chess challenge on Lichess."""
+        """Creates an open chess challenge on Lichess"""
         time_control = None
         increment = 3  # Default increment
 

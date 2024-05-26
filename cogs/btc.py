@@ -11,7 +11,7 @@ class Btc(commands.Cog):
 
     @commands.hybrid_command()
     async def btc(self, ctx):
-        """Returns the current price of Bitcoin."""
+        """Returns the current price of Bitcoin"""
         await ctx.message.add_reaction("⌛")
         btc_price = await self.fetch_btc_price()
         await ctx.send(f"Current Bitcoin price: **{btc_price} USD**")

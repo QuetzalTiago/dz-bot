@@ -411,19 +411,18 @@ class Music(commands.Cog):
         next_song_name, message = self.dl_queue.pop(pop_index)
 
         await message.add_reaction("⌛")
-        try:
-            (
-                next_song_path,
-                next_song_info,
-            ) = await self.files.download_from_youtube(next_song_name, message)
-        except Exception as e:
-            print(e)
+        (
+            next_song_path,
+            next_song_info,
+        ) = await self.files.download_from_youtube(next_song_name, message)
+
+        if next_song_name == None or next_song_info == None:
+            return
 
         if all(message is not item[1] for item in self.dl_queue):
             await self.cog_success(message)
 
         if self.dl_queue_cancelled:
-            print("stopping dl queue")
             self.dl_queue_cancelled = False
             self.process_dl_queue.stop()
             self.background_task.stop()

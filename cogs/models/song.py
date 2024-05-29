@@ -10,6 +10,8 @@ class Song:
         self.messages_to_delete = []
         self._lyrics = lyrics
         self.lyrics_sent = False
+        self.current_seconds = 0
+        self.embed_message = None
 
     @property
     def title(self):
@@ -20,6 +22,12 @@ class Song:
         total_seconds = self.info["duration"]
 
         minutes, seconds = divmod(total_seconds, 60)
+
+        return "{}:{:02}".format(minutes, seconds)
+
+    @property
+    def progress(self):
+        minutes, seconds = divmod(self.current_seconds, 60)
 
         return "{}:{:02}".format(minutes, seconds)
 
@@ -88,14 +96,27 @@ class Song:
     def to_embed(self):
         embed = discord.Embed(title=self.title, color=0x3498DB, url=self.url)
         details = f"{self.time_since_upload}\n{self.uploader}\n{self.views} views\nRequested by <@{self.message.author.id}>"
+        progress = self.get_progress_bar()
 
         if self.lyrics:
             embed.set_footer(text="Click on 📖 for lyrics")
 
         embed.add_field(name=self.duration, value=details, inline=False)
+        embed.add_field(name="Progress", value=progress, inline=False)
 
         thumbnail = self.thumbnail_url
         if thumbnail:
             embed.set_thumbnail(url=thumbnail)
 
         return embed
+
+    def get_progress_bar(self, bar_length=30):
+        duration_seconds = self.info["duration"]
+        if self.current_seconds > duration_seconds:
+            self.current_seconds = duration_seconds
+
+        filled_length = int(bar_length * self.current_seconds // duration_seconds)
+        bar = "█" * filled_length + "-" * (bar_length - filled_length)
+        progress_percentage = (self.current_seconds / duration_seconds) * 100
+
+        return f"|{bar}| {self.progress}/{self.duration} ({progress_percentage:.1f}%)"

@@ -43,6 +43,9 @@ class Music(commands.Cog):
 
     @tasks.loop(seconds=1)
     async def background_task(self):
+        if self.current_song and self.is_playing():
+            await self.update_song_message(self.current_song)
+
         if not self.is_playing() and not self.files.is_downloading():
             # Clear song log
             if self.last_song:
@@ -99,9 +102,7 @@ class Music(commands.Cog):
             song_names.append(spotify_name)
 
         if song_names:
-            songs = map(
-                (lambda song_name: (f"{song_name} lyrics", message)), song_names
-            )
+            songs = map((lambda song_name: (song_name, message, True)), song_names)
             await self.enqueue_songs(songs)
 
     @commands.hybrid_command(aliases=["p"])
@@ -145,7 +146,14 @@ class Music(commands.Cog):
             return
 
         else:
-            await self.enqueue_songs([(song_url, ctx.message)])
+            await self.enqueue_songs([(song_url, ctx.message, False)])
+
+    async def update_song_message(self, song):
+        # Assuming implementation to edit or send a new message in Discord
+        song.current_seconds += 1
+        embed = song.to_embed()
+        if song.embed_message:
+            await song.embed_message.edit(embed=embed)
 
     @commands.hybrid_command()
     async def loop(self, ctx):
@@ -178,11 +186,11 @@ class Music(commands.Cog):
 
         return self.voice_client
 
-    async def add_to_queue(self, song_path, song_info, message):
+    async def add_to_queue(self, song_path, song_info, message, lyrics=None):
         if not self.is_playing():
             await self.join_voice_channel(message)
 
-        song = Song(song_path, song_info, message, None)
+        song = Song(song_path, song_info, message, lyrics)
 
         self.queue.append(song)
         self.music_end_timestamp = None
@@ -206,6 +214,7 @@ class Music(commands.Cog):
     async def send_song_embed(self, song: Song):
         embed = song.to_embed()
         msg = await song.message.channel.send(embed=embed)
+        song.embed_message = msg
         return msg
 
     async def cog_success(self, message):
@@ -236,6 +245,7 @@ class Music(commands.Cog):
             )
             song.lyrics_sent = True
             os.remove(lyrics_file_name)
+            self.check_reaction.stop()
 
             return lyrics_msg
 
@@ -252,6 +262,10 @@ class Music(commands.Cog):
 
         embed = await self.send_song_embed(song)
         embed_msg = await song.message.channel.fetch_message(embed.id)
+
+        if song.lyrics:
+            self.check_reaction.start(song)
+            await song.message.add_reaction("📖")
 
         last_song = self.last_song
 
@@ -408,7 +422,12 @@ class Music(commands.Cog):
         if self.shuffle:
             pop_index = random.randint(0, len(self.dl_queue) - 1)
 
-        next_song_name, message = self.dl_queue.pop(pop_index)
+        next_song_name, message, spotify_req = self.dl_queue.pop(pop_index)
+        lyrics = None
+
+        if spotify_req:
+            lyrics = await self.fetch_lyrics(next_song_name)
+            next_song_name = f"{next_song_name} lyrics"
 
         await message.add_reaction("⌛")
         (
@@ -427,7 +446,7 @@ class Music(commands.Cog):
             self.process_dl_queue.stop()
             self.background_task.stop()
         else:
-            await self.add_to_queue(next_song_path, next_song_info, message)
+            await self.add_to_queue(next_song_path, next_song_info, message, lyrics)
 
     async def fetch_lyrics(self, song_name):
         if "/playlist/" in song_name or "list=" in song_name:
@@ -440,7 +459,9 @@ class Music(commands.Cog):
         }
 
         # Search for the song
-        search_url = base_url + f"/search?q={song_name}"
+        query = song_name.split("(")[0]
+        search_url = base_url + f"/search?q={query}"
+        print(f"fetching lyrics for {query}")
         response = requests.get(search_url, headers=headers)
         json = response.json()
 
@@ -548,9 +569,14 @@ class Music(commands.Cog):
 
         return songs
 
-    async def check_reaction(self, message, song):
+    @tasks.loop(seconds=1, count=1200)
+    async def check_reaction(self, song):
+        print("checking for lyrics")
+        if self.current_song is not song:
+            self.check_reaction.stop()
+
         try:
-            msg = await message.channel.fetch_message(message.id)
+            msg = await song.message.channel.fetch_message(song.message.id)
             if msg:
                 for reaction in msg.reactions:
                     if str(reaction.emoji) == "📖":
@@ -561,6 +587,7 @@ class Music(commands.Cog):
                                 song.messages_to_delete.append(lyrics_msg)
                             break
         except Exception as e:
+            self.check_reaction.stop()
             print(e)
 
 

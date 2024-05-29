@@ -110,13 +110,13 @@ class Song:
 
         return embed
 
-    def get_progress_bar(self, bar_length=45):
+    def get_progress_bar(self, bar_length=30):
         duration_seconds = self.info["duration"]
         if self.current_seconds > duration_seconds:
             self.current_seconds = duration_seconds
 
         filled_length = int(bar_length * self.current_seconds // duration_seconds)
-        bar = "█" * filled_length + "-" * (bar_length - filled_length)
+        bar = "█" * filled_length + "▒" * (bar_length - filled_length)
         progress_percentage = (self.current_seconds / duration_seconds) * 100
 
         return f"|{bar}| {self.progress}/{self.duration} ({progress_percentage:.1f}%)"

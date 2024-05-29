@@ -110,7 +110,7 @@ class Song:
 
         return embed
 
-    def get_progress_bar(self, bar_length=30):
+    def get_progress_bar(self, bar_length=45):
         duration_seconds = self.info["duration"]
         if self.current_seconds > duration_seconds:
             self.current_seconds = duration_seconds

@@ -95,13 +95,13 @@ class Song:
 
     def to_embed(self):
         embed = discord.Embed(title=self.title, color=0x3498DB, url=self.url)
-        details = f"{self.time_since_upload}\n{self.uploader}\n{self.views} views\nRequested by <@{self.message.author.id}>"
+        details = f"{self.time_since_upload}\n{self.views} views\nRequested by <@{self.message.author.id}>"
         progress = self.get_progress_bar()
 
         if self.lyrics:
             embed.set_footer(text="Click on 📖 for lyrics")
 
-        embed.add_field(name=self.duration, value=details, inline=False)
+        embed.add_field(name=self.uploader, value=details, inline=False)
         embed.add_field(name="Progress", value=progress, inline=False)
 
         thumbnail = self.thumbnail_url

@@ -569,7 +569,7 @@ class Music(commands.Cog):
 
         return songs
 
-    @tasks.loop(seconds=1, count=1200)
+    @tasks.loop(seconds=5, count=240)
     async def check_reaction(self, song):
         if self.current_song is not song:
             self.check_reaction.stop()

@@ -99,9 +99,9 @@ class Song:
         progress = self.get_progress_bar()
 
         if self.lyrics:
-            embed.set_footer(text="Click on 📖 for lyrics")
+            embed.set_footer(text="Lyrics are available! (beta)")
         else:
-            embed.set_footer(text="Lyrics are only available for spotify songs")
+            embed.set_footer(text="Lyrics are only available for spotify songs.")
 
         embed.add_field(name=self.uploader, value=details, inline=False)
         embed.add_field(name="Playing", value=progress, inline=False)

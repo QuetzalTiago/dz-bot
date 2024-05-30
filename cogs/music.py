@@ -153,7 +153,10 @@ class Music(commands.Cog):
         song.current_seconds += 1
         embed = song.to_embed()
         if song.embed_message:
-            await song.embed_message.edit(embed=embed)
+            try:
+                await song.embed_message.edit(embed=embed)
+            except:
+                pass
 
     @commands.hybrid_command()
     async def loop(self, ctx):
@@ -235,19 +238,40 @@ class Music(commands.Cog):
 
         self.bot.loop.create_task(delete_error_log(sent_message, query_message))
 
-    async def handle_lyrics(self, song: Song):
+    @commands.hybrid_command()
+    async def lyrics(self, ctx):
+        """Sends lyrics current song (beta)"""
+        song = self.current_song
+
+        if not song:
+            sent_msg = await ctx.message.channel.send(
+                f"DJ Khaled is not playing anything! Play a spotify url to get lyrics."
+            )
+            await self.cog_failure(
+                sent_msg,
+                ctx.message,
+            )
+            return
+
         if song.lyrics:
-            lyrics_file_name = "lyrics.txt"
+            lyrics_file_name = f"{song.title} lyrics.txt"
             with open(lyrics_file_name, "w", encoding="utf-8") as file:
                 file.write(song.lyrics)
+
             lyrics_msg = await self.send_lyrics_file(
                 song.message.channel, lyrics_file_name
             )
-            song.lyrics_sent = True
-            os.remove(lyrics_file_name)
-            self.check_reaction.stop()
 
-            return lyrics_msg
+            os.remove(lyrics_file_name)
+
+            song.messages_to_delete.append(lyrics_msg)
+            song.messages_to_delete.append(ctx.message)
+            await self.cog_success(ctx.message)
+        else:
+            sent_msg = await song.message.channel.send(
+                f"No lyrics available for {song.title}. Try using a spotify link instead."
+            )
+            await self.cog_failure(sent_msg, ctx.message)
 
     async def send_lyrics_file(self, channel, file_name):
         with open(file_name, "rb") as file:
@@ -262,10 +286,6 @@ class Music(commands.Cog):
 
         embed = await self.send_song_embed(song)
         embed_msg = await song.message.channel.fetch_message(embed.id)
-
-        if song.lyrics:
-            self.check_reaction.start(song)
-            await song.message.add_reaction("📖")
 
         last_song = self.last_song
 
@@ -423,13 +443,15 @@ class Music(commands.Cog):
             pop_index = random.randint(0, len(self.dl_queue) - 1)
 
         next_song_name, message, spotify_req = self.dl_queue.pop(pop_index)
+
+        await message.add_reaction("⌛")
+
         lyrics = None
 
         if spotify_req:
             lyrics = await self.fetch_lyrics(next_song_name)
-            next_song_name = f"{next_song_name} lyrics"
+            next_song_name = f"{next_song_name} audio"
 
-        await message.add_reaction("⌛")
         (
             next_song_path,
             next_song_info,
@@ -461,7 +483,6 @@ class Music(commands.Cog):
         # Search for the song
         query = song_name.split("(")[0]
         search_url = base_url + f"/search?q={query}"
-        print(f"fetching lyrics for {query}")
         response = requests.get(search_url, headers=headers)
         json = response.json()
 
@@ -568,26 +589,6 @@ class Music(commands.Cog):
             songs.append(f"{artist} - {song_name}")
 
         return songs
-
-    @tasks.loop(seconds=5, count=240)
-    async def check_reaction(self, song):
-        if self.current_song is not song:
-            self.check_reaction.stop()
-
-        try:
-            msg = await song.message.channel.fetch_message(song.message.id)
-            if msg:
-                for reaction in msg.reactions:
-                    if str(reaction.emoji) == "📖":
-                        users = [user async for user in reaction.users()]
-                        if any(user != self.bot.user for user in users):
-                            lyrics_msg = await self.handle_lyrics(song)
-                            if lyrics_msg:
-                                song.messages_to_delete.append(lyrics_msg)
-                            break
-        except Exception as e:
-            self.check_reaction.stop()
-            print(e)
 
 
 async def setup(bot):

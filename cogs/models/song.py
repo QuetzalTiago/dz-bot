@@ -118,4 +118,4 @@ class Song:
         filled_length = int(bar_length * self.current_seconds // duration_seconds)
         bar = "█" * filled_length + "▒" * (bar_length - filled_length)
 
-        return f"▶️⏸️{bar} {self.progress}/{self.duration}"
+        return f"▶ {bar} {self.progress}/{self.duration}"

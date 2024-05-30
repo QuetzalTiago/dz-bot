@@ -269,7 +269,7 @@ class Music(commands.Cog):
             await self.cog_success(ctx.message)
         else:
             sent_msg = await song.message.channel.send(
-                f"No lyrics available for {song.title}. Try using a spotify link instead."
+                f"No lyrics available for **{song.title}**. Try using a spotify link instead."
             )
             await self.cog_failure(sent_msg, ctx.message)
 

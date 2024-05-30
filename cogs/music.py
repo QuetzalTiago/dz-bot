@@ -51,6 +51,7 @@ class Music(commands.Cog):
             if self.last_song:
                 await self.delete_song_log(self.last_song)
                 self.last_song = None
+                self.current_song = None
 
             # Loop
             if self.loop and self.current_song:
@@ -254,7 +255,7 @@ class Music(commands.Cog):
             return
 
         if song.lyrics:
-            lyrics_file_name = f"{song.title} lyrics.txt"
+            lyrics_file_name = f"lyrics.txt"
             with open(lyrics_file_name, "w", encoding="utf-8") as file:
                 file.write(song.lyrics)
 

@@ -102,7 +102,7 @@ class Song:
             embed.set_footer(text="Click on 📖 for lyrics")
 
         embed.add_field(name=self.uploader, value=details, inline=False)
-        embed.add_field(name="Progress", value=progress, inline=False)
+        embed.add_field(name="", value=progress, inline=False)
 
         thumbnail = self.thumbnail_url
         if thumbnail:
@@ -118,4 +118,4 @@ class Song:
         filled_length = int(bar_length * self.current_seconds // duration_seconds)
         bar = "█" * filled_length + "▒" * (bar_length - filled_length)
 
-        return f"▶ {bar} {self.progress}/{self.duration}"
+        return f"{bar} {self.progress}/{self.duration}"

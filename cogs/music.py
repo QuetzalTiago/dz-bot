@@ -571,7 +571,6 @@ class Music(commands.Cog):
 
     @tasks.loop(seconds=1, count=1200)
     async def check_reaction(self, song):
-        print("checking for lyrics")
         if self.current_song is not song:
             self.check_reaction.stop()
 

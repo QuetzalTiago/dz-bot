@@ -100,9 +100,11 @@ class Song:
 
         if self.lyrics:
             embed.set_footer(text="Click on 📖 for lyrics")
+        else:
+            embed.set_footer(text="Lyrics are only available for spotify songs")
 
         embed.add_field(name=self.uploader, value=details, inline=False)
-        embed.add_field(name="", value=progress, inline=False)
+        embed.add_field(name="Playing", value=progress, inline=False)
 
         thumbnail = self.thumbnail_url
         if thumbnail:
@@ -117,5 +119,6 @@ class Song:
 
         filled_length = int(bar_length * self.current_seconds // duration_seconds)
         bar = "█" * filled_length + "▒" * (bar_length - filled_length)
+        progress_percentage = (self.current_seconds / duration_seconds) * 100
 
-        return f"{bar} {self.progress}/{self.duration}"
+        return f"{bar} **{self.progress}/{self.duration}** ({progress_percentage:.1f}%)"

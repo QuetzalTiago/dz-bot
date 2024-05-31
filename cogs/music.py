@@ -151,7 +151,7 @@ class Music(commands.Cog):
 
     async def update_song_message(self, song):
         song.current_seconds += 2
-        embed = song.to_embed(self.queue)
+        embed = song.to_embed(self.queue, self.shuffle)
         if song.embed_message:
             try:
                 await song.embed_message.edit(embed=embed)
@@ -215,7 +215,7 @@ class Music(commands.Cog):
         self.voice_client.play(self.audio_source)
 
     async def send_song_embed(self, song: Song):
-        embed = song.to_embed(self.queue)
+        embed = song.to_embed(self.queue, self.shuffle)
         msg = await song.message.channel.send(embed=embed)
         song.embed_message = msg
         return msg
@@ -434,7 +434,7 @@ class Music(commands.Cog):
     # This task cannot be forcefully cancelled
     @tasks.loop(seconds=30)
     async def process_dl_queue(self):
-        if self.dl_queue.__len__() == 0:
+        if len(self.dl_queue) == 0:
             self.process_dl_queue.stop()
             return
 
@@ -450,14 +450,13 @@ class Music(commands.Cog):
 
         if spotify_req:
             lyrics = await self.fetch_lyrics(next_song_name)
-            next_song_name = f"{next_song_name} audio"
+            next_song_name += " audio"
 
-        (
-            next_song_path,
-            next_song_info,
-        ) = await self.files.download_from_youtube(next_song_name, message)
+        next_song_path, next_song_info = await asyncio.to_thread(
+            self.files.download_from_youtube, next_song_name, message
+        )
 
-        if next_song_name == None or next_song_info == None:
+        if next_song_name is None or next_song_info is None:
             return
 
         if all(message is not item[1] for item in self.dl_queue):

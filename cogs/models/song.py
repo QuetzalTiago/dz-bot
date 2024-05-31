@@ -127,4 +127,4 @@ class Song:
         bar = "█" * filled_length + "▒" * (bar_length - filled_length)
         progress_percentage = (self.current_seconds / duration_seconds) * 100
 
-        return f"{bar} **{self.progress}/{self.duration}** ({progress_percentage:.1f}%)"
+        return f"{bar} **{self.progress}/{self.duration}** 420"

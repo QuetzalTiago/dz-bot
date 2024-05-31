@@ -452,13 +452,11 @@ class Music(commands.Cog):
             lyrics = await self.fetch_lyrics(next_song_name)
             next_song_name += " audio"
 
-        next_song_path, next_song_info = await asyncio.to_thread(
-            self.files.download_from_youtube, next_song_name, message
-        )
-
-        if next_song_name is None or next_song_info is None:
-            return
-
+        (
+            next_song_path,
+            next_song_info,
+        ) = await self.files.download_from_youtube(next_song_name, message)
+        
         if all(message is not item[1] for item in self.dl_queue):
             await self.cog_success(message)
 
@@ -468,7 +466,6 @@ class Music(commands.Cog):
             self.background_task.stop()
         else:
             await self.add_to_queue(next_song_path, next_song_info, message, lyrics)
-
     async def fetch_lyrics(self, song_name):
         if "/playlist/" in song_name or "list=" in song_name:
             return None

@@ -93,7 +93,7 @@ class Song:
     def lyrics(self):
         return self._lyrics
 
-    def to_embed(self):
+    def to_embed(self, queue):
         embed = discord.Embed(title=self.title, color=0x3498DB, url=self.url)
         details = f"{self.time_since_upload}\n{self.views} views\nRequested by <@{self.message.author.id}>"
         progress = self.get_progress_bar()
@@ -105,6 +105,8 @@ class Song:
 
         embed.add_field(name=self.uploader, value=details, inline=False)
         embed.add_field(name="Playing", value=progress, inline=False)
+        if queue:
+            embed.add_field(name="Next song", value=queue[0].title, inline=False)
 
         thumbnail = self.thumbnail_url
         if thumbnail:

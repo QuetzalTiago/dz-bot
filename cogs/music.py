@@ -151,7 +151,7 @@ class Music(commands.Cog):
 
     async def update_song_message(self, song):
         song.current_seconds += 2
-        embed = song.to_embed()
+        embed = song.to_embed(self.queue)
         if song.embed_message:
             try:
                 await song.embed_message.edit(embed=embed)
@@ -215,7 +215,7 @@ class Music(commands.Cog):
         self.voice_client.play(self.audio_source)
 
     async def send_song_embed(self, song: Song):
-        embed = song.to_embed()
+        embed = song.to_embed(self.queue)
         msg = await song.message.channel.send(embed=embed)
         song.embed_message = msg
         return msg

@@ -41,7 +41,7 @@ class Music(commands.Cog):
             )
         )
 
-    @tasks.loop(seconds=1)
+    @tasks.loop(seconds=2)
     async def background_task(self):
         if self.current_song and self.is_playing():
             await self.update_song_message(self.current_song)
@@ -150,8 +150,7 @@ class Music(commands.Cog):
             await self.enqueue_songs([(song_url, ctx.message, False)])
 
     async def update_song_message(self, song):
-        # Assuming implementation to edit or send a new message in Discord
-        song.current_seconds += 1
+        song.current_seconds += 2
         embed = song.to_embed()
         if song.embed_message:
             try:

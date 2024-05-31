@@ -98,19 +98,20 @@ class Song:
         details = f"{self.time_since_upload}\n{self.views} views\nRequested by <@{self.message.author.id}>"
         progress = self.get_progress_bar()
 
-        if self.lyrics:
-            embed.set_footer(text="Lyrics are available! (beta)")
-        else:
-            embed.set_footer(text="Lyrics are only available for spotify songs.")
-
         embed.add_field(name=self.uploader, value=details, inline=False)
+
         embed.add_field(name="Playing", value=progress, inline=False)
         if queue:
-            embed.add_field(name="Next song", value=queue[0].title, inline=False)
+            embed.add_field(name="Next:", value=f"**{queue[0].title}**", inline=False)
 
         thumbnail = self.thumbnail_url
         if thumbnail:
             embed.set_thumbnail(url=thumbnail)
+
+        if self.lyrics:
+            embed.set_footer(text="Lyrics are available! (beta)")
+        else:
+            embed.set_footer(text="Lyrics are only available for spotify songs.")
 
         return embed
 

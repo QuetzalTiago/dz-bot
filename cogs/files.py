@@ -14,7 +14,7 @@ class Files(commands.Cog):
         self.downloading = False
         self.bot = bot
 
-    async def download_from_youtube(self, song_url, message):
+    def download_from_youtube(self, video_url):
         file_name = f"{uuid.uuid4().int}"
 
         ydl_opts = {
@@ -34,31 +34,11 @@ class Files(commands.Cog):
         self.downloading = True
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            is_query = "youtube.com" not in song_url and "youtu.be" not in song_url
+            is_query = "youtube.com" not in video_url and "youtu.be" not in video_url
             if is_query:
-                song_url = f"ytsearch:{song_url}"
+                video_url = f"ytsearch:{video_url}"
 
-            info = ydl.extract_info(song_url, download=False)
-            if is_query:
-                info = info["entries"][0]
-
-            if info["duration"] > self.bot.max_duration:
-                duration_readable = str(datetime.timedelta(seconds=info["duration"]))
-                max_duration_readable = str(
-                    datetime.timedelta(seconds=self.bot.max_duration)
-                )
-                song_title = info["title"]
-
-                await message.clear_reactions()
-                await message.add_reaction("❌")
-                sent_message = await message.channel.send(
-                    f"**{song_title}** is too long. Duration: **{duration_readable}**.\nMax duration allowed is **{max_duration_readable}**."
-                )
-                self.bot.loop.create_task(self.delete_log(message, sent_message))
-
-                return None, None
-
-            info = ydl.extract_info(song_url, download=True)
+            info = ydl.extract_info(video_url, download=True)
 
             if is_query:
                 info = info["entries"][0]
@@ -68,6 +48,37 @@ class Files(commands.Cog):
             self.downloading = False
 
             return file_path, info
+
+    def is_video_playable(self, video_url):
+        file_name = f"{uuid.uuid4().int}"
+
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": self.audio_format,
+                    "preferredquality": self.audio_quality,
+                }
+            ],
+            "outtmpl": f"{file_name}",
+            "noplaylist": True,
+            "no_warnings": True,
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            is_query = "youtube.com" not in video_url and "youtu.be" not in video_url
+            if is_query:
+                video_url = f"ytsearch:{video_url}"
+
+            info = ydl.extract_info(video_url, download=False)
+            if is_query:
+                info = info["entries"][0]
+
+            if info["duration"] > self.bot.max_duration:
+                return False
+
+            return True
 
     async def delete_log(self, message, sent_message, delay=30):
         await asyncio.sleep(delay)

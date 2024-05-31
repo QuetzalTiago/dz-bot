@@ -1,4 +1,5 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import html
 import json
 import os
@@ -446,17 +447,29 @@ class Music(commands.Cog):
 
         await message.add_reaction("⌛")
 
-        lyrics = None
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            is_playable = await self.bot.loop.run_in_executor(
+                executor, self.files.is_video_playable, next_song_name
+            )
 
+        if not is_playable:
+            sent_message = await message.channel.send(
+                f"**{next_song_name}** is too long. Try another query."
+            )
+            await self.cog_failure(sent_message, message)
+            return
+
+        lyrics = None
         if spotify_req:
             lyrics = await self.fetch_lyrics(next_song_name)
-            next_song_name += " audio"
+            next_song_name = f"{next_song_name} audio"
 
-        (
-            next_song_path,
-            next_song_info,
-        ) = await self.files.download_from_youtube(next_song_name, message)
-        
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            next_song_path, next_song_info = await self.bot.loop.run_in_executor(
+                executor, self.files.download_from_youtube, next_song_name
+            )
+
+        # Perform checks and operations post-download
         if all(message is not item[1] for item in self.dl_queue):
             await self.cog_success(message)
 
@@ -466,6 +479,7 @@ class Music(commands.Cog):
             self.background_task.stop()
         else:
             await self.add_to_queue(next_song_path, next_song_info, message, lyrics)
+
     async def fetch_lyrics(self, song_name):
         if "/playlist/" in song_name or "list=" in song_name:
             return None

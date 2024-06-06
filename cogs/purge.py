@@ -31,9 +31,7 @@ class Purge(commands.Cog):
         """Purges bot messages and command queries in the current channel"""
         self.set_cmd_list()
         await ctx.message.add_reaction("⌛")
-        await ctx.channel.purge(
-            limit=50, check=lambda m: self.is_bot_or_command(m, params=False)
-        )
+        await ctx.channel.purge(limit=50, check=self.is_bot_or_command)
         await ctx.channel.purge(
             limit=50, check=lambda m: self.is_bot_or_command(m, params=True)
         )
@@ -42,11 +40,9 @@ class Purge(commands.Cog):
     async def purge_job(self):
         if self.bot.main_channel is not None:
             self.set_cmd_list()
+            await self.bot.main_channel.purge(limit=50, check=self.is_bot_or_command)
             await self.bot.main_channel.purge(
                 limit=50, check=lambda m: self.is_bot_or_command(m, params=True)
-            )
-            await self.bot.main_channel.purge(
-                limit=50, check=lambda m: self.is_bot_or_command(m, params=False)
             )
 
 

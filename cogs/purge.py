@@ -21,7 +21,7 @@ class Purge(commands.Cog):
         prefix = self.config.get("prefix", "")
 
         return m.author == self.bot.user or any(
-            m.content.lower().startswith(prefix + cmd) for cmd in self.cmd_list
+            m.content.lower().startswith(f"{prefix}{cmd} ") for cmd in self.cmd_list
         )
 
     @commands.hybrid_command()

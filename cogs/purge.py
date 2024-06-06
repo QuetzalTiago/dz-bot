@@ -13,40 +13,44 @@ class Purge(commands.Cog):
 
     def set_cmd_list(self):
         for cmd in self.bot.walk_commands():
-            self.cmd_list.append(cmd.name)
-            for alias in cmd.aliases:
-                self.cmd_list.append(alias)
+            self.cmd_list.extend([cmd.name] + cmd.aliases)
 
-    def is_bot_or_command(self, m):
+    def is_bot_or_command(self, m, params=False):
         prefix = self.config.get("prefix", "")
-
-        return m.author == self.bot.user or any(
-            m.content.lower() == f"{prefix}{cmd}" for cmd in self.cmd_list
-        )
-
-    def is_bot_or_command_with_params(self, m):
-        prefix = self.config.get("prefix", "")
-
-        return m.author == self.bot.user or any(
-            m.content.lower().startswith(f"{prefix}{cmd} ") for cmd in self.cmd_list
-        )
+        if params:
+            return m.author == self.bot.user or any(
+                m.content.lower().startswith(f"{prefix}{cmd} ") for cmd in self.cmd_list
+            )
+        else:
+            return m.author == self.bot.user or any(
+                m.content.lower() == f"{prefix}{cmd}" for cmd in self.cmd_list
+            )
 
     @commands.hybrid_command()
     async def purge(self, ctx):
         """Purges bot messages and command queries in the current channel"""
         self.set_cmd_list()
         await ctx.message.add_reaction("⌛")
-        await ctx.channel.purge(limit=50, check=self.is_bot_or_command)
-        await ctx.channel.purge(limit=50, check=self.is_bot_or_command_with_params)
+        await ctx.channel.purge(
+            limit=50, check=lambda m: self.is_bot_or_command(m, params=False)
+        )
+        await ctx.channel.purge(
+            limit=50, check=lambda m: self.is_bot_or_command(m, params=True)
+        )
 
     @tasks.loop(hours=2)
     async def purge_job(self):
         if self.bot.main_channel is not None:
             self.set_cmd_list()
-            await self.bot.main_channel.purge(limit=50, check=self.is_bot_or_command)
+            await self.bot.main_channel.purge(
+                limit=50, check=lambda m: self.is_bot_or_command(m, params=True)
+            )
+            await self.bot.main_channel.purge(
+                limit=50, check=lambda m: self.is_bot_or_command(m, params=False)
+            )
 
 
 async def setup(bot):
     with open("config.json") as f:
         config = json.load(f)
-        await bot.add_cog(Purge(bot, config))
+    await bot.add_cog(Purge(bot, config))

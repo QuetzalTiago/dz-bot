@@ -21,6 +21,13 @@ class Purge(commands.Cog):
         prefix = self.config.get("prefix", "")
 
         return m.author == self.bot.user or any(
+            m.content.lower() == f"{prefix}{cmd}" for cmd in self.cmd_list
+        )
+
+    def is_bot_or_command_with_params(self, m):
+        prefix = self.config.get("prefix", "")
+
+        return m.author == self.bot.user or any(
             m.content.lower().startswith(f"{prefix}{cmd} ") for cmd in self.cmd_list
         )
 
@@ -30,6 +37,7 @@ class Purge(commands.Cog):
         self.set_cmd_list()
         await ctx.message.add_reaction("⌛")
         await ctx.channel.purge(limit=50, check=self.is_bot_or_command)
+        await ctx.channel.purge(limit=50, check=self.is_bot_or_command_with_params)
 
     @tasks.loop(hours=2)
     async def purge_job(self):

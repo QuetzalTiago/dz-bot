@@ -2,15 +2,13 @@ import asyncio
 from discord.ext import commands
 import os
 import uuid
-import datetime
 import yt_dlp
-from discord.ext import commands
 
 
 class Files(commands.Cog):
     def __init__(self, bot):
         self.audio_quality = 96  # kb/s, max discord channel quality is
-        self.audio_format = "mp3"
+        self.audio_format = "opus"
         self.downloading = False
         self.bot = bot
 
@@ -26,7 +24,7 @@ class Files(commands.Cog):
                     "preferredquality": self.audio_quality,
                 }
             ],
-            "outtmpl": f"{file_name}",
+            "outtmpl": f"{file_name}.%(ext)s",
             "noplaylist": True,
             "no_warnings": True,
         }
@@ -43,7 +41,7 @@ class Files(commands.Cog):
             if is_query:
                 info = info["entries"][0]
 
-            file_path = f"{file_name}.{self.audio_format}"
+            file_path = f"{file_name}.opus"
 
             self.downloading = False
 
@@ -61,7 +59,7 @@ class Files(commands.Cog):
                     "preferredquality": self.audio_quality,
                 }
             ],
-            "outtmpl": f"{file_name}",
+            "outtmpl": f"{file_name}.%(ext)s",
             "noplaylist": True,
             "no_warnings": True,
         }

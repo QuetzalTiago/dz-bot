@@ -205,7 +205,7 @@ class Music(commands.Cog):
     async def cleanup_files(self, current_song, queue):
         for file_name in os.listdir("."):
             if (
-                file_name.endswith(".mp3")
+                file_name.endswith(self.files.audio_format)
                 and file_name != current_song.path
                 and all(file_name != s.path for s in queue)
             ):

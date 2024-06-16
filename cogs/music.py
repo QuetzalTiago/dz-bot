@@ -352,7 +352,7 @@ class Music(commands.Cog):
 
     def get_playlist_embed(self):
         embed = discord.Embed(color=0x1ABC9C)
-        embed.title = "Current playlist 🎵"
+        embed.title = "🎵 Current playlist 🎵"
 
         if not self.queue:
             embed.description = "The playlist is empty."
@@ -421,14 +421,14 @@ class Music(commands.Cog):
         """Shows the current playlist"""
         playlist_embed = self.get_playlist_embed()
         message_sent = await ctx.send(embed=playlist_embed)
-        
+
         try:
             if self.pl_message:
                 await self.pl_message.delete()
 
             if self.pl_message_request:
                 await self.pl_message_request.delete()
-        except: 
+        except:
             pass
 
         self.pl_message = message_sent

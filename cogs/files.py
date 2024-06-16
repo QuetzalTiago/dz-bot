@@ -50,6 +50,8 @@ class Files(commands.Cog):
     def is_video_playable(self, video_url):
         file_name = f"{uuid.uuid4().int}"
 
+        self.downloading = True
+
         ydl_opts = {
             "format": "bestaudio/best",
             "postprocessors": [
@@ -70,6 +72,9 @@ class Files(commands.Cog):
                 video_url = f"ytsearch:{video_url}"
 
             info = ydl.extract_info(video_url, download=False)
+
+            self.downloading = False
+
             if is_query:
                 info = info["entries"][0]
 
@@ -77,14 +82,6 @@ class Files(commands.Cog):
                 return False
 
             return True
-
-    async def delete_log(self, message, sent_message, delay=30):
-        await asyncio.sleep(delay)
-        try:
-            await sent_message.delete()
-            await message.delete()
-        except Exception as e:
-            print(f"Failed to delete message: {e}")  # Log the exception if any
 
     def delete_file(self, file_path):
         try:

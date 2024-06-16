@@ -24,6 +24,8 @@ class Music(commands.Cog):
         self.bot = bot
         self.queue = []
         self.dl_queue = []
+        self.pl_message = None
+        self.pl_message_request = None
         self.current_song = None
         self.dl_queue_cancelled = False
         self.voice_client = None
@@ -162,14 +164,14 @@ class Music(commands.Cog):
     @commands.hybrid_command()
     async def loop(self, ctx):
         """Toggle loop for current song"""
-        loop_state = await self.toggle_loop()
+        loop_state = self.toggle_loop()
         await ctx.send(f"Loop is now **{loop_state}**.")
         await self.cog_success(ctx.message)
 
     @commands.hybrid_command(aliases=["random"])
     async def shuffle(self, ctx):
         """Toggle shuffle for playlist"""
-        shuffle_state = await self.toggle_shuffle()
+        shuffle_state = self.toggle_shuffle()
         await ctx.send(f"Shuffle is now **{shuffle_state}**.")
         await self.cog_success(ctx.message)
 
@@ -360,9 +362,12 @@ class Music(commands.Cog):
         for index, song in enumerate(self.queue, 1):
             if index < 20:
                 description += f"{index}. **{song.title}**\n"
-            elif index == 20:
-                description += f"and more..."
+            else:
+                description += f"and more...\n"
                 break
+
+        if len(self.dl_queue) > 0:
+            description += f"**{len(self.dl_queue)}** more in the download queue."
 
         embed.description = description
         return embed
@@ -408,16 +413,32 @@ class Music(commands.Cog):
     async def playlist(self, ctx):
         """Shows the current playlist"""
         playlist_embed = self.get_playlist_embed()
-        await ctx.send(embed=playlist_embed)
-        if len(self.dl_queue) > 0:
-            await ctx.send(f"**{len(self.dl_queue)}** in the download queue.")
+        message_sent = await ctx.send(embed=playlist_embed)
+
+        if self.pl_message:
+            await self.pl_message.delete()
+
+        if self.pl_message_request:
+            await self.pl_message_request.delete()
+
+        self.pl_message = message_sent
+        self.pl_message_request = ctx.message
+        
         await self.cog_success(ctx.message)
 
-    async def toggle_loop(self):
+    async def update_pl_message(self):
+        if not self.pl_message:
+            return
+
+        last_pl_message = self.pl_message
+        updated_playlist_embed = self.get_playlist_embed()
+        await last_pl_message.edit(embed=updated_playlist_embed)
+
+    def toggle_loop(self):
         self.loop = not self.loop
         return "on" if self.loop else "off"
 
-    async def toggle_shuffle(self):
+    def toggle_shuffle(self):
         self.shuffle = not self.shuffle
         return "on" if self.shuffle else "off"
 
@@ -479,6 +500,8 @@ class Music(commands.Cog):
             self.background_task.stop()
         else:
             await self.add_to_queue(next_song_path, next_song_info, message, lyrics)
+
+        await self.update_pl_message()
 
     async def fetch_lyrics(self, song_name):
         if "/playlist/" in song_name or "list=" in song_name:

@@ -421,12 +421,15 @@ class Music(commands.Cog):
         """Shows the current playlist"""
         playlist_embed = self.get_playlist_embed()
         message_sent = await ctx.send(embed=playlist_embed)
+        
+        try:
+            if self.pl_message:
+                await self.pl_message.delete()
 
-        if self.pl_message:
-            await self.pl_message.delete()
-
-        if self.pl_message_request:
-            await self.pl_message_request.delete()
+            if self.pl_message_request:
+                await self.pl_message_request.delete()
+        except: 
+            pass
 
         self.pl_message = message_sent
         self.pl_message_request = ctx.message

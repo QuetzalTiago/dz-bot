@@ -409,7 +409,14 @@ class Music(commands.Cog):
             await ctx.send("The playlist has been cleared!")
             await self.cog_success(ctx.message)
 
-    @commands.hybrid_command(aliases=["q", "queue", "pl"])
+    @commands.hybrid_command(aliases=["q", "queue"])
+    async def _queue(self, ctx):
+        """Discontinued. Please use 'playlist' or 'pl'."""
+        await ctx.send(
+            "This command has been discontinued. \n Please use 'playlist' or 'pl'."
+        )
+
+    @commands.hybrid_command(aliases=["pl"])
     async def playlist(self, ctx):
         """Shows the current playlist"""
         playlist_embed = self.get_playlist_embed()
@@ -423,7 +430,7 @@ class Music(commands.Cog):
 
         self.pl_message = message_sent
         self.pl_message_request = ctx.message
-        
+
         await self.cog_success(ctx.message)
 
     async def update_pl_message(self):

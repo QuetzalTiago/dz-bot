@@ -413,7 +413,7 @@ class Music(commands.Cog):
     async def _queue(self, ctx):
         """Discontinued. Please use 'playlist' or 'pl'."""
         await ctx.send(
-            "This command has been discontinued. \n Please use 'playlist' or 'pl'."
+            "This command has been **discontinued**. \nPlease use **'playlist'** or **'pl'**."
         )
 
     @commands.hybrid_command(aliases=["pl"])

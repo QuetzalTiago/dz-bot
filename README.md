@@ -39,6 +39,7 @@ This Discord bot is designed to provide both entertainment and utility functiona
 {
   "secrets": {
     "discordToken": "YOUR_DISCORD_TOKEN"
+    ...
   }
 }
 ```

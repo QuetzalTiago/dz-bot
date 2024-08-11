@@ -27,6 +27,7 @@ class Music(commands.Cog):
         self.last_song = None
         self.music_end_timestamp = None
         self.idle_timeout = 150
+        self.max_playlist_size = 25
         self.audio_source = None
         self.config = config
 
@@ -107,13 +108,16 @@ class Music(commands.Cog):
             pass
 
         with ThreadPoolExecutor(max_workers=1) as executor:
-            is_playable = await self.bot.loop.run_in_executor(
-                executor, self.youtube.is_video_playable, next_song_name
-            )
+            try:
+                is_playable = await self.bot.loop.run_in_executor(
+                    executor, self.youtube.is_video_playable, next_song_name
+                )
+            except:
+                is_playable = False
 
         if not is_playable:
             sent_message = await message.channel.send(
-                f"**{next_song_name}** is too long. Try another query."
+                f"**{next_song_name}** is too long or there was an error downloading the song. Try another query."
             )
             await self.cog_failure(sent_message, message)
             return
@@ -124,9 +128,16 @@ class Music(commands.Cog):
             next_song_name = f"{next_song_name} audio"
 
         with ThreadPoolExecutor(max_workers=1) as executor:
-            next_song_path, next_song_info = await self.bot.loop.run_in_executor(
-                executor, self.youtube.download, next_song_name
-            )
+            try:
+                next_song_path, next_song_info = await self.bot.loop.run_in_executor(
+                    executor, self.youtube.download, next_song_name
+                )
+            except:
+                sent_message = await message.channel.send(
+                    f"**{next_song_name}** is too long or there was an error downloading the song. Try another query."
+                )
+                await self.cog_failure(sent_message, message)
+                return
 
         # Mark download complete (playlist / single song)
         if all(message is not item[1] for item in self.dl_queue):
@@ -147,6 +158,7 @@ class Music(commands.Cog):
 
         if "/playlist/" in url:
             song_names = await self.spotify.get_playlist_songs(url)
+
         elif "/album/" in url:
             song_names = await self.spotify.get_album_songs(url)
         else:
@@ -182,7 +194,10 @@ class Music(commands.Cog):
     async def download_songs(self, songs):
         for song in songs:
             if song not in self.dl_queue:
-                self.dl_queue.append(song)
+                combined_total_song_len = len(self.dl_queue) + len(self.playlist)
+
+                if combined_total_song_len + 1 <= self.max_playlist_size:
+                    self.dl_queue.append(song)
 
         if not self.process_dl_queue.is_running():
             self.process_dl_queue.start()
@@ -224,6 +239,7 @@ class Music(commands.Cog):
 
         self.play_audio(song.path)
         self.current_song = song
+        self.update_playlist_message()
 
         if not song.messages_to_delete:
             embed = await self.send_song_embed(song)
@@ -319,6 +335,14 @@ class Music(commands.Cog):
         """Plays a song from either a query or url"""
         if ctx.message.author.voice is None:
             sent_message = await ctx.send("You are not connected to a voice channel!")
+            await self.cog_failure(sent_message, ctx.message)
+            return
+
+        combined_total_song_len = len(self.dl_queue) + len(self.playlist)
+        if combined_total_song_len + 1 > self.max_playlist_size:
+            sent_message = await ctx.send(
+                "Maximum playlist size reached. Please *skip* the current song or *clear* the list to add more."
+            )
             await self.cog_failure(sent_message, ctx.message)
             return
 

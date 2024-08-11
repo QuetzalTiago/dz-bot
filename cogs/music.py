@@ -36,7 +36,6 @@ class Music(commands.Cog):
         self.genius = GeniusAPI(config)
 
     # Background
-
     @tasks.loop(seconds=2)
     async def background_task(self):
         if self.current_song and self.is_playing():
@@ -139,7 +138,7 @@ class Music(commands.Cog):
                 await self.cog_failure(sent_message, message)
                 return
 
-        # Mark download complete (playlist / single song)
+        # Mark download complete if the song message is not on download queue
         if all(message is not item[1] for item in self.dl_queue):
             await self.cog_success(message)
 
@@ -239,7 +238,7 @@ class Music(commands.Cog):
 
         self.play_audio(song.path)
         self.current_song = song
-        self.update_playlist_message()
+        await self.update_playlist_message()
 
         if not song.messages_to_delete:
             embed = await self.send_song_embed(song)

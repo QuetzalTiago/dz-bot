@@ -93,18 +93,21 @@ class Song:
     def lyrics(self):
         return self._lyrics
 
-    def to_embed(self, queue, shuffle=False):
+    def to_embed(self, queue, shuffle=False, loop=False):
         embed = discord.Embed(title=self.title, color=0x3498DB, url=self.url)
         details = f"{self.time_since_upload}\n{self.views} views\nRequested by <@{self.message.author.id}>"
         progress = self.get_progress_bar()
 
         embed.add_field(name=self.uploader, value=details, inline=False)
 
-        embed.add_field(name="Playing", value=progress, inline=False)
+        embed.add_field(name="", value=progress, inline=False)
 
-        if shuffle:
-            embed.add_field(name="Shuffle is on", value=f"", inline=False)
-        elif queue:
+        if loop:
+            embed.add_field(name="", value="*Loop* is **ON**", inline=False)
+        elif shuffle:
+            embed.add_field(name="", value="*Shuffle* is **ON**", inline=False)
+
+        if queue and not loop and not shuffle:
             embed.add_field(name="Next:", value=f"**{queue[0].title}**", inline=False)
 
         thumbnail = self.thumbnail_url
@@ -113,8 +116,6 @@ class Song:
 
         if self.lyrics:
             embed.set_footer(text="Lyrics are available! (beta)")
-        else:
-            embed.set_footer(text="Lyrics are only available for spotify songs.")
 
         return embed
 

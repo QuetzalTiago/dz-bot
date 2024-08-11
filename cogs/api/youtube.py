@@ -1,18 +1,17 @@
-import asyncio
-from discord.ext import commands
-import os
-import uuid
 import yt_dlp
+import uuid
 
 
-class Files(commands.Cog):
-    def __init__(self, bot):
-        self.audio_quality = 96  # kb/s, max discord channel quality is
-        self.audio_format = "opus"
+class YouTubeAPI:
+    def __init__(self, config):
+        self.audio_format = config.get("audio_format", "mp3")
+        self.audio_quality = config.get("audio_quality", "192")
         self.downloading = False
-        self.bot = bot
+        self.max_duration = int(
+            config.get("max_duration", "1200")
+        )  # in seconds, 20 minutes
 
-    def download_from_youtube(self, video_url):
+    def download(self, video_url):
         file_name = f"{uuid.uuid4().int}"
 
         ydl_opts = {
@@ -41,7 +40,7 @@ class Files(commands.Cog):
             if is_query:
                 info = info["entries"][0]
 
-            file_path = f"{file_name}.opus"
+            file_path = f"{file_name}.{self.audio_format}"
 
             self.downloading = False
 
@@ -78,21 +77,33 @@ class Files(commands.Cog):
             if is_query:
                 info = info["entries"][0]
 
-            if info["duration"] > self.bot.max_duration:
+            if info["duration"] > self.max_duration:
                 return False
 
             return True
 
-    def delete_file(self, file_path):
-        try:
-            os.remove(file_path)
-            print(f"File {file_path} deleted successfully")
-        except Exception as e:
-            print(f"Error deleting file {file_path}. Error: {e}")
+    async def get_playlist_songs(self, playlist_url):
+        song_names = []
 
-    def is_downloading(self):
-        return self.downloading
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": self.audio_format,
+                    "preferredquality": str(self.audio_quality),
+                },
+            ],
+            "outtmpl": f"%(title)s_{uuid.uuid4().int}.%(ext)s",
+        }
 
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            playlist_info = ydl.extract_info(playlist_url, download=False)
+            if not playlist_info.get("_type", "") == "playlist":
+                print(f"This doesn't seem like a playlist URL.")
+                return []
 
-async def setup(bot):
-    await bot.add_cog(Files(bot))
+            for entry in playlist_info["entries"]:
+                song_names.append(entry["title"])
+
+        return song_names

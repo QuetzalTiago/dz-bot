@@ -29,7 +29,6 @@ class Khaled(commands.Bot):
             "God did",
             "They ain't believe in us",
         ]
-        self.max_duration = 1200  # in seconds, 20 minutes
 
     async def setup_hook(self):
         for extension in self.initial_extensions[0]:
@@ -141,7 +140,6 @@ async def main():
             "cogs.database",
             "cogs.div",
             "cogs.emoji",
-            "cogs.files",
             "cogs.leaderboard",
             "cogs.music",
             "cogs.restart",

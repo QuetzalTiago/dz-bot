@@ -69,7 +69,7 @@ class Chess(commands.Cog):
         if response.status_code == 200:
             challenge_data = response.json()
             print(challenge_data)
-            return challenge_data["challenge"]["url"]
+            return challenge_data["url"]
         else:
             await ctx.send("There was a problem creating the challenge.")
             await ctx.send(response)

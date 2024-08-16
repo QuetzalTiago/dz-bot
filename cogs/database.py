@@ -240,5 +240,5 @@ class Database(commands.Cog):
 
 
 async def setup(bot):
-    db_url = "mysql+pymysql://root:root@localhost"
+    db_url = "mysql+pymysql://root:root@db"
     await bot.add_cog(Database(bot, db_url))

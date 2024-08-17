@@ -59,7 +59,6 @@ class Chess(commands.Cog):
         await ctx.message.clear_reactions()
         await ctx.message.add_reaction("✅")
 
-        print(match_id)
         self.save_match.start(ctx, match_id)
 
     async def fetch_match_url(self, ctx, payload):
@@ -68,7 +67,6 @@ class Chess(commands.Cog):
         )
         if response.status_code == 200:
             challenge_data = response.json()
-            print(challenge_data)
             return challenge_data["url"]
         else:
             await ctx.send("There was a problem creating the challenge.")
@@ -124,7 +122,6 @@ class Chess(commands.Cog):
 
         if response.status_code == 200:
             data = response.json()
-            print(json.dumps(data, indent=2))
             game_status = data.get("status", "")
             players = data.get("players", {})
 

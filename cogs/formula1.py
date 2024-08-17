@@ -19,7 +19,6 @@ class Formula1(commands.Cog):
         with open("config.json") as f:
             config = json.load(f)
             self.api_key = config["secrets"]["apiFootballKey"]  # Same key for F1
-        print("API-Football/Formula1 key loaded successfully")
 
     def get_headers(self):
         """Get the headers for the API requests."""

@@ -28,7 +28,6 @@ class AI(commands.Cog):
         """Returns an answer to a question"""
         await ctx.message.add_reaction("⌛")
         user_prompt = ctx.message.content[4:]
-        print(user_prompt)
         response = self.model.generate_content(self.initial_prompt + user_prompt)
 
         if not response.text:

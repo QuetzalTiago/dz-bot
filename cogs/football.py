@@ -93,9 +93,7 @@ class Football(commands.Cog):
                 venue = fixture["fixture"]["venue"]["name"] or "Unknown"
 
                 fixture_description = (
-                    f"**{home_team} vs {away_team}**\n"
-                    f"{venue}\n"
-                    f" {formatted_time}"
+                    f"**{home_team} vs {away_team}**\n" f"{venue}, **{formatted_time}**"
                 )
 
                 fixtures_by_date[formatted_date].append(fixture_description)
@@ -104,7 +102,6 @@ class Football(commands.Cog):
             embed = discord.Embed(
                 title=":soccer: Premier League Upcoming Fixtures :soccer:",
                 color=discord.Color.blue(),
-                timestamp=datetime.datetime.utcnow(),
             )
 
             # Upload the modified logo and set it as the thumbnail

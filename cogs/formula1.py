@@ -76,7 +76,6 @@ class Formula1(commands.Cog):
             embed = discord.Embed(
                 title=f":checkered_flag: {competition_name} :checkered_flag:",
                 color=discord.Color.red(),
-                timestamp=datetime.datetime.utcnow(),
             )
 
             # Add details for each session

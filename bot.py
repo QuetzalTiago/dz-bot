@@ -145,6 +145,9 @@ async def main():
             "cogs.restart",
             "cogs.status",
             "cogs.ai",
+            "cogs.football",
+            "cogs.formula1",
+            "cogs.ufc",
             # should be the last one
             "cogs.purge",
         ]

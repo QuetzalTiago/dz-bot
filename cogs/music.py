@@ -88,9 +88,9 @@ class Music(commands.Cog):
     async def before_background_task(self):
         await self.bot.wait_until_ready()
 
-    # This task cannot be forcefully cancelled, use self.dl_queue_cancelled = True
     @tasks.loop(seconds=30)
     async def process_dl_queue(self):
+    # This task cannot be forcefully cancelled, use self.dl_queue_cancelled = True
         if len(self.dl_queue) == 0:
             self.process_dl_queue.stop()
             return
@@ -337,8 +337,8 @@ class Music(commands.Cog):
             await self.cog_failure(sent_message, ctx.message)
             return
 
-        combined_total_song_len = len(self.dl_queue) + len(self.playlist)
-        if combined_total_song_len + 1 > self.max_playlist_size:
+        combined_total_playlist_len = len(self.dl_queue) + len(self.playlist)
+        if combined_total_playlist_len + 1 > self.max_playlist_size:
             sent_message = await ctx.send(
                 "Maximum playlist size reached. Please *skip* the current song or *clear* the list to add more."
             )

@@ -131,8 +131,15 @@ async def main():
 
     with open("config.json") as f:
         config = json.load(f)
+        print(f"Config: \n{config}")
         token = config["secrets"]["discordToken"]
         prefix = config.get("prefix", "")
+
+        if prefix:
+            print(f"Prefix '{prefix}' set")
+        else:
+            print("WARNING: No prefix set")
+
         exts = [
             "cogs.btc",
             "cogs.chess_leaderboard",

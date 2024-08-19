@@ -12,14 +12,14 @@ import os
 class UFC(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.api_key = None  # Placeholder for the API key
-        self.base_url = "https://v1.mma.api-sports.io"  # Base URL for UFC/MMA API
+        self.api_key = None
+        self.base_url = "https://v1.mma.api-sports.io"
 
     async def cog_load(self):
         """Load the API key from the config file when the cog is loaded."""
         with open("config.json") as f:
             config = json.load(f)
-            self.api_key = config["secrets"]["apiFootballKey"]  # Same key for UFC/MMA
+            self.api_key = config["secrets"]["apiSportsKey"]
 
     def get_headers(self):
         """Get the headers for the API requests."""

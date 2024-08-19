@@ -12,14 +12,14 @@ from collections import defaultdict
 class Football(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.api_key = None  # Placeholder for the API key
+        self.api_key = None
         self.base_url = "https://v3.football.api-sports.io"
 
     async def cog_load(self):
         """Load the API key from the config file when the cog is loaded."""
         with open("config.json") as f:
             config = json.load(f)
-            self.api_key = config["secrets"]["apiFootballKey"]
+            self.api_key = config["secrets"]["apiSportsKey"]
 
     def get_headers(self):
         """Get the headers for the API requests."""
@@ -99,7 +99,7 @@ class Football(commands.Cog):
 
             # Create an embed for the fixtures
             embed = discord.Embed(
-                title=":soccer: Premier League Upcoming Fixtures :soccer:",
+                title="Premier League Upcoming Fixtures",
                 color=discord.Color.blue(),
             )
 

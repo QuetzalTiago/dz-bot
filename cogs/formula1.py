@@ -5,7 +5,7 @@ import discord
 import datetime
 from io import BytesIO
 from PIL import Image, ImageOps
-import pytz  # You need to install pytz for timezone conversions
+import pytz
 
 
 class Formula1(commands.Cog):
@@ -18,7 +18,7 @@ class Formula1(commands.Cog):
         """Load the API key from the config file when the cog is loaded."""
         with open("config.json") as f:
             config = json.load(f)
-            self.api_key = config["secrets"]["apiFootballKey"]  # Same key for F1
+            self.api_key = config["secrets"]["apiSportsKey"]
 
     def get_headers(self):
         """Get the headers for the API requests."""

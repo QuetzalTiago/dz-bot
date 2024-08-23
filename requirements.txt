@@ -13,3 +13,4 @@ google-generativeai
 grpcio
 proto-plus==1.24.0.dev1
 cryptography
+watchdog[watchmedo]

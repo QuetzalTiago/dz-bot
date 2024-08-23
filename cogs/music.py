@@ -90,7 +90,7 @@ class Music(commands.Cog):
 
     @tasks.loop(seconds=30)
     async def process_dl_queue(self):
-    # This task cannot be forcefully cancelled, use self.dl_queue_cancelled = True
+        # This task cannot be forcefully cancelled, use self.dl_queue_cancelled = True
         if len(self.dl_queue) == 0:
             self.process_dl_queue.stop()
             return
@@ -215,10 +215,12 @@ class Music(commands.Cog):
     async def update_playlist_message(self):
         if not self.playlist_message:
             return
-
-        last_playlist_message = self.playlist_message
-        updated_playlist_embed = self.get_playlist_embed()
-        await last_playlist_message.edit(embed=updated_playlist_embed)
+        try:
+            last_playlist_message = self.playlist_message
+            updated_playlist_embed = self.get_playlist_embed()
+            await last_playlist_message.edit(embed=updated_playlist_embed)
+        except:
+            pass
 
     # Playback
     def is_playing(self):

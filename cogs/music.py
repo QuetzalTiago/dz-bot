@@ -488,6 +488,9 @@ class Music(commands.Cog):
             self.dl_queue_cancelled = True
             await self.cog_success(ctx.message)
 
+        if self.last_song:
+            await self.delete_song_log(self.last_song)
+
         self.current_song = None
         self.last_song = None
         self.music_end_timestamp = None

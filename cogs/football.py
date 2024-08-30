@@ -14,6 +14,14 @@ class Football(commands.Cog):
         self.bot = bot
         self.api_key = None
         self.base_url = "https://v3.football.api-sports.io"
+        self.priority_teams = {
+            "Liverpool",
+            "Manchester United",
+            "Manchester City",
+            "Chelsea",
+            "Arsenal",
+            "Tottenham",
+        }
 
     async def cog_load(self):
         """Load the API key from the config file when the cog is loaded."""
@@ -70,16 +78,24 @@ class Football(commands.Cog):
             # Get upcoming fixtures for the current season
             current_year = latest_season["year"]
             fixtures_response = requests.get(
-                f"{self.base_url}/fixtures?league=39&season={current_year}&next=5",
+                f"{self.base_url}/fixtures?league=39&season={current_year}&next=10",
                 headers=self.get_headers(),
             )
             fixtures_data = fixtures_response.json()
             fixtures = fixtures_data["response"]
 
+            # Filter out fixtures involving priority teams
+            filtered_fixtures = [
+                fixture
+                for fixture in fixtures
+                if fixture["teams"]["home"]["name"] in self.priority_teams
+                or fixture["teams"]["away"]["name"] in self.priority_teams
+            ]
+
             # Group fixtures by date
             fixtures_by_date = defaultdict(list)
             montevideo_tz = pytz.timezone("America/Montevideo")
-            for fixture in fixtures:
+            for fixture in filtered_fixtures:
                 fixture_date_utc = datetime.datetime.strptime(
                     fixture["fixture"]["date"], "%Y-%m-%dT%H:%M:%S%z"
                 )

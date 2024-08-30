@@ -1,10 +1,12 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from enum import Enum
 import json
 import os
 import random
 import discord
 import time
+import logging
 from discord.ext import commands, tasks
 from .models.song import Song
 from .api.genius import GeniusAPI
@@ -12,9 +14,19 @@ from .api.spotify import SpotifyAPI
 from .api.youtube import YouTubeAPI
 
 
+class State(Enum):
+    IDLE = "idle"  # in the voice channel but playlist is empty
+    PLAYING = "playing"  # playing audio
+    STOPPED = "stopped"  # audio ended, but playlist is not empty
+    DISCONNECTED = "disconnected"  # not in the voice channel
+    PAUSED = "paused"  # audio has been paused
+    RESUMED = "resumed"  # audio has been resumed
+
+
 class Music(commands.Cog):
     def __init__(self, bot, config):
         self.bot = bot
+        self.state = State.DISCONNECTED
         self.dl_queue = []
         self.dl_queue_cancelled = False
         self.playlist = []
@@ -30,18 +42,31 @@ class Music(commands.Cog):
         self.max_playlist_size = 25
         self.audio_source = None
         self.config = config
+        self.logger = logging.getLogger("discord")
 
         self.spotify = SpotifyAPI(config)
         self.youtube = YouTubeAPI(config)
         self.genius = GeniusAPI(config)
 
-    # Background
-    @tasks.loop(seconds=2)
-    async def background_task(self):
-        if self.current_song and self.is_playing():
-            await self.update_song_message(self.current_song)
+    def set_state(self, state):
+        self.state = state
+        self.logger.info(f"State changed to: {state}")
 
-        if not self.is_playing():
+    # State handler
+    @tasks.loop(seconds=2)
+    async def handle_state(self):
+        if self.state == State.DISCONNECTED:
+            return
+
+        if self.state == State.PLAYING:
+            if self.current_song:
+                await self.update_song_message(self.current_song)
+
+            # If not playing anymore, update the state
+            if self.voice_client and not self.voice_client.is_playing():
+                self.set_state(State.STOPPED)
+
+        if self.state == State.STOPPED:
             # Loop
             if self.loop and self.current_song:
                 self.current_song.current_seconds = 0
@@ -65,17 +90,26 @@ class Music(commands.Cog):
 
                 await self.play_song(next_song)
 
-            # Handle idle
-            elif (
-                self.voice_client
-                and self.voice_client.is_connected()
-                and not self.playlist
-            ):
-                if self.music_end_timestamp is None:
-                    self.music_end_timestamp = time.time()
-                elif time.time() - self.music_end_timestamp >= self.idle_timeout:
-                    await self.stop(None)
-                    self.music_end_timestamp = None
+            # If playlist is empty, update the state
+            elif not self.dl_queue:
+                self.set_state(State.IDLE)
+
+        if self.state == State.PAUSED:
+            if self.voice_client and not self.voice_client.is_paused():
+                self.voice_client.pause()
+
+        if self.state == State.RESUMED:
+            if self.voice_client and self.voice_client.is_paused():
+                self.voice_client.resume()
+                self.music_end_timestamp = None
+                self.set_state(State.PLAYING)
+
+        if self.state == State.IDLE or self.state == State.PAUSED:
+            if self.music_end_timestamp is None:
+                self.music_end_timestamp = time.time()
+            elif time.time() - self.music_end_timestamp >= self.idle_timeout:
+                await self.stop(None)
+                self.music_end_timestamp = None
 
         # Leave if alone in channel
         if self.voice_client and self.voice_client.channel:
@@ -84,15 +118,12 @@ class Music(commands.Cog):
                 await self.stop(None)
                 await self.clear(None)
 
-    @background_task.before_loop
-    async def before_background_task(self):
+    @handle_state.before_loop
+    async def before_handle_state(self):
         await self.bot.wait_until_ready()
 
-    @tasks.loop(seconds=30)
-    async def process_dl_queue(self):
-        # This task cannot be forcefully cancelled, use self.dl_queue_cancelled = True
+    async def download_next_song(self):
         if len(self.dl_queue) == 0:
-            self.process_dl_queue.stop()
             return
 
         pop_index = 0
@@ -145,11 +176,19 @@ class Music(commands.Cog):
         if self.dl_queue_cancelled:
             self.dl_queue_cancelled = False
             self.process_dl_queue.stop()
-            self.background_task.stop()
+            self.handle_state.stop()
         else:
             await self.add_to_playlist(next_song_path, next_song_info, message, lyrics)
 
         await self.update_playlist_message()
+
+    @tasks.loop(seconds=30)
+    async def process_dl_queue(self):
+        if len(self.dl_queue) == 0:
+            self.process_dl_queue.stop()
+            return
+
+        await self.download_next_song()
 
     # Spotify
     async def handle_spotify_url(self, url, message):
@@ -199,14 +238,14 @@ class Music(commands.Cog):
                     self.dl_queue.append(song)
 
         if not self.process_dl_queue.is_running():
+            await self.download_next_song()
             self.process_dl_queue.start()
 
-        if not self.background_task.is_running():
-            self.background_task.start()
+        if not self.handle_state.is_running():
+            self.handle_state.start()
 
     async def add_to_playlist(self, song_path, song_info, message, lyrics=None):
-        if not self.is_playing():
-            await self.join_voice_channel(message)
+        await self.join_voice_channel(message)
 
         song = Song(song_path, song_info, message, lyrics)
         self.playlist.append(song)
@@ -222,10 +261,6 @@ class Music(commands.Cog):
         except:
             pass
 
-    # Playback
-    def is_playing(self):
-        return self.voice_client and self.voice_client.is_playing()
-
     def toggle_loop(self):
         self.loop = not self.loop
         return "on" if self.loop else "off"
@@ -235,9 +270,10 @@ class Music(commands.Cog):
         return "on" if self.shuffle else "off"
 
     async def play_song(self, song: Song):
-        if self.is_playing():
+        if self.state == State.PLAYING:
             return
 
+        self.set_state(State.PLAYING)
         self.play_audio(song.path)
         self.current_song = song
         await self.update_playlist_message()
@@ -258,13 +294,16 @@ class Music(commands.Cog):
 
     # Voice client
     async def join_voice_channel(self, message):
-        voice_channel = message.author.voice.channel
-        try:
-            self.voice_client = await voice_channel.connect()
-        except:
-            pass
+        if self.state == State.DISCONNECTED:
+            voice_channel = message.author.voice.channel
+            try:
+                self.voice_client = await voice_channel.connect()
+            except:
+                return
 
-        return self.voice_client
+            self.set_state(State.STOPPED)
+
+            return self.voice_client
 
     def play_audio(self, song_path):
         self.audio_source = discord.FFmpegPCMAudio(song_path)
@@ -309,7 +348,7 @@ class Music(commands.Cog):
                 await sent_message.delete()
                 await query_message.delete()
             except Exception as e:
-                print(f"Failed to delete message: {e}")
+                self.logger.info(f"Failed to delete message: {e}")
 
         self.bot.loop.create_task(delete_error_log(sent_message, query_message))
 
@@ -328,7 +367,7 @@ class Music(commands.Cog):
                 and file_name != current_song.path
                 and all(file_name != s.path for s in queue)
             ):
-                delete_file(file_name)
+                delete_file(file_name, self.logger)
 
     # Commands
     @commands.hybrid_command(aliases=["p"])
@@ -395,6 +434,28 @@ class Music(commands.Cog):
         shuffle_state = self.toggle_shuffle()
         await ctx.send(f"Shuffle is now **{shuffle_state}**.")
         await self.cog_success(ctx.message)
+
+    @commands.hybrid_command()
+    async def pause(self, ctx):
+        """Pauses audio"""
+        if self.state == State.PLAYING:
+            self.set_state(State.PAUSED)
+            await self.cog_success(ctx.message)
+
+        else:
+            sent_message = await ctx.send("DJ Khaled is not playing anything!")
+            await self.cog_failure(sent_message, ctx.message)
+
+    @commands.hybrid_command()
+    async def resume(self, ctx):
+        """Resumes audio"""
+        if self.state == State.PAUSED:
+            self.set_state(State.RESUMED)
+            await self.cog_success(ctx.message)
+
+        else:
+            sent_message = await ctx.send("DJ Khaled is not paused!")
+            await self.cog_failure(sent_message, ctx.message)
 
     @commands.hybrid_command()
     async def lyrics(self, ctx):
@@ -482,7 +543,6 @@ class Music(commands.Cog):
     @commands.hybrid_command(aliases=["leave"])
     async def stop(self, ctx):
         """Stops and disconnects the bot from voice"""
-
         if ctx:
             await self.clear(None)
             self.dl_queue_cancelled = True
@@ -494,6 +554,8 @@ class Music(commands.Cog):
         self.current_song = None
         self.last_song = None
         self.music_end_timestamp = None
+        self.handle_state.stop()
+        self.dl_queue_cancelled = True
 
         if self.voice_client and self.voice_client.is_connected():
             if self.voice_client.is_playing():
@@ -506,9 +568,11 @@ class Music(commands.Cog):
                 await self.delete_song_log(self.last_song)
                 self.last_song = None
 
+            self.state = State.DISCONNECTED
         else:
             if ctx and ctx.message:
-                await ctx.send("DJ Khaled is not playing anything!")
+                sent_message = await ctx.send("DJ Khaled is not playing anything!")
+                self.cog_failure(sent_message, ctx.message)
 
     @commands.hybrid_command()
     async def clear(self, ctx):
@@ -546,9 +610,9 @@ async def setup(bot):
         await bot.add_cog(Music(bot, config))
 
 
-def delete_file(file_path):
+def delete_file(file_path, logger):
     try:
         os.remove(file_path)
-        print(f"File {file_path} deleted successfully")
+        logger.info(f"File {file_path} deleted successfully")
     except Exception as e:
-        print(f"Error deleting file {file_path}. Error: {e}")
+        logger.info(f"Error deleting file {file_path}. Error: {e}")

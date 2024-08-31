@@ -414,7 +414,6 @@ class Music(commands.Cog):
             if self.voice_client:
                 await self.voice_client.disconnect()
 
-            await self.playlist.clear_last()
             self.state_machine.set_state(State.DISCONNECTED)
         else:
             if ctx and ctx.message:

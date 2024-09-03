@@ -166,6 +166,8 @@ async def main():
             "cogs.football",
             "cogs.formula1",
             "cogs.ufc",
+            "cogs.ci",
+            "cogs.steam",
             # should be the last one
             "cogs.purge",
         ]

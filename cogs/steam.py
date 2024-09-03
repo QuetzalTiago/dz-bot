@@ -33,7 +33,7 @@ class Steam(commands.Cog):
     async def search_game(self, game_name):
         params = {
             "term": game_name,
-            "cc": "US",
+            "cc": "UY",
             "l": "en",
         }
         response = requests.get(
@@ -51,7 +51,7 @@ class Steam(commands.Cog):
     async def get_game_details(self, game_id):
         params = {
             "appids": game_id,
-            "cc": "US",
+            "cc": "UY",
             "l": "en",
         }
         response = requests.get(
@@ -71,28 +71,8 @@ class Steam(commands.Cog):
             else "Free to Play"
         )
 
-        genres = ", ".join(
-            [genre["description"] for genre in game_details.get("genres", [])]
-        )
         developers = ", ".join(game_details.get("developers", []))
         release_date = game_details.get("release_date", {}).get("date", "Unknown")
-
-        # Handle Steam User Reviews
-        reviews = game_details.get("reviews", "")
-        recommendations = game_details.get("recommendations", {}).get("total", 0)
-        review_summary = (
-            f"{reviews} ({recommendations} total)"
-            if reviews
-            else "No reviews available"
-        )
-
-        platforms = ", ".join(
-            [
-                platform.capitalize()
-                for platform, supported in game_details.get("platforms", {}).items()
-                if supported
-            ]
-        )
 
         embed = discord.Embed(
             title=game_details["name"],

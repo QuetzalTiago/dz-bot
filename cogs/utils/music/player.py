@@ -18,10 +18,6 @@ class Player:
         self.audio_source = None
         self.logger = logging.getLogger("discord")
 
-        self.spotify = SpotifyAPI(music.config)
-        self.youtube = YouTubeAPI(music.config)
-        self.genius = GeniusAPI(music.config)
-
     async def play(self, song: Song):
         if self.music.state_machine.state == State.PLAYING:
             return

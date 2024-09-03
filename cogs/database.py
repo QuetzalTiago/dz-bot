@@ -1,4 +1,5 @@
 import datetime
+import logging
 from sqlalchemy import (
     create_engine,
     func,
@@ -22,6 +23,7 @@ class Database(commands.Cog):
         self.db_url = db_url
         self.db_name = "discord_bot"  # Set the database name here
         self.update_user_durations.start()
+        self.logger = logging.getLogger("discord")
 
     async def cog_load(self):
         # Connect without a specific database to execute initial setup commands
@@ -36,9 +38,9 @@ class Database(commands.Cog):
             try:
                 # Use raw connection for DDL statement
                 conn.execute(text(f"CREATE DATABASE {self.db_name};"))
-                print(f"Database {self.db_name} created.")
+                self.logger.info(f"Database {self.db_name} created.")
             except Exception as e:
-                print(f"Failed to create database: {e}")
+                self.logger.info(f"Failed to create database: {e}")
                 # Handle exceptions or errors as needed
                 raise
 
@@ -51,7 +53,7 @@ class Database(commands.Cog):
         # Prepare session and create tables
         self.Session = sessionmaker(bind=self.engine)
         Base.metadata.create_all(self.engine)
-        print("DB connection initialized")
+        self.logger.info("DB connection initialized")
 
     def update_user_duration(self, user_id, additional_seconds):
         session = self.Session()
@@ -66,7 +68,7 @@ class Database(commands.Cog):
             user.total_duration_seconds += additional_seconds
 
         session.commit()
-        print("User tracking updated")
+        self.logger.info("User tracking updated")
         session.close()
 
     def get_user_hours(self, user_id):
@@ -111,8 +113,7 @@ class Database(commands.Cog):
             session.add(chess_game)
             session.commit()
         except Exception as e:
-            print(e)
-            print(f"Error saving chess game: {e}")
+            self.logger.info(f"Error saving chess game: {e}")
             session.rollback()
         finally:
             session.close()
@@ -132,7 +133,7 @@ class Database(commands.Cog):
                 notification.channel_id = channel_id
             session.commit()
         except Exception as e:
-            print(f"Error setting startup notification: {e}")
+            self.logger.info(f"Error setting startup notification: {e}")
             session.rollback()
         finally:
             session.close()
@@ -155,7 +156,7 @@ class Database(commands.Cog):
             return chess_games
 
         except Exception as e:
-            print(f"Error fetching chess games: {e}")
+            self.logger.info(f"Error fetching chess games: {e}")
         finally:
             session.close()
 
@@ -170,7 +171,7 @@ class Database(commands.Cog):
                 session.add(btc_price)
             session.commit()
         except Exception as e:
-            print(f"Error updating Bitcoin price: {e}")
+            self.logger.info(f"Error updating Bitcoin price: {e}")
             session.rollback()
         finally:
             session.close()
@@ -190,8 +191,7 @@ class Database(commands.Cog):
             session.add(song)
             session.commit()
         except Exception as e:
-            print(f"Error saving song: {e}")
-            print(e)
+            self.logger.info(f"Error saving song: {e}")
             session.rollback()
         finally:
             session.close()

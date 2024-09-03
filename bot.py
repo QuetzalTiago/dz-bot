@@ -30,12 +30,15 @@ class Khaled(commands.Bot):
             "They ain't believe in us",
         ]
 
+        self.logger = logging.getLogger("discord")
+        self.logger.setLevel(logging.DEBUG)
+
     async def setup_hook(self):
         for extension in self.initial_extensions[0]:
             await self.load_extension(extension)
 
     async def on_ready(self):
-        print("Logged on as", self.user)
+        self.logger.info(f"Logged on as {self.user} (ID: {self.user.id})")
         db = self.get_cog("Database")
         await self.set_first_text_channel_as_main()
         quote = random.choice(self.dj_khaled_quotes)
@@ -60,17 +63,22 @@ class Khaled(commands.Bot):
                 for member in voice_channel.members:
                     if not member.bot:
                         self.online_users[member.id] = datetime.datetime.utcnow()
-                        print(f"Tracking already connected user: {member.name}")
+                        self.logger.debug(
+                            f"Tracking user: {member.name} (ID: {member.id}) already connected in voice channel {voice_channel.name} (ID: {voice_channel.id})"
+                        )
 
     async def on_voice_state_update(self, member, before, after):
         if before.channel and not after.channel:  # User has disconnected
             user_id = member.id
             if user_id in self.online_users:  # Check if the user was tracked
                 del self.online_users[user_id]  # Remove the user from tracking
+                self.logger.info(
+                    f"Stopped tracking user: {member.name} (ID: {member.id})"
+                )
 
         elif not before.channel and after.channel:  # User has connected
             self.online_users[member.id] = datetime.datetime.utcnow()
-            print(f"Tracking {member.name}")
+            self.logger.info(f"Started tracking user: {member.name} (ID: {member.id})")
 
         if member == self.user and after is None:
             self.get_cog("Music").stop()
@@ -81,10 +89,13 @@ class Khaled(commands.Bot):
             text_channels.sort(key=lambda x: x.position)
             if text_channels:
                 self.main_channel = text_channels[0]
-                print(f"Main channel set to: {self.main_channel.name}")
+                self.logger.info(
+                    f"Main channel set to: {self.main_channel.name} (ID: {self.main_channel.id}) in guild {guild.name} (ID: {guild.id})"
+                )
                 break
 
     def reset(self):
+        self.logger.warning("Bot is resetting...")
         subprocess.call(["aws/scripts/application-start.sh"])
         self.close()
 
@@ -94,7 +105,7 @@ class Khaled(commands.Bot):
             channel_id = int(channel_id)
             message_id = int(message_id)
         except ValueError:
-            print("Invalid channel or message ID. IDs must be integers.")
+            self.logger.error("Invalid channel or message ID. IDs must be integers.")
             return None
 
         channel = self.get_channel(channel_id)
@@ -103,15 +114,15 @@ class Khaled(commands.Bot):
                 message = await channel.fetch_message(message_id)
                 return message
             except Exception as e:
-                print(f"Failed to fetch message: {e}")
+                self.logger.error(f"Failed to fetch message: {e}")
         else:
-            print(f"Channel with ID {channel_id} not found.")
+            self.logger.error(f"Channel with ID {channel_id} not found.")
             return None
 
 
 async def main():
     logger = logging.getLogger("discord")
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
 
     # File handler for logging
     file_handler = logging.handlers.RotatingFileHandler(
@@ -139,17 +150,20 @@ async def main():
 
     async def show_cmd_confirmation(ctx):
         await ctx.message.add_reaction("👍")
+        logger.debug(
+            f"Command invoked by {ctx.author} (ID: {ctx.author.id}): {ctx.message.content}"
+        )
 
     with open("config.json") as f:
         config = json.load(f)
-        print(f"Config: \n{config}")
+        logger.info(f"Loaded config: {config}")
         token = config["secrets"]["discordToken"]
         prefix = config.get("prefix", "")
 
         if prefix:
-            print(f"Prefix '{prefix}' set")
+            logger.info(f"Prefix '{prefix}' set")
         else:
-            print("WARNING: No prefix set")
+            logger.warning("No prefix set")
 
         exts = [
             "cogs.btc",

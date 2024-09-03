@@ -1,6 +1,7 @@
 import json
 import discord
 import requests
+import logging
 from discord.ext import commands, tasks
 
 
@@ -8,6 +9,7 @@ class Chess(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self.logger = logging.getLogger("discord")
 
     async def cog_load(self):
         self.save_match.cancel()
@@ -18,6 +20,7 @@ class Chess(commands.Cog):
                 "Authorization": "Bearer " + self.lichess_token,
                 "Accept": "application/json",
             }
+        self.logger.info("Chess cog loaded and configured.")
 
     @commands.hybrid_command()
     async def chess(self, ctx):
@@ -29,20 +32,28 @@ class Chess(commands.Cog):
 
         # Validate and set the time control
         if len(message_parts) > 1:
-            time_control = int(message_parts[1])
-            if time_control < 1 or time_control > 60:
-                await ctx.send(
-                    "Invalid time control. Please specify a number of minutes between 1 and 60."
-                )
+            try:
+                time_control = int(message_parts[1])
+                if time_control < 1 or time_control > 60:
+                    await ctx.send(
+                        "Invalid time control. Please specify a number of minutes between 1 and 60."
+                    )
+                    return
+            except ValueError:
+                await ctx.send("Time control must be an integer.")
                 return
 
         # Validate and set the increment if provided
         if len(message_parts) > 2:
-            increment = int(message_parts[2])
-            if increment < 0 or increment > 60:  # Assuming 60 as maximum increment
-                await ctx.send(
-                    "Invalid increment. Please specify a number of seconds between 0 and 60."
-                )
+            try:
+                increment = int(message_parts[2])
+                if increment < 0 or increment > 60:  # Assuming 60 as maximum increment
+                    await ctx.send(
+                        "Invalid increment. Please specify a number of seconds between 0 and 60."
+                    )
+                    return
+            except ValueError:
+                await ctx.send("Increment must be an integer.")
                 return
 
         payload = {}
@@ -53,24 +64,40 @@ class Chess(commands.Cog):
             }
 
         await ctx.message.add_reaction("⌛")
+        self.logger.debug(
+            f"Creating chess match with time control {time_control} minutes and {increment} seconds increment."
+        )
         match_url = await self.fetch_match_url(ctx, payload)
-        match_id = self.get_match_id(match_url)
-        await ctx.send(match_url)
-        await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
-
-        self.save_match.start(ctx, match_id)
+        if match_url:
+            match_id = self.get_match_id(match_url)
+            await ctx.send(match_url)
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction("✅")
+            self.logger.info(f"Chess match created: {match_url}")
+            self.save_match.start(ctx, match_id)
+        else:
+            self.logger.error("Failed to create chess match.")
 
     async def fetch_match_url(self, ctx, payload):
-        response = requests.post(
-            "https://lichess.org/api/challenge/open", headers=self.headers, json=payload
-        )
-        if response.status_code == 200:
-            challenge_data = response.json()
-            return challenge_data["url"]
-        else:
-            await ctx.send("There was a problem creating the challenge.")
-            await ctx.send(response)
+        try:
+            response = requests.post(
+                "https://lichess.org/api/challenge/open",
+                headers=self.headers,
+                json=payload,
+            )
+            if response.status_code == 200:
+                challenge_data = response.json()
+                return challenge_data["url"]
+            else:
+                await ctx.send("There was a problem creating the challenge.")
+                self.logger.error(
+                    f"Error creating challenge: {response.status_code} - {response.text}"
+                )
+                return None
+        except requests.RequestException as e:
+            await ctx.send("An error occurred while connecting to Lichess.")
+            self.logger.exception(f"RequestException during challenge creation: {e}")
+            return None
 
     def get_match_id(self, url):
         return url.rsplit("/", 1)[-1]
@@ -144,8 +171,12 @@ class Chess(commands.Cog):
                 )
                 await ctx.send(embed=embed)
                 self.bot.get_cog("Database").save_chess_game(data)
-                print("Chess game saved in db")
+                self.logger.info(f"Chess game saved: {match_id}")
                 self.save_match.cancel()
+        else:
+            self.logger.error(
+                f"Failed to fetch game data for {match_id}: {response.status_code} - {response.text}"
+            )
 
 
 async def setup(bot):

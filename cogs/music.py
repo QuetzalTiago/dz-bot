@@ -1,189 +1,24 @@
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 import json
 import os
-import random
 import discord
 import logging
-from discord.ext import commands, tasks
+from discord.ext import commands
+from cogs.utils.music.downloader import Downloader
+from cogs.utils.music.player import Player
 from cogs.utils.music.playlist import Playlist
 from cogs.utils.music.state_machine import State, StateMachine
-from .models.song import Song
-from .api.genius import GeniusAPI
-from .api.spotify import SpotifyAPI
-from .api.youtube import YouTubeAPI
 
 
 class Music(commands.Cog):
     def __init__(self, bot, config):
         self.bot = bot
         self.config = config
+        self.playlist = Playlist(self)
+        self.player = Player(self)
         self.state_machine = StateMachine(self)
-        self.playlist = Playlist()
-        self.dl_queue = []
-        self.dl_queue_cancelled = False
-        self.voice_client = None
-        self.music_end_timestamp = None
-        self.idle_timeout = 150
-        self.audio_source = None
+        self.downloader = Downloader(self)
         self.logger = logging.getLogger("discord")
-
-        self.spotify = SpotifyAPI(config)
-        self.youtube = YouTubeAPI(config)
-        self.genius = GeniusAPI(config)
-
-    async def download_next_song(self):
-        if len(self.dl_queue) == 0:
-            return
-
-        pop_index = 0
-        if self.playlist.shuffle:
-            pop_index = random.randint(0, len(self.dl_queue) - 1)
-
-        next_song_name, message, spotify_req = self.dl_queue.pop(pop_index)
-
-        try:
-            await message.add_reaction("⌛")
-        except:
-            pass
-
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            try:
-                is_playable = await self.bot.loop.run_in_executor(
-                    executor, self.youtube.is_video_playable, next_song_name
-                )
-            except:
-                is_playable = False
-
-        if not is_playable:
-            sent_message = await message.channel.send(
-                f"**{next_song_name}** is too long or there was an error downloading the song. Try another query."
-            )
-            await self.cog_failure(sent_message, message)
-            return
-
-        lyrics = None
-        if spotify_req:
-            lyrics = await self.genius.fetch_lyrics(next_song_name)
-            next_song_name = f"{next_song_name} audio"
-
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            try:
-                next_song_path, next_song_info = await self.bot.loop.run_in_executor(
-                    executor, self.youtube.download, next_song_name
-                )
-            except:
-                sent_message = await message.channel.send(
-                    f"**{next_song_name}** is too long or there was an error downloading the song. Try another query."
-                )
-                await self.cog_failure(sent_message, message)
-                return
-
-        # Mark download complete if the song message is not on download queue
-        if all(message is not item[1] for item in self.dl_queue):
-            await self.cog_success(message)
-
-        if self.dl_queue_cancelled:
-            self.dl_queue_cancelled = False
-            self.process_dl_queue.stop()
-            self.state_machine.stop()
-        else:
-            await self.add_to_playlist(next_song_path, next_song_info, message, lyrics)
-
-        await self.playlist.update_message(self.dl_queue)
-
-    @tasks.loop(seconds=30)
-    async def process_dl_queue(self):
-        if len(self.dl_queue) == 0:
-            self.process_dl_queue.stop()
-            return
-
-        await self.download_next_song()
-
-    # Spotify
-    async def handle_spotify_url(self, url, message):
-        song_names = []
-
-        if "/playlist/" in url:
-            song_names = await self.spotify.get_playlist_songs(url)
-
-        elif "/album/" in url:
-            song_names = await self.spotify.get_album_songs(url)
-        else:
-            spotify_name = await self.spotify.get_track_name(url)
-            song_names.append(spotify_name)
-
-        if song_names:
-            songs = map((lambda song_name: (song_name, message, True)), song_names)
-            await self.download_songs(songs)
-
-    async def download_songs(self, songs):
-        for song in songs:
-            if song not in self.dl_queue:
-                combined_total_song_len = len(self.dl_queue) + len(self.playlist.songs)
-
-                if combined_total_song_len + 1 <= self.playlist.max_size:
-                    self.dl_queue.append(song)
-
-        if not self.process_dl_queue.is_running():
-            await self.download_next_song()
-            self.process_dl_queue.start()
-
-        self.state_machine.start()
-
-    async def add_to_playlist(self, song_path, song_info, message, lyrics=None):
-        await self.join_voice_channel(message)
-
-        await self.playlist.add(song_path, song_info, message, lyrics)
-        self.music_end_timestamp = None
-
-    async def play_song(self, song: Song):
-        if self.state_machine.state == State.PLAYING:
-            return
-
-        self.state_machine.set_state(State.PLAYING)
-        self.play_audio(song.path)
-        self.playlist.set_current_song(song)
-        self.logger.info(f"Playing song: {song.title}")
-        await self.playlist.update_message(self.dl_queue)
-
-        if not song.messages_to_delete:
-            # Send embed
-            embed = await self.playlist.send_song_embed(song)
-            if embed:
-                song.messages_to_delete.append(embed)
-
-        if all(song.message is not item[1] for item in self.dl_queue) and all(
-            song.message is not song.message for song in self.playlist.songs
-        ):
-            # Song/Playlist download completed
-            song.messages_to_delete.append(song.message)
-
-        # Set last song
-        self.playlist.set_last_song(song)
-
-        # Save statistics data on db
-        self.bot.get_cog("Database").save_song(song.info, song.message.author.id)
-
-        # Cleanup
-        self.cleanup_files(song, self.playlist.songs)
-
-    # Voice client
-    async def join_voice_channel(self, message):
-        if self.state_machine.state == State.DISCONNECTED:
-            voice_channel = message.author.voice.channel
-            try:
-                self.voice_client = await voice_channel.connect()
-            except:
-                return
-
-            self.state_machine.set_state(State.STOPPED)
-
-            return self.voice_client
-
-    def play_audio(self, song_path):
-        self.audio_source = discord.FFmpegPCMAudio(song_path)
-        self.voice_client.play(self.audio_source)
 
     # Response Helpers
     async def cog_success(self, message):
@@ -213,7 +48,7 @@ class Music(commands.Cog):
         for file_name in os.listdir("."):
             if (
                 (
-                    file_name.endswith(self.youtube.audio_format)
+                    file_name.endswith(self.downloader.youtube.audio_format)
                     or file_name.endswith("m4a")
                 )
                 and file_name != current_song.path
@@ -230,7 +65,9 @@ class Music(commands.Cog):
             await self.cog_failure(sent_message, ctx.message)
             return
 
-        combined_total_playlist_len = len(self.dl_queue) + len(self.playlist.songs)
+        combined_total_playlist_len = len(self.downloader.queue) + len(
+            self.playlist.songs
+        )
         if combined_total_playlist_len + 1 > self.playlist.max_size:
             sent_message = await ctx.send(
                 "Maximum playlist size reached. Please *skip* the current song or *clear* the list to add more."
@@ -257,13 +94,7 @@ class Music(commands.Cog):
             await self.cog_failure(sent_message, ctx.message)
             return
 
-        self.dl_queue_cancelled = False
-
-        if "spotify.com" in song_url:
-            await self.handle_spotify_url(song_url, ctx.message)
-            return
-
-        elif "list=" in song_url:  # YouTube playlist
+        if "list=" in song_url:  # YouTube playlist
             sent_message = await ctx.send(
                 "Youtube playlists not yet supported. Try a spotify link instead."
             )
@@ -271,7 +102,7 @@ class Music(commands.Cog):
             return
 
         else:
-            await self.download_songs([(song_url, ctx.message, False)])
+            await self.downloader.enqueue(song_url, ctx.message)
 
     @commands.hybrid_command()
     async def loop(self, ctx):
@@ -347,16 +178,20 @@ class Music(commands.Cog):
     @commands.hybrid_command(aliases=["skip", "s"])
     async def skip_song(self, ctx):
         """Skip current song"""
-        if self.playlist.loop:
+        if self.state_machine.state != State.PLAYING:
+            sent_message = await ctx.send("DJ Khaled is not playing anything!")
+            self.cog_failure(sent_message, ctx.message)
+
+            return
+
+        elif self.playlist.loop:
             sent_msg = await ctx.message.channel.send(
                 "*Loop* is **ON**. Please disable *Loop* before skipping."
             )
             await self.cog_failure(sent_msg, ctx.message)
             return
 
-        if self.voice_client and self.voice_client.is_playing():
-            self.voice_client.stop()
-            await ctx.message.delete()
+        await self.player.skip(ctx.message)
 
     @commands.hybrid_command(aliases=["top songs", "top", "mtop"])
     async def most_played(self, ctx):
@@ -397,15 +232,15 @@ class Music(commands.Cog):
         """Stops and disconnects the bot from voice"""
         if ctx:
             await self.clear(None)
-            self.dl_queue_cancelled = True
+            self.downloader.set_queue_cancelled(True)
             await self.cog_success(ctx.message)
 
         await self.playlist.clear_last()
         self.playlist.set_current_song(None)
         self.playlist.set_last_song(None)
-        self.music_end_timestamp = None
+        self.player.end_timestamp = None
         self.state_machine.stop()
-        self.dl_queue_cancelled = True
+        self.downloader.set_queue_cancelled(True)
 
         if self.voice_client and self.voice_client.is_connected():
             if self.voice_client.is_playing():
@@ -423,7 +258,7 @@ class Music(commands.Cog):
     @commands.hybrid_command()
     async def clear(self, ctx):
         """Clears the playlist"""
-        self.dl_queue = []
+        self.downloader.clear()
         self.playlist.clear()
         if ctx:
             await ctx.send("The playlist has been cleared!")

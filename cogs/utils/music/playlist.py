@@ -8,7 +8,8 @@ from cogs.models.song import Song
 
 
 class Playlist:
-    def __init__(self, max_size=25):
+    def __init__(self, music, max_size=25):
+        self.music = music
         self.songs: List[Song] = []
         self.max_size: int = max_size
         self.shuffle: bool = False
@@ -26,12 +27,11 @@ class Playlist:
         return None
 
     async def clear_last(self):
+        self.logger.info("Clearing last song")
         if self.last_song:
-            self.logger.info("Clearing last song")
             await self.delete_song_log(self.last_song)
             self.last_song = None
-
-        self.set_current_song(None)
+            self.logger.info("Last song cleared")
 
     def _handle_index(self) -> int:
         if self.shuffle:
@@ -53,6 +53,8 @@ class Playlist:
         message: Message,
         lyrics: Optional[str] = None,
     ):
+        await self.music.player.join_voice_channel(message)
+
         self.songs.append(Song(song_path, song_info, message, lyrics))
 
     async def get_next(self) -> Optional[Song]:
@@ -100,31 +102,35 @@ class Playlist:
                 self.logger.warning(f"Failed to delete message: {e}")
         song.messages_to_delete = []
 
-    async def update_song_message(self, song: Song):
-        self.logger.info(f"Updating message for song: {song.title}")
-        song.current_seconds += 2
-        embed = song.to_embed(self.songs, self.shuffle, self.loop)
-        if song.embed_message:
-            try:
-                await song.embed_message.edit(embed=embed)
-                self.logger.info(f"Message updated for song {song.title}")
-            except Exception as e:
-                self.logger.warning(
-                    f"Exception while updating message for song: {song.title} - {e}"
-                )
+    async def update_curr_song_message(self):
+        song = self.current_song
 
-    async def update_message(self, dl_queue: List[Song]):
+        if song:
+            self.logger.info(f"Updating message for song: {song.title}")
+            song.current_seconds += 2
+            embed = song.to_embed(self.songs, self.shuffle, self.loop)
+            if song.embed_message:
+                try:
+                    await song.embed_message.edit(embed=embed)
+                    self.logger.info(f"Message updated for song {song.title}")
+                except Exception as e:
+                    self.logger.warning(
+                        f"Exception while updating message for song: {song.title} - {e}"
+                    )
+
+    async def update_message(self):
         self.logger.info(f"Updating existing playlist message")
         if not self.sent_message:
             self.logger.warning(f"Cannot update playlist message, not found.")
             return
         try:
-            updated_embed = self.get_embed(dl_queue)
+            updated_embed = self.get_embed()
             await self.sent_message.edit(embed=updated_embed)
         except Exception as e:
             self.logger.warning(f"Exception while updating playlist message: {e}")
 
-    def get_embed(self, dl_queue: List[Song]) -> discord.Embed:
+    def get_embed(self) -> discord.Embed:
+        dl_queue = self.music.downloader.queue
         embed = discord.Embed(color=0x1ABC9C)
         embed.title = "🎵 Current Playlist 🎵"
         if not self.songs:

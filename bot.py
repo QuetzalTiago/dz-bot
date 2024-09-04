@@ -31,7 +31,7 @@ class Khaled(commands.Bot):
         ]
 
         self.logger = logging.getLogger("discord")
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.INFO)
 
     async def setup_hook(self):
         for extension in self.initial_extensions[0]:

@@ -1,4 +1,5 @@
 import logging
+import time
 
 import discord
 
@@ -56,7 +57,8 @@ class Player:
             voice_channel = message.author.voice.channel
             try:
                 self.voice_client = await voice_channel.connect()
-            except:
+            except discord.DiscordException as e:
+                self.logger.error(f"Failed to connect to voice channel: {e}")
                 return
 
             self.music.state_machine.set_state(State.STOPPED)
@@ -84,4 +86,31 @@ class Player:
 
     def idle(self):
         vc = self.voice_client
-        return vc and not vc.is_playing()
+        return vc is not None and not vc.is_playing()
+
+    async def handle_idle(self):
+        if self.idle():
+            end_timestamp = self.end_timestamp
+            curr_timestamp = time.time()
+
+            if end_timestamp is None:
+                self.end_timestamp = time.time()
+            elif curr_timestamp - end_timestamp >= self.idle_timeout:
+                await self.music.stop(None)
+                self.end_timestamp = None
+
+    async def stop(self):
+        if self.voice_client:
+            if self.voice_client.is_playing() or self.voice_client.is_paused():
+                self.voice_client.stop()
+                self.logger.info("Stopped playback")
+
+            await self.voice_client.disconnect()
+            self.voice_client = None
+            self.logger.info("Disconnected from the voice channel")
+
+            self.music.state_machine.set_state(State.DISCONNECTED)
+
+            self.music.playlist.clear()
+            self.end_timestamp = None
+            self.audio_source = None

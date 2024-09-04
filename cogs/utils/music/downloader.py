@@ -149,3 +149,10 @@ class Downloader:
     async def clear(self):
         self.set_queue([])
         self.set_queue_cancelled(True)
+
+    async def stop(self):
+        self.logger.info("Stopping downloader...")
+
+        self.clear()
+
+        self.music.state_machine.set_state(State.STOPPED)

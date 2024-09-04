@@ -1,11 +1,9 @@
 from enum import Enum
 from discord.ext import tasks
-import time
 import logging
 
 
 class State(Enum):
-    IDLE = "idle"
     PLAYING = "playing"
     STOPPED = "stopped"
     DISCONNECTED = "disconnected"
@@ -17,7 +15,6 @@ class StateMachine:
     def __init__(self, music):
         self.music = music
         self.state = State.DISCONNECTED
-        self.music.player.end_timestamp = None
         self.idle_timeout = 150
         self.logger = logging.getLogger("discord")
 
@@ -53,8 +50,7 @@ class StateMachine:
 
         if self.state == State.STOPPED:
             if playlist.empty():
-                self.set_state(State.IDLE)
-                await playlist.clear_last()
+                await player.handle_idle()
             else:
                 next_song = await playlist.get_next()
                 await player.play(next_song)
@@ -66,12 +62,8 @@ class StateMachine:
             player.resume()
             self.set_state(State.PLAYING)
 
-        if self.state == State.IDLE or self.state == State.PAUSED:
-            if player.end_timestamp is None:
-                player.end_timestamp = time.time()
-            elif time.time() - player.end_timestamp >= self.idle_timeout:
-                await self.music.stop(None)
-                player.end_timestamp = None
+        if self.state == State.PAUSED:
+            await player.handle_idle()
 
         if player.voice_client and player.voice_client.channel:
             members_in_channel = len(player.voice_client.channel.members)

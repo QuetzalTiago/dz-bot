@@ -230,26 +230,16 @@ class Music(commands.Cog):
     @commands.hybrid_command(aliases=["leave"])
     async def stop(self, ctx):
         """Stops and disconnects the bot from voice"""
-        if ctx:
-            await self.clear(None)
-            self.downloader.set_queue_cancelled(True)
-            await self.cog_success(ctx.message)
+        state = self.state_machine.state
+        if state == State.DISCONNECTED:
+            self.state_machine.stop()
+            self.downloader.stop()
+            self.player.stop()
 
-        await self.playlist.clear_last()
-        self.playlist.set_current_song(None)
-        self.playlist.set_last_song(None)
-        self.player.end_timestamp = None
-        self.state_machine.stop()
-        self.downloader.set_queue_cancelled(True)
+            if ctx:
+                await self.clear(None)
+                await self.cog_success(ctx.message)
 
-        if self.voice_client and self.voice_client.is_connected():
-            if self.voice_client.is_playing():
-                self.voice_client.stop()
-
-            if self.voice_client:
-                await self.voice_client.disconnect()
-
-            self.state_machine.set_state(State.DISCONNECTED)
         else:
             if ctx and ctx.message:
                 sent_message = await ctx.send("DJ Khaled is not playing anything!")
@@ -258,8 +248,8 @@ class Music(commands.Cog):
     @commands.hybrid_command()
     async def clear(self, ctx):
         """Clears the playlist"""
-        self.downloader.clear()
-        self.playlist.clear()
+        await self.downloader.clear()
+        await self.playlist.clear()
         if ctx:
             await ctx.send("The playlist has been cleared!")
             await self.cog_success(ctx.message)

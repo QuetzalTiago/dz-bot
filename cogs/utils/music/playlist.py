@@ -165,3 +165,11 @@ class Playlist:
                 f"Exception while sending embed for song: {song.title} - {e}"
             )
             return None
+
+    async def clear(self):
+        self.logger.info("Clearing the playlist")
+        await self.clear_last()
+        self.songs = []
+        self.current_song = None
+        self.last_song = None
+        self.logger.info("Playlist cleared")

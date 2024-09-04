@@ -230,20 +230,13 @@ class Music(commands.Cog):
     @commands.hybrid_command(aliases=["leave"])
     async def stop(self, ctx):
         """Stops and disconnects the bot from voice"""
-        state = self.state_machine.state
-        if state == State.DISCONNECTED:
-            self.state_machine.stop()
-            self.downloader.stop()
-            self.player.stop()
+        await self.state_machine.stop()
+        await self.downloader.stop()
+        await self.player.stop()
 
-            if ctx:
-                await self.clear(None)
-                await self.cog_success(ctx.message)
-
-        else:
-            if ctx and ctx.message:
-                sent_message = await ctx.send("DJ Khaled is not playing anything!")
-                self.cog_failure(sent_message, ctx.message)
+        if ctx:
+            await self.clear(None)
+            await self.cog_success(ctx.message)
 
     @commands.hybrid_command()
     async def clear(self, ctx):

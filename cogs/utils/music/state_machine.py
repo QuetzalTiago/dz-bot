@@ -27,7 +27,7 @@ class StateMachine:
             self.handle_state.start()
             self.logger.info("State machine loop started.")
 
-    def stop(self):
+    async def stop(self):
         if self.handle_state.is_running():
             self.handle_state.stop()
             self.logger.info("State machine loop stopped.")
@@ -37,7 +37,7 @@ class StateMachine:
         player = self.music.player
         playlist = self.music.playlist
 
-        self.logger.info(f"Current state: {self.state}")
+        self.logger.debug(f"Current state: {self.state}")
         if self.state == State.DISCONNECTED:
             return
 
@@ -45,7 +45,7 @@ class StateMachine:
             await playlist.update_curr_song_message()
 
             if player.idle():
-                playlist.clear_last()
+                await playlist.clear_last()
                 self.set_state(State.STOPPED)
 
         if self.state == State.STOPPED:

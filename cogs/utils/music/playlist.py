@@ -106,13 +106,13 @@ class Playlist:
         song = self.current_song
 
         if song:
-            self.logger.info(f"Updating message for song: {song.title}")
+            self.logger.debug(f"Updating message for song: {song.title}")
             song.current_seconds += 2
             embed = song.to_embed(self.songs, self.shuffle, self.loop)
             if song.embed_message:
                 try:
                     await song.embed_message.edit(embed=embed)
-                    self.logger.info(f"Message updated for song {song.title}")
+                    self.logger.debug(f"Message updated for song {song.title}")
                 except Exception as e:
                     self.logger.warning(
                         f"Exception while updating message for song: {song.title} - {e}"

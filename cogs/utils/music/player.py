@@ -20,12 +20,12 @@ class Player:
         self.logger = logging.getLogger("discord")
 
     async def play(self, song: Song):
-        if self.music.state_machine.state == State.PLAYING:
+        if self.music.state_machine.get_state() == State.PLAYING:
             self.logger.warn("Already playing a song, skipping play request.")
             return
 
-        self.logger.info("Setting state to PLAYING and starting playback.")
-        self.music.state_machine.set_state(State.PLAYING)
+        self.logger.info("Starting playback")
+        self.music.state_machine.transition_to(State.PLAYING)
         self.play_audio(song.path)
         self.music.playlist.set_current_song(song)
         self.logger.info(f"Playing song: {song.title}")
@@ -56,7 +56,7 @@ class Player:
         self.logger.debug("Cleaned up files for song: %s", song.title)
 
     async def join_voice_channel(self, message):
-        if self.music.state_machine.state == State.DISCONNECTED:
+        if self.music.state_machine.get_state() == State.DISCONNECTED:
             voice_channel = message.author.voice.channel
             self.logger.info(
                 f"Joining voice channel: {voice_channel.name} (ID: {voice_channel.id})"
@@ -72,7 +72,7 @@ class Player:
                 )
                 return
 
-            self.music.state_machine.set_state(State.STOPPED)
+            self.music.state_machine.transition_to(State.STOPPED)
             return self.voice_client
 
     def play_audio(self, song_path):
@@ -131,7 +131,7 @@ class Player:
             self.voice_client = None
             self.logger.info("Disconnected from the voice channel.")
 
-            self.music.state_machine.set_state(State.DISCONNECTED)
+            self.music.state_machine.transition_to(State.DISCONNECTED)
             self.music.playlist.clear()
 
             self.end_timestamp = None

@@ -121,8 +121,8 @@ class Music(commands.Cog):
     @commands.hybrid_command()
     async def pause(self, ctx):
         """Pauses audio"""
-        if self.state_machine.state == State.PLAYING:
-            self.state_machine.set_state(State.PAUSED)
+        if self.state_machine.get_state() == State.PLAYING:
+            self.state_machine.transition_to(State.PAUSED)
             await self.cog_success(ctx.message)
 
         else:
@@ -132,8 +132,8 @@ class Music(commands.Cog):
     @commands.hybrid_command()
     async def resume(self, ctx):
         """Resumes audio"""
-        if self.state_machine.state == State.PAUSED:
-            self.state_machine.set_state(State.RESUMED)
+        if self.state_machine.get_state() == State.PAUSED:
+            self.state_machine.transition_to(State.RESUMED)
             await self.cog_success(ctx.message)
 
         else:
@@ -178,7 +178,7 @@ class Music(commands.Cog):
     @commands.hybrid_command(aliases=["skip", "s"])
     async def skip_song(self, ctx):
         """Skip current song"""
-        if self.state_machine.state != State.PLAYING:
+        if self.state_machine.get_state() != State.PLAYING:
             sent_message = await ctx.send("DJ Khaled is not playing anything!")
             self.cog_failure(sent_message, ctx.message)
 

@@ -155,4 +155,4 @@ class Downloader:
 
         self.clear()
 
-        self.music.state_machine.set_state(State.STOPPED)
+        self.music.state_machine.transition_to(State.STOPPED)

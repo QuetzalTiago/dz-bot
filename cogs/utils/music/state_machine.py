@@ -36,7 +36,7 @@ class StateMachine:
         current_state = self.__state
         if new_state in self.valid_transitions.get(current_state, []):
             self.__state = new_state
-            self.logger.info(f"Valid transition: {current_state} -> {new_state}")
+            self.logger.info(f"State transition: {current_state} -> {new_state}")
         else:
             self.logger.warning(
                 f"Invalid transition attempted: {current_state} -> {new_state}"
@@ -56,34 +56,36 @@ class StateMachine:
     async def handle_state(self):
         player = self.music.player
         playlist = self.music.playlist
+        state = self.state
 
-        self.logger.debug(f"Current state: {self.state}")
+        self.logger.debug(f"Current state: {state}")
 
-        if self.state == State.DISCONNECTED:
-            return
+        match state:
+            case State.PLAYING:
+                await playlist.update_curr_song_message()
 
-        if self.state == State.PLAYING:
-            await playlist.update_curr_song_message()
+                if player.idle():
+                    await playlist.clear_last()
+                    self.transition_to(State.STOPPED)
 
-            if player.idle():
-                await playlist.clear_last()
-                self.transition_to(State.STOPPED)
+            case State.STOPPED:
+                if playlist.empty():
+                    await player.handle_idle()
+                else:
+                    next_song = await playlist.get_next()
+                    await player.play(next_song)
+                    self.transition_to(State.PLAYING)
 
-        if self.state == State.STOPPED:
-            if playlist.empty():
+            case State.PAUSED:
+                await player.pause()
                 await player.handle_idle()
-            else:
-                next_song = await playlist.get_next()
-                await player.play(next_song)
+
+            case State.RESUMED:
+                await player.resume()
                 self.transition_to(State.PLAYING)
 
-        if self.state == State.PAUSED:
-            await player.pause()
-            await player.handle_idle()
-
-        if self.state == State.RESUMED:
-            await player.resume()
-            self.transition_to(State.PLAYING)
+            case _:
+                return
 
         if player.voice_client and player.voice_client.channel:
             members_in_channel = len(player.voice_client.channel.members)

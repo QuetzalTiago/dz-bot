@@ -25,7 +25,6 @@ class Player:
             return
 
         self.logger.info("Starting playback")
-        self.music.state_machine.transition_to(State.PLAYING)
         self.play_audio(song.path)
         self.music.playlist.set_current_song(song)
         self.logger.info(f"Playing song: {song.title}")
@@ -50,7 +49,7 @@ class Player:
         self.logger.debug("Set last played song: %s", song.title)
 
         self.music.bot.get_cog("Database").save_song(song.info, song.message.author.id)
-        self.logger.info("Song statistics saved for user: %s", song.message.author.id)
+        self.logger.info("Song statistics saved for %s", song.title)
 
         self.music.cleanup_files(song, self.music.playlist.songs)
         self.logger.debug("Cleaned up files for song: %s", song.title)
@@ -79,7 +78,7 @@ class Player:
         self.logger.debug("Playing audio for song path: %s", song_path)
         self.audio_source = discord.FFmpegPCMAudio(song_path)
         self.voice_client.play(self.audio_source)
-        self.logger.info(f"Audio playback started for: {song_path}")
+        self.logger.info(f"Audio playback started")
 
     async def skip(self, message):
         if self.voice_client and self.voice_client.is_playing():

@@ -149,10 +149,11 @@ async def main():
     logger.addHandler(console_handler)
 
     async def show_cmd_confirmation(ctx):
+        command_name = ctx.command.name if ctx.command else "Unknown command"
+
+        logger.info(f"{command_name} command invoked by {ctx.author}")
+
         await ctx.message.add_reaction("👍")
-        logger.debug(
-            f"Command invoked by {ctx.author} (ID: {ctx.author.id}): {ctx.message.content}"
-        )
 
     with open("config.json") as f:
         config = json.load(f)

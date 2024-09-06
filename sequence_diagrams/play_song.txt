@@ -1,0 +1,12 @@
+User->Discord: Sends play command
+Discord->DJ Khaled: Command received
+DJ Khaled->Downloader: Fetch song
+Downloader->Downloader: Validate song
+Downloader->Playlist: Add song to playlist
+State Machine->Playlist: Get next song
+State Machine->Player: Play song
+Player->Player: Join voice channel 
+Player->State Machine: Transition state (DISCONNECTED -> STOPPED)
+Player->Player: Play audio
+Player->State Machine: Transition state (STOPPED -> PLAYING)
+Player->Player: Send notification message

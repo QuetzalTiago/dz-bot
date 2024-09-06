@@ -1,0 +1,9 @@
+User->Discord: Sends skip command
+Discord->DJ Khaled: Command received
+DJ Khaled->Player: Skip current song
+Player->Player: Stop current audio
+Player->State Machine: Transition state (PLAYING -> STOPPED)
+State Machine->Playlist: Get next song
+State Machine->Player: Play next song
+Player->Player: Play audio
+Player->State Machine: Transition state (STOPPED -> PLAYING)

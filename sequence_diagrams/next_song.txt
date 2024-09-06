@@ -1,0 +1,8 @@
+State Machine->Player: Check if idle
+State Machine->State Machine: Transition state (PLAYING -> STOPPED)
+State Machine->Playlist: Clear last song log
+State Machine->Playlist: Get next song
+State Machine->Player: Play next song
+Player->Player: Play audio
+Player->Player: Send notification message
+State Machine->State Machine: Transition state (STOPPED -> PLAYING)

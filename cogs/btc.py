@@ -7,7 +7,6 @@ class Btc(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.check_and_notify_bitcoin_price_change.start()
 
     @commands.hybrid_command()
     async def btc(self, ctx):
@@ -18,7 +17,7 @@ class Btc(commands.Cog):
         await ctx.message.clear_reactions()
         await ctx.message.add_reaction("✅")
 
-    @tasks.loop(hours=1)
+    @tasks.loop(minutes=50)  # 50 minute interval
     async def check_and_notify_bitcoin_price_change(self):
         response = requests.get("https://api.coinbase.com/v2/prices/BTC-USD/spot")
         data = response.json()
@@ -26,7 +25,7 @@ class Btc(commands.Cog):
 
         last_price = self.bot.get_cog("Database").get_bitcoin_price()
 
-        threshold = 0.025  # 2.5% change threshold
+        threshold = 0.020  # 2.0% change threshold
 
         if last_price is not None:
             price_change = current_price - last_price

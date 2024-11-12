@@ -78,7 +78,7 @@ class Football(commands.Cog):
             # Get upcoming fixtures for the current season
             current_year = latest_season["year"]
             fixtures_response = requests.get(
-                f"{self.base_url}/fixtures?league=39&season={current_year}&next=10",
+                f"{self.base_url}/fixtures?league=39&season={current_year}&next=12",
                 headers=self.get_headers(),
             )
             fixtures_data = fixtures_response.json()

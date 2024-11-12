@@ -24,35 +24,32 @@ class Player:
             self.logger.warn("Already playing a song, skipping play request.")
             return
 
+        playlist = self.music.playlist
         self.logger.info("Starting playback")
         self.play_audio(song.path)
-        self.music.playlist.set_current_song(song)
+        playlist.set_current_song(song)
         self.logger.info(f"Playing song: {song.title}")
 
-        await self.music.playlist.update_message()
+        await playlist.update_message()
 
         if not song.messages_to_delete:
-            embed = await self.music.playlist.send_song_embed(song)
+            embed = await playlist.send_song_embed(song)
             if embed:
                 song.messages_to_delete.append(embed)
                 self.logger.debug(f"Embed sent for song: {song.title}")
 
         if all(
             song.message is not item[1] for item in self.music.downloader.queue
-        ) and all(
-            song.message is not song.message for song in self.music.playlist.songs
-        ):
+        ) and all(song.message is not song.message for song in playlist.songs):
             self.logger.info("Song or playlist download completed.")
             song.messages_to_delete.append(song.message)
 
-        self.music.playlist.set_last_song(song)
-        self.logger.debug("Set last played song: %s", song.title)
+        playlist.set_last_song(song)
 
         self.music.bot.get_cog("Database").save_song(song.info, song.message.author.id)
         self.logger.info("Song statistics saved for %s", song.title)
 
-        self.music.cleanup_files(song, self.music.playlist.songs)
-        self.logger.debug("Cleaned up files for song: %s", song.title)
+        self.music.cleanup_files(song, playlist.songs)
 
     async def join_voice_channel(self, message):
         if self.music.state_machine.get_state() == State.DISCONNECTED:

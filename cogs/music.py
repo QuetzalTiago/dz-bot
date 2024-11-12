@@ -237,6 +237,7 @@ class Music(commands.Cog):
         if ctx:
             await self.clear(None)
             await self.cog_success(ctx.message)
+            await ctx.message.delete()
 
     @commands.hybrid_command()
     async def clear(self, ctx):
@@ -246,6 +247,7 @@ class Music(commands.Cog):
         if ctx:
             await ctx.send("The playlist has been cleared!")
             await self.cog_success(ctx.message)
+            await ctx.message.delete()
 
     @commands.hybrid_command(aliases=["pl", "playlist"])
     async def _playlist(self, ctx):

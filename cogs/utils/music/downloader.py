@@ -86,11 +86,6 @@ class Downloader:
             await self.music.cog_failure(sent_message, message)
             return
 
-        lyrics = None
-        if spotify_req:
-            lyrics = await self.genius.fetch_lyrics(next_song_name)
-            next_song_name = f"{next_song_name} audio"
-
         with ThreadPoolExecutor(max_workers=1) as executor:
             try:
                 next_song_path, next_song_info = (
@@ -114,6 +109,12 @@ class Downloader:
             self.process_queue.stop()
             self.music.state_machine.stop()
         else:
+            lyrics = None
+            if spotify_req:
+                # Means query is a song
+                lyrics = await self.genius.fetch_lyrics(next_song_name)
+                next_song_name = f"{next_song_name} audio"
+
             await self.music.playlist.add(
                 next_song_path, next_song_info, message, lyrics
             )
@@ -130,11 +131,10 @@ class Downloader:
 
         for song in songs:
             if song not in self.queue:
-                combined_total_song_len = len(self.queue) + len(
-                    self.music.playlist.songs
-                )
+                playlist = self.music.playlist
+                combined_total_query_len = len(self.queue) + len(playlist.songs)
 
-                if combined_total_song_len + 1 <= self.music.playlist.max_size:
+                if combined_total_query_len + 1 <= playlist.max_size:
                     self.queue.append(song)
 
                     if self.queue_cancelled:
@@ -147,11 +147,12 @@ class Downloader:
         self.music.state_machine.start()
 
     async def clear(self):
+        self.logger.info("Clearing download queue")
         self.set_queue([])
         self.set_queue_cancelled(True)
 
     async def stop(self):
-        self.logger.info("Stopping downloader...")
+        self.logger.info("Stopping downloader")
 
         self.clear()
 

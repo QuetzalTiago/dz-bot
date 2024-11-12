@@ -38,9 +38,11 @@ class Khaled(commands.Bot):
             await self.load_extension(extension)
 
     async def on_ready(self):
+        await self.set_first_text_channel_as_main()
         self.logger.info(f"Logged on as {self.user} (ID: {self.user.id})")
         db = self.get_cog("Database")
-        await self.set_first_text_channel_as_main()
+        btc = self.get_cog("Btc")
+        btc.check_and_notify_bitcoin_price_change.start()
         quote = random.choice(self.dj_khaled_quotes)
         await self.change_presence(
             activity=discord.Activity(type=discord.ActivityType.playing, name=quote)
@@ -183,6 +185,7 @@ async def main():
             "cogs.ufc",
             "cogs.ci",
             "cogs.steam",
+            "cogs.weather",
             # should be the last one
             "cogs.purge",
         ]

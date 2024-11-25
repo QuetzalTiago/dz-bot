@@ -1,54 +1,81 @@
 import requests
-
 from discord.ext import commands, tasks
+from discord import Message, Embed
+import logging
 
 
 class Btc(commands.Cog):
-
     def __init__(self, bot):
         self.bot = bot
+        self.sent_message: Message = None
+        self.request_message: Message = None
+        self.logger = logging.getLogger("discord")
 
     @commands.hybrid_command()
     async def btc(self, ctx):
-        """Returns the current price of Bitcoin"""
-        await ctx.message.add_reaction("⌛")
-        btc_price = await self.fetch_btc_price()
-        await ctx.send(f"Current Bitcoin price: **{btc_price} USD**")
-        await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
+        """Returns the current price of Bitcoin and starts updating the message."""
+        try:
+            self.request_message = ctx.message  # Store the request message
+            await ctx.message.add_reaction("⌛")
+            btc_price = await self.fetch_btc_price()
+            embed = self.create_price_embed(btc_price)
 
-    @tasks.loop(minutes=50)  # 50 minute interval
-    async def check_and_notify_bitcoin_price_change(self):
-        response = requests.get("https://api.coinbase.com/v2/prices/BTC-USD/spot")
-        data = response.json()
-        current_price = float(data["data"]["amount"])
+            # Send the initial message and start updating it
+            self.sent_message = await ctx.send(embed=embed)
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction("✅")
 
-        last_price = self.bot.get_cog("Database").get_bitcoin_price()
+            # Start the updating task if not already running
+            if not self.btc_price_task.is_running():
+                self.btc_price_task.start()
 
-        threshold = 0.020  # 2.0% change threshold
+        except Exception as e:
+            self.logger.error(f"Error in btc command: {e}")
+            await ctx.send("An error occurred while fetching the Bitcoin price.")
 
-        if last_price is not None:
-            price_change = current_price - last_price
-            percentage_change = (price_change / last_price) * 100
+    @tasks.loop(seconds=10)
+    async def btc_price_task(self):
+        """Task to update the latest BTC price message."""
+        if not self.sent_message:
+            self.btc_price_task.stop()  # Stop the task if no message exists
+            return
 
-            if abs(percentage_change) >= threshold * 100:
-                formatted_current_price = format(int(current_price), ",d")
-                formatted_price_change = format(int(abs(price_change)), ",d")
+        try:
+            btc_price = await self.fetch_btc_price()
+            embed = self.create_price_embed(btc_price)
+            await self.sent_message.edit(embed=embed)
+        except Exception as e:
+            self.logger.warning(f"Failed to update BTC price message: {e}")
 
-                change_direction = "increased" if price_change > 0 else "decreased"
-                notification_message = (
-                    f"Bitcoin price has {change_direction} to **{formatted_current_price} USD** "
-                    f"({formatted_price_change} USD, {abs(percentage_change):.2f}% change)."
-                )
-
-                await self.bot.main_channel.send(notification_message)
-
-        self.bot.get_cog("Database").update_bitcoin_price(current_price)
+    @btc_price_task.before_loop
+    async def before_btc_price_task(self):
+        """Ensure the bot is ready before starting the task."""
+        await self.bot.wait_until_ready()
 
     async def fetch_btc_price(self):
-        response = requests.get("https://api.coinbase.com/v2/prices/BTC-USD/spot")
-        data = response.json()
-        return format(int(float(data["data"]["amount"])), ",d")
+        """Fetches the current Bitcoin price from Coinbase API."""
+        try:
+            response = requests.get("https://api.coinbase.com/v2/prices/BTC-USD/spot")
+            response.raise_for_status()
+            data = response.json()
+            return format(int(float(data["data"]["amount"])), ",d")
+        except requests.RequestException as e:
+            self.logger.error(f"Error fetching BTC price: {e}")
+            raise
+
+    def create_price_embed(self, btc_price):
+        """Creates an embed for the current Bitcoin price."""
+        embed = Embed(
+            title="Bitcoin Price",
+            description=f"Current Bitcoin price: 💰**{btc_price} USD**",
+            color=0xF7931A,
+        )
+        embed.set_footer(text="Updated every 10 seconds")
+        return embed
+
+    async def cog_unload(self):
+        """Stop the task when the cog is unloaded."""
+        self.btc_price_task.cancel()
 
 
 async def setup(bot):

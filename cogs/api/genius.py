@@ -7,9 +7,7 @@ from bs4 import BeautifulSoup
 class GeniusAPI:
     def __init__(self, config):
         self.base_url = "https://api.genius.com"
-        self.headers = {
-            "Authorization": f"Bearer {config['secrets']['genius_api_key']}"
-        }
+        self.headers = {"Authorization": f"Bearer {config['secrets']['geniusApiKey']}"}
 
     async def fetch_lyrics(self, song_name):
         if "/playlist/" in song_name or "list=" in song_name:

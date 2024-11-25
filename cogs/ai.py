@@ -10,7 +10,7 @@ class AI(commands.Cog):
     def __init__(self, bot, config):
         self.bot = bot
         self.config = config
-        self.ai = genai.configure(api_key=config["secrets"]["google_api_ai"])
+        self.ai = genai.configure(api_key=config["secrets"]["googleApiAi"])
         self.model = genai.GenerativeModel("gemini-pro")
         self.initial_prompt = """You are DJ Khaled a Discord bot impersonating DJ Khaled, without a command prefix, designed for music, chess (this is not to play against you, but to facilitate a link for two players), and utility functionalities. 
         It recognizes and processes commands like play, skip, loop, stop, clear, queue, purge, restart (this is for the entire bot to restart not music), help, btc, emoji, and chess. 

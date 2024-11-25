@@ -11,16 +11,16 @@ class Weather(commands.Cog):
         self.bot = bot
         with open("config.json") as f:
             config = json.load(f)
-            self.api_key = config["secrets"]["weather_api_key"]
-            self.default_city = config.get("secrets", {}).get("default_city")
+            self.api_key = config["secrets"]["weatherApiKey"]
+            self.defaultCity = config.get("secrets", {}).get("defaultCity")
 
     @commands.hybrid_command(aliases=["w", "weather", "tiempo", "t"])
     async def get_weather(self, ctx, city: str = None):
         """Fetches weather information for a specified city"""
 
         if not city:
-            if self.default_city:
-                city = self.default_city
+            if self.defaultCity:
+                city = self.defaultCity
             else:
                 await ctx.send(
                     "Please provide a city name or configure the default city in config.json."

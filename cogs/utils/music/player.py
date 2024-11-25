@@ -15,7 +15,7 @@ class Player:
         self.music = music
         self.voice_client = None
         self.end_timestamp = None
-        self.idle_timeout = 150
+        self.idle_timeout = 300
         self.audio_source = None
         self.logger = logging.getLogger("discord")
 

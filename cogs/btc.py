@@ -36,16 +36,13 @@ class Btc(commands.Cog):
     @tasks.loop(seconds=10)
     async def btc_price_task(self):
         """Task to update the latest BTC price message."""
-        if not self.sent_message:
-            self.btc_price_task.stop()  # Stop the task if no message exists
-            return
-
         try:
             btc_price = await self.fetch_btc_price()
             embed = self.create_price_embed(btc_price)
             await self.sent_message.edit(embed=embed)
         except Exception as e:
             self.logger.warning(f"Failed to update BTC price message: {e}")
+            self.btc_price_task.stop()
 
     @btc_price_task.before_loop
     async def before_btc_price_task(self):

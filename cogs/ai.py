@@ -119,7 +119,7 @@ Always keep the vibe funny and ironic.
 """
 
 
-class AI(commands.Cog):A
+class AI(commands.Cog):
     def __init__(self, bot, config):
         self.bot = bot
         self.config = config

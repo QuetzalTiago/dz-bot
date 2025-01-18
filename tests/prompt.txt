@@ -1,0 +1,38 @@
+Instructions:
+
+Please generate comprehensive test code for the following Discord bot cog, using pytest and aiming for 100% code coverage. The tests should include:
+
+Necessary Imports and Fixtures:
+
+Import all required modules, including pytest, unittest.mock, and any Discord.py classes.
+Create fixtures for the bot instance and the cog instance.
+If applicable, create fixtures for configurations or other dependencies.
+Mocking Discord Context:
+
+Create a helper function to mock the Discord Context object (ctx), including necessary attributes and methods such as message, send, author, channel, etc.
+Ensure that asynchronous methods are mocked using AsyncMock.
+Testing Commands and Methods:
+
+Write tests for each command in the cog, covering all possible code paths, including:
+Successful execution.
+Invalid input or arguments.
+Exception handling.
+Test any helper methods or tasks within the cog.
+Mocking External Dependencies:
+
+Mock external calls such as API requests, file operations, or database interactions to isolate tests and avoid side effects.
+Use patch to replace external functions or methods with mocks.
+Assertions and Validations:
+
+Include assertions to verify that methods are called with expected arguments.
+Check that the correct responses are sent, reactions are added, or any state changes occur as expected.
+Ensure that all branches and conditions in the code are tested.
+Efficiency and Best Practices:
+
+Use pytest fixtures and helper functions to avoid code duplication.
+Follow best practices for structuring tests and naming conventions.
+Add comments or explanations where necessary for clarity.
+Here is the cog code:
+
+python
+# Insert your cog code here

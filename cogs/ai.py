@@ -1,8 +1,8 @@
+import aiohttp
 import json
 import textwrap
-import google.generativeai as genai
-
 from discord.ext import commands
+
 initial_prompt = """You are DJ Khaled, a Discord bot that embodies DJ Khaled's iconic personality and energy. You respond without a command prefix and support music, chess (facilitating player connections), and utility functions. 
 
 When a user asks how to use a command or requests an example (e.g., "Khaled, how do I play a song?"), provide a clear and accurate example of the command in the format they can use directly. 
@@ -119,44 +119,136 @@ Always keep the vibe funny and ironic.
 """
 
 
+def to_markdown(text):
+    text = text.replace("•", "  *")
+    return textwrap.indent(text, "> ", predicate=lambda _: True)
+
 class AI(commands.Cog):
     def __init__(self, bot, config):
         self.bot = bot
         self.config = config
-        self.ai = genai.configure(api_key=config["secrets"]["googleApiAi"])
-        self.model = genai.GenerativeModel("gemini-pro")
+        self.api_key = config["secrets"]["openaiKey"]
+        self.api_url = config["secrets"]["openaiUrl"]
         self.initial_prompt = initial_prompt
+        self.conversations = {}
 
-    @staticmethod
-    def to_markdown(text):
-        text = text.replace("•", "  *")
-        return textwrap.indent(text, "> ", predicate=lambda _: True)
+    def get_conversation(self, ctx):
+        """Retrieve or create a conversation history for the user/channel."""
+        key = ctx.message.author.id  # Use channel ID as the key (or ctx.author.id for user-specific conversations)
+        if key not in self.conversations:
+            self.conversations[key] = [{
+              "role": "system",
+              "content": self.initial_prompt
+            }]
+        return self.conversations[key]
+
+    def clear_conversation(self, ctx):
+        """Clear the conversation history for the user/channel."""
+        key = ctx.channel.id  # Use channel ID as the key (or ctx.author.id for user-specific conversations)
+        if key in self.conversations:
+            del self.conversations[key]
 
     @commands.hybrid_command(aliases=["gpt", "ai", "gen", "khaled"])
-    async def ask(self, ctx, question):
+    async def ask(self, ctx, *, question):
         """Returns an answer to a question"""
         await ctx.message.add_reaction("⌛")
-        user_prompt = ctx.message.content[4:]
-        response = self.model.generate_content(self.initial_prompt + user_prompt)
+        
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        messages = [{
+            "role": "user",
+            "content": self.initial_prompt + question
+        }]
 
-        if not response.text:
-            await ctx.send("There was an error with the query, please try again!")
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    self.api_url,
+                    headers=headers,
+                    json={
+                        "model": "gemini_2_0_flash.google/gemini-2.0-flash-001",
+                        "messages": messages
+                    }
+                ) as response:
+                    if response.status != 200:
+                        await ctx.send("There was an error processing your request!")
+                        await ctx.message.clear_reactions()
+                        await ctx.message.add_reaction("❌")
+                        return
+
+                    response_data = await response.json()
+                    response_text = response_data['choices'][0]['message']['content']
+                    
+                    await ctx.send(to_markdown(response_text))
+                    await ctx.message.clear_reactions()
+                    await ctx.message.add_reaction("✅")
+
+        except Exception as e:
+            print(f"API Error: {e}")
+            await ctx.send("There was an error connecting to the AI service.")
             await ctx.message.clear_reactions()
             await ctx.message.add_reaction("❌")
-            return
-
-        await ctx.send(self.to_markdown(response.text))
-        await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
 
     @commands.hybrid_command()
-    async def chat(self, ctx, prompt):
-        """Create a thread to chat with DJ Khaled"""
+    async def chat(self, ctx, *, prompt):
+        """Start a conversation with the AI"""
         await ctx.message.add_reaction("⌛")
-        response = self.model.generate_content(prompt)
-        await ctx.send(self.to_markdown(response.text))
-        await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
+        
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+
+        conversation = self.get_conversation(ctx)
+        conversation.append({"role": "user", "content": prompt})
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    self.api_url,
+                    headers=headers,
+                    json={
+                        "model": "gemini_2_0_flash.google/gemini-2.0-flash-001",
+                        "messages": conversation
+                    }
+                ) as response:
+                    if response.status != 200:
+                        await ctx.send("There was an error processing your request!")
+                        await ctx.message.clear_reactions()
+                        await ctx.message.add_reaction("❌")
+                        return
+
+                    response_data = await response.json()
+                    response_text = response_data['choices'][0]['message']['content']
+                    
+                    conversation.append({"role": "assistant", "content": response_text})
+                    
+                    await ctx.send(to_markdown(response_text))
+                    await ctx.message.clear_reactions()
+                    await ctx.message.add_reaction("✅")
+
+        except Exception as e:
+            print(f"API Error: {e}")
+            await ctx.send("There was an error connecting to the AI service.")
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction("❌")
+
+    @commands.hybrid_command()
+    async def newchat(self, ctx, *, prompt=None):
+        """
+        Start a new chat session (clears conversation history).
+        Optionally, provide a prompt to start the new chat.
+        """
+        self.clear_conversation(ctx)
+        if prompt:
+            await ctx.send("🔄 Conversation history cleared. Starting a new chat!")
+            await self.chat(ctx, prompt=prompt)
+        else:
+          await ctx.send("🔄 Conversation history cleared. Ready for a new chat!")
+          await ctx.message.add_reaction("✅")
 
 
 async def setup(bot):

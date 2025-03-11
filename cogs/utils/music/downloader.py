@@ -67,7 +67,9 @@ class Downloader:
         next_song_name, message, spotify_req = self.queue.pop(pop_index)
 
         try:
-            await message.add_reaction("⌛")
+            existing_reactions = [reaction.emoji for reaction in message.reactions]
+            if "⌛" not in existing_reactions:
+                await message.add_reaction("⌛")
         except:
             pass
 

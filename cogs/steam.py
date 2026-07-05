@@ -1,29 +1,34 @@
-import json
+import logging
+
 import discord
-import requests
 from discord.ext import commands
+
+from cogs.utils.config import load_config
+from cogs.utils.http import get_session
 
 
 class Steam(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-
-    async def cog_load(self):
-        with open("config.json") as f:
-            config = json.load(f)
-            self.steam_api_key = config["secrets"]["steamApiKey"]
-            self.steam_store_api_url = "https://store.steampowered.com/api"
+        self.logger = logging.getLogger("discord")
+        config = load_config()
+        self.steam_api_key = config["secrets"].get("steamApiKey")
+        self.steam_store_api_url = "https://store.steampowered.com/api"
 
     @commands.hybrid_command(aliases=["steam"])
+    @commands.cooldown(1, 3, commands.BucketType.user)
     async def gameinfo(self, ctx, *, game_name: str):
-        """Fetches information about a Steam game"""
+        """Fetches information about a Steam game."""
         await ctx.message.add_reaction("🔍")
-        game_id, game_details = await self.search_game(game_name)
+        try:
+            game_id, game_details = await self.search_game(game_name)
+        except Exception:
+            self.logger.exception("Steam lookup failed for %s", game_name)
+            game_id, game_details = None, None
 
         if game_id and game_details:
-            embed = self.create_game_embed(game_details)
-            await ctx.send(embed=embed)
+            await ctx.send(embed=self.create_game_embed(game_details))
         else:
             await ctx.send("Game not found. Please check the name and try again.")
 
@@ -31,36 +36,30 @@ class Steam(commands.Cog):
         await ctx.message.add_reaction("✅")
 
     async def search_game(self, game_name):
-        params = {
-            "term": game_name,
-            "cc": "UY",
-            "l": "en",
-        }
-        response = requests.get(
+        session = get_session()
+        params = {"term": game_name, "cc": "UY", "l": "en"}
+        async with session.get(
             f"{self.steam_store_api_url}/storesearch/", params=params
-        )
-        if response.status_code == 200:
-            games = response.json().get("items", [])
-            if games:
-                # Get the first matching game
-                game_id = games[0]["id"]
-                game_details = await self.get_game_details(game_id)
-                return game_id, game_details
-        return None, None
+        ) as response:
+            if response.status != 200:
+                return None, None
+            games = (await response.json()).get("items", [])
+        if not games:
+            return None, None
+        game_id = games[0]["id"]
+        return game_id, await self.get_game_details(game_id)
 
     async def get_game_details(self, game_id):
-        params = {
-            "appids": game_id,
-            "cc": "UY",
-            "l": "en",
-        }
-        response = requests.get(
+        session = get_session()
+        params = {"appids": game_id, "cc": "UY", "l": "en"}
+        async with session.get(
             f"{self.steam_store_api_url}/appdetails/", params=params
-        )
-        if response.status_code == 200:
-            data = response.json()
-            if str(game_id) in data and data[str(game_id)]["success"]:
-                return data[str(game_id)]["data"]
+        ) as response:
+            if response.status != 200:
+                return None
+            data = await response.json()
+        if str(game_id) in data and data[str(game_id)]["success"]:
+            return data[str(game_id)]["data"]
         return None
 
     def create_game_embed(self, game_details):
@@ -70,7 +69,6 @@ class Steam(commands.Cog):
             if price_overview
             else "Free to Play"
         )
-
         developers = ", ".join(game_details.get("developers", []))
         release_date = game_details.get("release_date", {}).get("date", "Unknown")
 
@@ -85,7 +83,6 @@ class Steam(commands.Cog):
         embed.add_field(name="Price", value=price, inline=True)
         embed.add_field(name="Release Date", value=release_date, inline=True)
         embed.add_field(name="Developer", value=developers or "N/A", inline=True)
-
         embed.set_thumbnail(url=game_details["header_image"])
         return embed
 

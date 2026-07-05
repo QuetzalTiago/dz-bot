@@ -1,5 +1,12 @@
-import yt_dlp
+import asyncio
+import os
 import uuid
+
+import yt_dlp
+
+# Downloaded audio is kept in a dedicated directory instead of the repo working
+# directory, so cleanup is scoped and the source tree stays clean.
+DOWNLOAD_DIR = os.environ.get("DZ_DOWNLOAD_DIR", "downloads")
 
 
 class YouTubeAPI:
@@ -10,9 +17,10 @@ class YouTubeAPI:
         self.max_duration = int(
             config.get("max_duration", "1200")
         )  # in seconds, 20 minutes
+        os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
     def download(self, video_url):
-        file_name = f"{uuid.uuid4().int}"
+        file_name = os.path.join(DOWNLOAD_DIR, f"{uuid.uuid4().int}")
 
         ydl_opts = {
             "format": "bestaudio/best",
@@ -83,27 +91,22 @@ class YouTubeAPI:
             return True
 
     async def get_playlist_songs(self, playlist_url):
+        # yt-dlp extraction is blocking network I/O; run it in a worker thread.
+        return await asyncio.to_thread(self._extract_playlist_songs, playlist_url)
+
+    def _extract_playlist_songs(self, playlist_url):
         song_names = []
-
         ydl_opts = {
-            "format": "bestaudio/best",
-            "postprocessors": [
-                {
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": self.audio_format,
-                    "preferredquality": str(self.audio_quality),
-                },
-            ],
-            "outtmpl": f"%(title)s_{uuid.uuid4().int}.%(ext)s",
+            "extract_flat": True,
+            "skip_download": True,
+            "noplaylist": False,
+            "no_warnings": True,
         }
-
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             playlist_info = ydl.extract_info(playlist_url, download=False)
-            if not playlist_info.get("_type", "") == "playlist":
-                print(f"This doesn't seem like a playlist URL.")
+            if playlist_info.get("_type", "") != "playlist":
                 return []
-
-            for entry in playlist_info["entries"]:
-                song_names.append(entry["title"])
-
+            for entry in playlist_info.get("entries", []):
+                if entry and entry.get("title"):
+                    song_names.append(entry["title"])
         return song_names

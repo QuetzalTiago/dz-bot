@@ -7,14 +7,15 @@ class Status(commands.Cog):
         self.bot = bot
 
     @commands.hybrid_command()
+    @commands.cooldown(1, 3, commands.BucketType.user)
     async def status(self, ctx):
         """Gets the current status for a user"""
-        user_hours = self.bot.get_cog("Database").get_user_hours(ctx.author.id)
+        user_hours = await self.bot.get_cog("Database").get_user_hours(ctx.author.id)
         user_hours = round(user_hours, 2)  # rounding off to 2 decimal   places
 
         if user_hours < 1:
             await ctx.send(
-                f"You have not spent an hour yet on the server. Disconnect to refresh."
+                "You have not spent an hour yet on the server. Disconnect to refresh."
             )
         else:
             await ctx.send(

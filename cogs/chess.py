@@ -1,8 +1,28 @@
-import json
-import discord
-import requests
+import asyncio
 import logging
-from discord.ext import commands, tasks
+
+import discord
+from discord.ext import commands
+
+from cogs.utils.config import load_config
+from cogs.utils.http import get_session
+
+GAME_ENDED_STATUSES = {
+    "mate",
+    "resign",
+    "stalemate",
+    "timeout",
+    "draw",
+    "outoftime",
+    "cheat",
+    "noStart",
+    "unknownFinish",
+    "variantEnd",
+    "aborted",
+}
+
+POLL_INTERVAL_SECONDS = 20
+MAX_POLLS = 270  # ~90 minutes
 
 
 class Chess(commands.Cog):
@@ -10,93 +30,82 @@ class Chess(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.logger = logging.getLogger("discord")
+        self.lichess_token = None
+        self.headers = {}
+        self._watch_tasks = set()
 
     async def cog_load(self):
-        self.save_match.cancel()
-        with open("config.json") as f:
-            config = json.load(f)
-            self.lichess_token = config["secrets"]["lichessToken"]
-            self.headers = {
-                "Authorization": "Bearer " + self.lichess_token,
-                "Accept": "application/json",
-            }
+        config = load_config()
+        self.lichess_token = config["secrets"]["lichessToken"]
+        self.headers = {
+            "Authorization": "Bearer " + self.lichess_token,
+            "Accept": "application/json",
+        }
         self.logger.info("Chess cog loaded and configured.")
 
+    async def cog_unload(self):
+        for task in list(self._watch_tasks):
+            task.cancel()
+
     @commands.hybrid_command()
-    async def chess(self, ctx):
-        """Creates an open chess challenge on Lichess"""
-        time_control = None
-        increment = 3  # Default increment
+    @commands.cooldown(1, 5, commands.BucketType.user)
+    async def chess(self, ctx, minutes: int = None, increment: int = 3):
+        """Creates an open chess challenge on Lichess.
 
-        message_parts = ctx.message.content.split(" ")
-
-        # Validate and set the time control
-        if len(message_parts) > 1:
-            try:
-                time_control = int(message_parts[1])
-                if time_control < 1 or time_control > 60:
-                    await ctx.send(
-                        "Invalid time control. Please specify a number of minutes between 1 and 60."
-                    )
-                    return
-            except ValueError:
-                await ctx.send("Time control must be an integer.")
-                return
-
-        # Validate and set the increment if provided
-        if len(message_parts) > 2:
-            try:
-                increment = int(message_parts[2])
-                if increment < 0 or increment > 60:  # Assuming 60 as maximum increment
-                    await ctx.send(
-                        "Invalid increment. Please specify a number of seconds between 0 and 60."
-                    )
-                    return
-            except ValueError:
-                await ctx.send("Increment must be an integer.")
-                return
+        Optional: `chess <minutes 1-60> <increment 0-60>`.
+        """
+        if minutes is not None and not (1 <= minutes <= 60):
+            await ctx.send("Time control must be between 1 and 60 minutes.")
+            return
+        if not (0 <= increment <= 60):
+            await ctx.send("Increment must be between 0 and 60 seconds.")
+            return
 
         payload = {}
-        if time_control is not None:
-            payload["clock"] = {
-                "increment": increment,
-                "limit": time_control * 60,  # Time control converted to seconds
-            }
+        if minutes is not None:
+            payload["clock"] = {"increment": increment, "limit": minutes * 60}
 
         await ctx.message.add_reaction("⌛")
-        self.logger.debug(
-            f"Creating chess match with time control {time_control} minutes and {increment} seconds increment."
-        )
         match_url = await self.fetch_match_url(ctx, payload)
-        if match_url:
-            match_id = self.get_match_id(match_url)
-            await ctx.send(match_url)
-            await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("✅")
-            self.logger.info(f"Chess match created: {match_url}")
-            self.save_match.start(ctx, match_id)
-        else:
+        if not match_url:
             self.logger.error("Failed to create chess match.")
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction("❌")
+            return
+
+        match_id = self.get_match_id(match_url)
+        await ctx.send(match_url)
+        await ctx.message.clear_reactions()
+        await ctx.message.add_reaction("✅")
+        self.logger.info(f"Chess match created: {match_url}")
+
+        # Each game gets its own watcher so concurrent games don't collide (the
+        # old single cog-level task loop raised RuntimeError on the 2nd game).
+        task = asyncio.create_task(self._watch_match(ctx, match_id))
+        self._watch_tasks.add(task)
+        task.add_done_callback(self._watch_tasks.discard)
 
     async def fetch_match_url(self, ctx, payload):
         try:
-            response = requests.post(
+            session = get_session()
+            async with session.post(
                 "https://lichess.org/api/challenge/open",
                 headers=self.headers,
                 json=payload,
-            )
-            if response.status_code == 200:
-                challenge_data = response.json()
-                return challenge_data["url"]
-            else:
+            ) as response:
+                if response.status == 200:
+                    challenge_data = await response.json()
+                    return challenge_data["url"]
                 await ctx.send("There was a problem creating the challenge.")
                 self.logger.error(
-                    f"Error creating challenge: {response.status_code} - {response.text}"
+                    "Error creating challenge: %s - %s",
+                    response.status,
+                    await response.text(),
                 )
                 return None
-        except requests.RequestException as e:
+        except Exception:
             await ctx.send("An error occurred while connecting to Lichess.")
-            self.logger.exception(f"RequestException during challenge creation: {e}")
+            self.logger.exception("Exception during challenge creation")
             return None
 
     def get_match_id(self, url):
@@ -121,37 +130,35 @@ class Chess(commands.Cog):
         if white_username == "Anonymous" and black_username == "Anonymous":
             end_message = f"https://lichess.org/{game_id}\n"
 
-        embed = discord.Embed(
+        return discord.Embed(
             title=title_message, description=end_message, color=0x00FF00
         )
-        return embed
 
-    @tasks.loop(seconds=20, count=270)
-    async def save_match(self, ctx, match_id):
-        game_ended_statuses = [
-            "mate",
-            "resign",
-            "stalemate",
-            "timeout",
-            "draw",
-            "outoftime",
-            "cheat",
-            "noStart",
-            "unknownFinish",
-            "variantEnd",
-            "aborted",
-        ]
+    async def _watch_match(self, ctx, match_id):
+        """Poll Lichess until the game ends, then post a summary and save it."""
+        session = get_session()
+        for _ in range(MAX_POLLS):
+            await asyncio.sleep(POLL_INTERVAL_SECONDS)
+            try:
+                async with session.get(
+                    f"https://lichess.org/game/export/{match_id}"
+                    "?moves=false&pgnInJson=false",
+                    headers=self.headers,
+                ) as response:
+                    if response.status != 200:
+                        self.logger.error(
+                            "Failed to fetch game data for %s: %s",
+                            match_id,
+                            response.status,
+                        )
+                        continue
+                    data = await response.json()
+            except Exception:
+                self.logger.exception("Error polling chess game %s", match_id)
+                continue
 
-        response = requests.get(
-            f"https://lichess.org/game/export/{match_id}?moves=false&pgnInJson=false",
-            headers=self.headers,
-        )
-
-        if response.status_code == 200:
-            data = response.json()
             game_status = data.get("status", "")
             players = data.get("players", {})
-
             white_username = (
                 players.get("white", {}).get("user", {}).get("name", "Anonymous")
             )
@@ -159,24 +166,20 @@ class Chess(commands.Cog):
                 players.get("black", {}).get("user", {}).get("name", "Anonymous")
             )
 
-            if game_status in game_ended_statuses:
-                winner = data.get("winner", None)
-
+            if game_status in GAME_ENDED_STATUSES:
                 embed = self.create_game_summary_embed(
                     match_id,
                     game_status,
                     white_username,
                     black_username,
-                    winner,
+                    data.get("winner"),
                 )
                 await ctx.send(embed=embed)
-                self.bot.get_cog("Database").save_chess_game(data)
+                db = self.bot.get_cog("Database")
+                if db is not None:
+                    await db.save_chess_game(data)
                 self.logger.info(f"Chess game saved: {match_id}")
-                self.save_match.cancel()
-        else:
-            self.logger.error(
-                f"Failed to fetch game data for {match_id}: {response.status_code} - {response.text}"
-            )
+                return
 
 
 async def setup(bot):

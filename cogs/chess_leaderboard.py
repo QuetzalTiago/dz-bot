@@ -10,9 +10,10 @@ class ChessLeaderboard(commands.Cog):
         self.bot = bot
 
     @commands.hybrid_command(aliases=["clb", "chess leaderboard"])
+    @commands.cooldown(1, 5, commands.BucketType.channel)
     async def chess_leaderboard(self, ctx):
         """Shows the top 5 players on the chess leaderboard, including their win rates"""
-        matches = self.bot.get_cog("Database").get_chess_games()
+        matches = await self.bot.get_cog("Database").get_chess_games()
         leaderboard = self.calculate_leaderboard(matches)
 
         if not leaderboard:

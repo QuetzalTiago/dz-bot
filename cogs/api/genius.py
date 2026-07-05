@@ -1,7 +1,12 @@
-import requests
 import html
+import logging
 import re
+
 from bs4 import BeautifulSoup
+
+from cogs.utils.http import get_session, get_text
+
+logger = logging.getLogger("discord")
 
 
 class GeniusAPI:
@@ -14,25 +19,42 @@ class GeniusAPI:
             return None
 
         query = song_name.split("(")[0]
-        search_url = f"{self.base_url}/search?q={query}"
-        response = requests.get(search_url, headers=self.headers)
-        json = response.json()
+        try:
+            session = get_session()
+            async with session.get(
+                f"{self.base_url}/search",
+                params={"q": query},
+                headers=self.headers,
+            ) as response:
+                if response.status != 200:
+                    logger.warning("Genius search returned %s", response.status)
+                    return None
+                data = await response.json()
 
-        if not json["response"]["hits"]:
+            hits = data.get("response", {}).get("hits", [])
+            if not hits:
+                return None
+
+            song_url = hits[0]["result"]["url"]
+            page_text = await get_text(song_url)
+        except Exception:
+            logger.exception("Failed to fetch lyrics for %s", song_name)
             return None
 
-        song_url = json["response"]["hits"][0]["result"]["url"]
-
-        page = requests.get(song_url)
-        html_content = BeautifulSoup(page.text, "html.parser")
-
-        return self.format_lyrics(html_content)
+        return self.format_lyrics(BeautifulSoup(page_text, "html.parser"))
 
     def format_lyrics(self, html_content):
-        [h.extract() for h in html_content("script")]
+        for h in html_content("script"):
+            h.extract()
 
         lyrics = ""
         lyrics_divs = html_content.find_all("div", {"data-lyrics-container": "true"})
+        if not lyrics_divs:
+            # Genius changed its markup if this ever happens; surface it in logs
+            # rather than silently returning empty lyrics.
+            logger.warning("No lyrics containers found; Genius markup may have changed.")
+            return None
+
         for div in lyrics_divs:
             lyrics += div.get_text(separator="\n") + "\n\n"
 
@@ -41,5 +63,4 @@ class GeniusAPI:
         lyrics = re.sub(r"\n(\))", r"\1", lyrics)
         lyrics = re.sub(r"(\])", r"\1\n", lyrics)
         lyrics = re.sub(r"(\[)", r"\n\1", lyrics)
-
         return lyrics

@@ -1,48 +1,68 @@
-import requests
+import logging
+
 from discord.ext import commands
+
+from cogs.utils.http import get_session
 
 
 class Div(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self.logger = logging.getLogger("discord")
 
     @commands.hybrid_command()
-    async def div(self, ctx):
-        """Returns the current price of the Divine in the specified league from the message"""
-        league = ctx.message.content.split("div", 1)[1].strip().title()
+    @commands.cooldown(1, 3, commands.BucketType.user)
+    async def div(self, ctx, *, league: str = None):
+        """Returns the current Divine Orb price (in Chaos) for a PoE league."""
         if not league:
-            await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
             await ctx.send("Specify the league, for example: 'div necropolis'")
             return
 
+        league = league.strip().title()
         await ctx.message.add_reaction("⌛")
         try:
             div_price = await self.fetch_div_price(league)
-            await ctx.send(
-                f"Current Divine price in {league} league: **{div_price} Chaos**"
-            )
-            await ctx.message.add_reaction("✅")
+        except LookupError:
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction("❌")
+            await ctx.send(f"Divine Orb not found for league: {league}")
+            return
         except Exception:
+            self.logger.exception("Failed to fetch Divine price for %s", league)
             await ctx.message.clear_reactions()
             await ctx.message.add_reaction("❌")
             await ctx.send(
-                f"Error fetching data for the specified league. Please check the league name and try again."
+                "Error fetching data for that league. Check the name and try again."
             )
+            return
+
+        await ctx.send(
+            f"Current Divine price in {league} league: **{div_price} Chaos**"
+        )
+        await ctx.message.add_reaction("✅")
 
     async def fetch_div_price(self, league):
-        response = requests.get(
-            f"https://poe.ninja/api/data/currencyoverview?league={league}&type=Currency"
-        )
-        response.raise_for_status()  # Raise an error if the request was unsuccessful
-        data = response.json()
+        session = get_session()
+        params = {"league": league, "type": "Currency"}
+        async with session.get(
+            "https://poe.ninja/api/data/currencyoverview", params=params
+        ) as response:
+            response.raise_for_status()
+            data = await response.json()
+        # Raise LookupError (not StopIteration, which PEP 479 turns into a
+        # RuntimeError across the coroutine boundary) when the orb is missing.
         divine = next(
-            x for x in data.get("lines", []) if x["currencyTypeName"] == "Divine Orb"
+            (
+                x
+                for x in data.get("lines", [])
+                if x["currencyTypeName"] == "Divine Orb"
+            ),
+            None,
         )
-        if not divine:
-            raise Exception(f"Divine Orb not found for league: {league}")
-        return format(int(float(divine.get("chaosEquivalent"))), ",d")
+        if divine is None:
+            raise LookupError(f"Divine Orb not found for league: {league}")
+        return format(int(float(divine["chaosEquivalent"])), ",d")
 
 
 async def setup(bot):

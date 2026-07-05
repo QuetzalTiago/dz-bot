@@ -7,21 +7,25 @@ class Emoji(commands.Cog):
         self.bot = bot
 
     @commands.hybrid_command()
-    async def emoji(self, ctx):
-        """Converts the input text into emoji letters"""
-        text = ctx.message.content[6:].strip()
-        emoji_text = await self.text_to_emoji(text)
+    @commands.cooldown(1, 3, commands.BucketType.user)
+    async def emoji(self, ctx, *, text: str = ""):
+        """Converts the input text into emoji letters."""
+        text = text.strip()
+        if not text:
+            await ctx.send("Give me some text, for example: `emoji hello`")
+            return
+        emoji_text = self.text_to_emoji(text)
         await ctx.send(emoji_text)
         await ctx.message.clear_reactions()
         await ctx.message.add_reaction("✅")
 
-    async def text_to_emoji(_, text):
+    @staticmethod
+    def text_to_emoji(text):
         emoji_text = ""
         for char in text:
             char = char.lower()
             if char.isalpha():
-                emoji_char = f":regional_indicator_{char}:"
-                emoji_text += f"{emoji_char} "
+                emoji_text += f":regional_indicator_{char}: "
             elif char == "?":
                 emoji_text += "❔ "
             elif char == "!":

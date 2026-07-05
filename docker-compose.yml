@@ -1,6 +1,4 @@
-version: '3.8'
 name: dz-bot
-
 
 x-logging: &default-logging
   driver: "json-file"
@@ -12,19 +10,31 @@ services:
   app:
     build: .
     depends_on:
-     db:
-       condition: service_healthy
-    volumes:
-      - ./:/app
+      db:
+        condition: service_healthy
+    # Secrets come from the environment (a .env file or the orchestrator's
+    # secret store), not a committed config.json.
+    environment:
+      DZ_SECRET_DISCORD_TOKEN: ${DZ_SECRET_DISCORD_TOKEN}
+      DZ_DB_HOST: db
+      DZ_DB_USER: ${DZ_DB_USER:-dzbot}
+      DZ_DB_PASSWORD: ${DZ_DB_PASSWORD:-dzbot}
+      DZ_DB_NAME: ${DZ_DB_NAME:-discord_bot}
+      DZ_CONFIG_PATH: ${DZ_CONFIG_PATH:-config.json}
     restart: unless-stopped
     logging: *default-logging
     networks:
-      - sst-gpt-network
+      - dz-bot-network
 
   db:
     image: mysql:8.4.2
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      # Provide via a .env file; do not hardcode. A dedicated non-root app user
+      # is created for the bot rather than connecting as root.
+      MYSQL_ROOT_PASSWORD: ${DZ_DB_ROOT_PASSWORD:?set DZ_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DZ_DB_NAME:-discord_bot}
+      MYSQL_USER: ${DZ_DB_USER:-dzbot}
+      MYSQL_PASSWORD: ${DZ_DB_PASSWORD:-dzbot}
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
@@ -35,11 +45,11 @@ services:
     restart: unless-stopped
     logging: *default-logging
     networks:
-      - sst-gpt-network
+      - dz-bot-network
 
 volumes:
   mysql-data:
 
 networks:
-  sst-gpt-network:
-    external: true
+  dz-bot-network:
+    driver: bridge

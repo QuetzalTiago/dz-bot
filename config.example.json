@@ -1,0 +1,20 @@
+{
+  "prefix": "!",
+  "aiModel": "gemini_2_0_flash.google/gemini-2.0-flash-001",
+  "audio_format": "mp3",
+  "audio_quality": "192",
+  "max_duration": "1200",
+  "secrets": {
+    "discordToken": "YOUR_DISCORD_TOKEN",
+    "openaiKey": "YOUR_LLM_API_KEY",
+    "openaiUrl": "https://your-llm-endpoint/v1/chat/completions",
+    "weatherApiKey": "YOUR_OPENWEATHER_KEY",
+    "defaultCity": "Montevideo",
+    "apiSportsKey": "YOUR_API_SPORTS_KEY",
+    "steamApiKey": "YOUR_STEAM_KEY",
+    "lichessToken": "YOUR_LICHESS_TOKEN",
+    "geniusApiKey": "YOUR_GENIUS_KEY",
+    "spotifyClientId": "YOUR_SPOTIFY_CLIENT_ID",
+    "spotifyClientSecret": "YOUR_SPOTIFY_CLIENT_SECRET"
+  }
+}

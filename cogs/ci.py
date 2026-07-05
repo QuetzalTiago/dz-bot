@@ -1,35 +1,51 @@
-import requests
+"""National-ID (Uruguayan "cédula") lookup.
+
+WARNING: this command queries personal data from a third-party leak-aggregator
+service. It is DISABLED by default and only loaded when DZ_ENABLE_CEDULA is set
+(see bot.py). Even then it is restricted to the bot owner. Do not enable this in
+a commercial deployment without a lawful basis for processing personal data.
+"""
+
+import logging
+
 import discord
 from discord.ext import commands
+
+from cogs.utils.http import get_json
 
 
 class CedulaInfo(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self.logger = logging.getLogger("discord")
 
     @commands.hybrid_command(aliases=["ci"])
+    @commands.cooldown(1, 10, commands.BucketType.user)
+    @commands.is_owner()
     async def cedula(self, ctx, cedula_id: str):
-        """Fetches and displays information for a given Uruguayan Cedula ID"""
-        if cedula_id:
-            await ctx.message.add_reaction("⌛")
-            cedula_data = self.fetch_cedula_info(cedula_id)
+        """Fetches information for a given Uruguayan Cedula ID (owner only)."""
+        if not cedula_id.isdigit():
+            await ctx.send("Cedula ID must be numeric.")
+            return
 
-            if cedula_data and "resp" in cedula_data:
-                embed = self.create_cedula_embed(cedula_data)
-                await ctx.send(embed=embed)
-                await ctx.message.clear_reactions()
-                await ctx.message.add_reaction("✅")
-            else:
-                await ctx.message.clear_reactions()
-                await ctx.message.add_reaction("❌")
+        await ctx.message.add_reaction("⌛")
+        cedula_data = await self.fetch_cedula_info(cedula_id)
 
-    def fetch_cedula_info(self, cedula_id):
-        url = f"https://ci-uy.checkleaked.cc/{cedula_id}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            return response.json()
+        if cedula_data and "resp" in cedula_data:
+            embed = self.create_cedula_embed(cedula_data)
+            await ctx.send(embed=embed)
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction("✅")
         else:
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction("❌")
+
+    async def fetch_cedula_info(self, cedula_id):
+        try:
+            return await get_json(f"https://ci-uy.checkleaked.cc/{cedula_id}")
+        except Exception:
+            self.logger.exception("Failed to fetch cedula info")
             return None
 
     def create_cedula_embed(self, data):
@@ -47,12 +63,7 @@ class CedulaInfo(commands.Cog):
         embed.add_field(
             name="Second Surname", value=resp["segundoApellido"], inline=True
         )
-        embed.add_field(
-            name="Gender",
-            value=(resp["genero"] or "None"),
-            inline=True,
-        )
-
+        embed.add_field(name="Gender", value=(resp["genero"] or "None"), inline=True)
         return embed
 
 

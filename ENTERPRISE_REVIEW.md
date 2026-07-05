@@ -1,5 +1,15 @@
 # dz-bot — Enterprise-Readiness Review
 
+> **Remediation status (2026-07-05):** the findings below were the point-in-time
+> audit. Phases 0–3 of the roadmap have since been implemented on this branch:
+> secret logging removed, `restart`/`purge` gated and the `cedula` PII lookup
+> disabled by default, the verified crash bugs fixed, blocking I/O moved to
+> `aiohttp`/threads, the database layer made async with corrected voice-time
+> tracking, per-guild music state introduced, cooldowns and a global error
+> handler added, config/secrets moved to env vars, Docker/CI hardened, and a
+> GDPR `my_data`/`forget_me` flow added. The test suite now runs in CI. Legal
+> review of audio/lyrics sourcing and billing remain non-code follow-ups.
+
 A full audit of the codebase (bot core, music subsystem, feature cogs, database layer, deployment pipeline) with the goal of turning this bot into a commercial, enterprise-grade product. Findings are ordered by severity, each with file/line references. A phased remediation roadmap closes the report.
 
 **TL;DR:** the bot is a solid hobby project, but today it leaks every secret into its logs, lets any Discord user restart it or bulk-delete messages, can only serve one guild's music at a time, freezes its entire event loop on nearly every API call, ships to production with zero tests run, and has several verified crash-on-boot / crash-on-use bugs. None of these are unfixable — the roadmap below sequences them.

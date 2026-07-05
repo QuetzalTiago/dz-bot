@@ -5,6 +5,8 @@ import discord
 from discord.ext import commands
 
 from cogs.utils.config import load_config
+from cogs.utils.emojis import DONE, ERROR, PROCESSING
+from cogs.utils.endpoints import LICHESS_BASE_URL, LICHESS_CHALLENGE_OPEN_URL
 from cogs.utils.http import get_session
 
 GAME_ENDED_STATUSES = {
@@ -65,18 +67,18 @@ class Chess(commands.Cog):
         if minutes is not None:
             payload["clock"] = {"increment": increment, "limit": minutes * 60}
 
-        await ctx.message.add_reaction("⌛")
+        await ctx.message.add_reaction(PROCESSING)
         match_url = await self.fetch_match_url(ctx, payload)
         if not match_url:
             self.logger.error("Failed to create chess match.")
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
+            await ctx.message.add_reaction(ERROR)
             return
 
         match_id = self.get_match_id(match_url)
         await ctx.send(match_url)
         await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
+        await ctx.message.add_reaction(DONE)
         self.logger.info(f"Chess match created: {match_url}")
 
         # Each game gets its own watcher so concurrent games don't collide (the
@@ -89,7 +91,7 @@ class Chess(commands.Cog):
         try:
             session = get_session()
             async with session.post(
-                "https://lichess.org/api/challenge/open",
+                LICHESS_CHALLENGE_OPEN_URL,
                 headers=self.headers,
                 json=payload,
             ) as response:
@@ -117,7 +119,7 @@ class Chess(commands.Cog):
         title_message = f"Game ended with **{game_status}**"
         end_message = f"White: **{white_username}**\n"
         end_message += f"Black: **{black_username}**\n"
-        end_message += f"https://lichess.org/{game_id}\n"
+        end_message += f"{LICHESS_BASE_URL}/{game_id}\n"
 
         if winner:
             winner_username = white_username if winner == "white" else black_username
@@ -128,7 +130,7 @@ class Chess(commands.Cog):
                 title_message = f"{winner_username} wins!"
 
         if white_username == "Anonymous" and black_username == "Anonymous":
-            end_message = f"https://lichess.org/{game_id}\n"
+            end_message = f"{LICHESS_BASE_URL}/{game_id}\n"
 
         return discord.Embed(
             title=title_message, description=end_message, color=0x00FF00
@@ -141,7 +143,7 @@ class Chess(commands.Cog):
             await asyncio.sleep(POLL_INTERVAL_SECONDS)
             try:
                 async with session.get(
-                    f"https://lichess.org/game/export/{match_id}"
+                    f"{LICHESS_BASE_URL}/game/export/{match_id}"
                     "?moves=false&pgnInJson=false",
                     headers=self.headers,
                 ) as response:

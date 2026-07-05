@@ -7,6 +7,7 @@ from discord.ext import tasks
 from cogs.api.genius import GeniusAPI
 from cogs.api.spotify import SpotifyAPI
 from cogs.api.youtube import YouTubeAPI
+from cogs.utils.emojis import PROCESSING
 from cogs.utils.music.state_machine import State
 
 
@@ -66,8 +67,8 @@ class Downloader:
 
         try:
             existing_reactions = [reaction.emoji for reaction in message.reactions]
-            if "⌛" not in existing_reactions:
-                await message.add_reaction("⌛")
+            if PROCESSING not in existing_reactions:
+                await message.add_reaction(PROCESSING)
         except Exception as e:
             self.logger.debug("Could not add loading reaction: %s", e)
 

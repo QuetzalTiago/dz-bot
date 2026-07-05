@@ -4,6 +4,7 @@ import subprocess
 from discord.ext import commands
 
 from cogs.utils.checks import is_owner_or_admin
+from cogs.utils.emojis import PROCESSING
 
 
 class Restart(commands.Cog):
@@ -17,7 +18,7 @@ class Restart(commands.Cog):
     @is_owner_or_admin()
     async def restart(self, ctx):
         """Restarts the bot and resets its state (owner/admin only)."""
-        await ctx.message.add_reaction("⌛")
+        await ctx.message.add_reaction(PROCESSING)
 
         db = self.bot.get_cog("Database")
         if db is not None:

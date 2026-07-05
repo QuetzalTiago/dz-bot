@@ -4,6 +4,7 @@ from discord.ext import commands, tasks
 
 from cogs.utils.checks import require_manage_messages
 from cogs.utils.config import load_config
+from cogs.utils.emojis import PROCESSING
 
 
 class Purge(commands.Cog):
@@ -49,7 +50,7 @@ class Purge(commands.Cog):
     async def purge(self, ctx):
         """Purges bot messages and command queries in the current channel."""
         self.set_cmd_list()
-        await ctx.message.add_reaction("⌛")
+        await ctx.message.add_reaction(PROCESSING)
         await ctx.channel.purge(limit=50, check=self.is_bot_or_command)
         await ctx.channel.purge(
             limit=50, check=lambda m: self.is_bot_or_command(m, params=True)

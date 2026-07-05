@@ -3,6 +3,8 @@ import logging
 from discord import Embed
 from discord.ext import commands, tasks
 
+from cogs.utils.emojis import DONE, ERROR, PROCESSING
+from cogs.utils.endpoints import COINBASE_BTC_SPOT_URL
 from cogs.utils.http import get_json
 
 
@@ -16,20 +18,20 @@ class Btc(commands.Cog):
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def btc(self, ctx):
         """Returns the current price of Bitcoin and keeps the message updated."""
-        await ctx.message.add_reaction("⌛")
+        await ctx.message.add_reaction(PROCESSING)
         try:
             btc_price = await self.fetch_btc_price()
         except Exception:
             self.logger.exception("Error in btc command")
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
+            await ctx.message.add_reaction(ERROR)
             await ctx.send("An error occurred while fetching the Bitcoin price.")
             return
 
         embed = self.create_price_embed(btc_price)
         self.sent_message = await ctx.send(embed=embed)
         await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
+        await ctx.message.add_reaction(DONE)
 
         if not self.btc_price_task.is_running():
             self.btc_price_task.start()
@@ -56,7 +58,7 @@ class Btc(commands.Cog):
         await self.bot.wait_until_ready()
 
     async def fetch_btc_price(self):
-        data = await get_json("https://api.coinbase.com/v2/prices/BTC-USD/spot")
+        data = await get_json(COINBASE_BTC_SPOT_URL)
         return format(int(float(data["data"]["amount"])), ",d")
 
     def create_price_embed(self, btc_price):

@@ -10,6 +10,7 @@ import discord
 from discord.ext import commands
 
 from cogs.utils.config import load_config
+from cogs.utils.emojis import ACK, DONE
 from cogs.utils.http import close_session
 
 
@@ -72,7 +73,7 @@ class Khaled(commands.AutoShardedBot):
             message = await self.fetch_message_by_id(channel_id, message_id)
             if message:
                 await message.clear_reactions()
-                await message.add_reaction("✅")
+                await message.add_reaction(DONE)
                 await db.clear_startup_notification()
 
     async def on_command_error(self, ctx, error):
@@ -215,7 +216,7 @@ async def main():
         command_name = ctx.command.name if ctx.command else "Unknown command"
         logger.info(f"{command_name} command invoked by {ctx.author}")
         try:
-            await ctx.message.add_reaction("👍")
+            await ctx.message.add_reaction(ACK)
         except discord.DiscordException:
             pass
 

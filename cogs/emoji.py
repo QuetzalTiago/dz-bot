@@ -1,5 +1,7 @@
 from discord.ext import commands
 
+from cogs.utils.emojis import DONE
+
 
 class Emoji(commands.Cog):
 
@@ -17,7 +19,7 @@ class Emoji(commands.Cog):
         emoji_text = self.text_to_emoji(text)
         await ctx.send(emoji_text)
         await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
+        await ctx.message.add_reaction(DONE)
 
     @staticmethod
     def text_to_emoji(text):

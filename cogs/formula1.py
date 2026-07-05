@@ -4,6 +4,8 @@ import discord
 from discord.ext import commands
 
 from cogs.utils.config import load_config
+from cogs.utils.emojis import DONE, ERROR, PROCESSING
+from cogs.utils.endpoints import FORMULA1_API_BASE_URL
 from cogs.utils.formatting import format_local
 from cogs.utils.http import get_json
 from cogs.utils.images import add_white_background
@@ -14,7 +16,7 @@ class Formula1(commands.Cog):
         self.bot = bot
         self.logger = logging.getLogger("discord")
         self.api_key = load_config()["secrets"].get("apiSportsKey")
-        self.base_url = "https://v1.formula-1.api-sports.io"
+        self.base_url = FORMULA1_API_BASE_URL
 
     def get_headers(self):
         return {
@@ -26,7 +28,7 @@ class Formula1(commands.Cog):
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def f1(self, ctx: commands.Context):
         """Get upcoming Formula 1 race sessions."""
-        await ctx.message.add_reaction("⌛")
+        await ctx.message.add_reaction(PROCESSING)
         try:
             data = await get_json(
                 f"{self.base_url}/races?next=10", headers=self.get_headers()
@@ -34,7 +36,7 @@ class Formula1(commands.Cog):
             if not data["response"]:
                 await ctx.send("No upcoming races found for Formula 1.")
                 await ctx.message.clear_reactions()
-                await ctx.message.add_reaction("✅")
+                await ctx.message.add_reaction(DONE)
                 return
 
             race_sessions = data["response"]
@@ -72,11 +74,11 @@ class Formula1(commands.Cog):
             embed.set_footer(text="Formula 1 Sessions provided by API-Sports")
             await ctx.send(embed=embed, file=file)
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("✅")
+            await ctx.message.add_reaction(DONE)
         except Exception:
             self.logger.exception("Failed to retrieve Formula 1 sessions")
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
+            await ctx.message.add_reaction(ERROR)
             await ctx.send("Could not retrieve Formula 1 sessions right now.")
 
 

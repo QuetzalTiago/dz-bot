@@ -5,6 +5,8 @@ import discord
 from discord.ext import commands
 
 from cogs.utils.config import load_config
+from cogs.utils.emojis import DONE, ERROR, PROCESSING
+from cogs.utils.endpoints import FOOTBALL_API_BASE_URL
 from cogs.utils.formatting import to_local
 from cogs.utils.http import get_json
 from cogs.utils.images import add_white_background
@@ -15,7 +17,7 @@ class Football(commands.Cog):
         self.bot = bot
         self.logger = logging.getLogger("discord")
         self.api_key = load_config()["secrets"].get("apiSportsKey")
-        self.base_url = "https://v3.football.api-sports.io"
+        self.base_url = FOOTBALL_API_BASE_URL
         self.priority_teams = {
             "Liverpool",
             "Manchester United",
@@ -35,7 +37,7 @@ class Football(commands.Cog):
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def premier(self, ctx: commands.Context):
         """Get upcoming fixtures for the Premier League."""
-        await ctx.message.add_reaction("⌛")
+        await ctx.message.add_reaction(PROCESSING)
         try:
             league_data = await get_json(
                 f"{self.base_url}/leagues?id=39", headers=self.get_headers()
@@ -88,11 +90,11 @@ class Football(commands.Cog):
             embed.set_footer(text="Premier League Fixtures provided by API-Sports")
             await ctx.send(embed=embed, file=file)
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("✅")
+            await ctx.message.add_reaction(DONE)
         except Exception:
             self.logger.exception("Failed to retrieve Premier League fixtures")
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
+            await ctx.message.add_reaction(ERROR)
             await ctx.send("Could not retrieve Premier League fixtures right now.")
 
 

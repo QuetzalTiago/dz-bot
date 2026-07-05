@@ -3,6 +3,8 @@ from discord import Embed
 
 from discord.ext import commands
 
+from cogs.utils.emojis import DONE
+
 
 class ChessLeaderboard(commands.Cog):
 
@@ -24,7 +26,7 @@ class ChessLeaderboard(commands.Cog):
             await ctx.send(embed=embed)
 
         await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
+        await ctx.message.add_reaction(DONE)
 
     def calculate_leaderboard(self, chess_games):
         player_stats = defaultdict(lambda: {"wins": 0, "games": 0})

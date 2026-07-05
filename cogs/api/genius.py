@@ -4,6 +4,7 @@ import re
 
 from bs4 import BeautifulSoup
 
+from cogs.utils.endpoints import GENIUS_BASE_URL
 from cogs.utils.http import get_session, get_text
 
 logger = logging.getLogger("discord")
@@ -11,7 +12,7 @@ logger = logging.getLogger("discord")
 
 class GeniusAPI:
     def __init__(self, config):
-        self.base_url = "https://api.genius.com"
+        self.base_url = GENIUS_BASE_URL
         self.headers = {"Authorization": f"Bearer {config['secrets']['geniusApiKey']}"}
 
     async def fetch_lyrics(self, song_name):

@@ -11,6 +11,8 @@ import logging
 import discord
 from discord.ext import commands
 
+from cogs.utils.emojis import DONE, ERROR, PROCESSING
+from cogs.utils.endpoints import CEDULA_LOOKUP_BASE_URL
 from cogs.utils.http import get_json
 
 
@@ -29,21 +31,21 @@ class CedulaInfo(commands.Cog):
             await ctx.send("Cedula ID must be numeric.")
             return
 
-        await ctx.message.add_reaction("⌛")
+        await ctx.message.add_reaction(PROCESSING)
         cedula_data = await self.fetch_cedula_info(cedula_id)
 
         if cedula_data and "resp" in cedula_data:
             embed = self.create_cedula_embed(cedula_data)
             await ctx.send(embed=embed)
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("✅")
+            await ctx.message.add_reaction(DONE)
         else:
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
+            await ctx.message.add_reaction(ERROR)
 
     async def fetch_cedula_info(self, cedula_id):
         try:
-            return await get_json(f"https://ci-uy.checkleaked.cc/{cedula_id}")
+            return await get_json(f"{CEDULA_LOOKUP_BASE_URL}/{cedula_id}")
         except Exception:
             self.logger.exception("Failed to fetch cedula info")
             return None

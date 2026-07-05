@@ -1,5 +1,7 @@
 from discord.ext import commands
 
+from cogs.utils.emojis import DONE
+
 
 class Status(commands.Cog):
 
@@ -22,7 +24,7 @@ class Status(commands.Cog):
                 f"You have spent **{user_hours}** hours in the server since 2024."
             )
         await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
+        await ctx.message.add_reaction(DONE)
 
 
 async def setup(bot):

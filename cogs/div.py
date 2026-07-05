@@ -2,6 +2,8 @@ import logging
 
 from discord.ext import commands
 
+from cogs.utils.emojis import DONE, ERROR, PROCESSING
+from cogs.utils.endpoints import POE_NINJA_CURRENCY_OVERVIEW_URL
 from cogs.utils.http import get_session
 
 
@@ -20,18 +22,18 @@ class Div(commands.Cog):
             return
 
         league = league.strip().title()
-        await ctx.message.add_reaction("⌛")
+        await ctx.message.add_reaction(PROCESSING)
         try:
             div_price = await self.fetch_div_price(league)
         except LookupError:
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
+            await ctx.message.add_reaction(ERROR)
             await ctx.send(f"Divine Orb not found for league: {league}")
             return
         except Exception:
             self.logger.exception("Failed to fetch Divine price for %s", league)
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
+            await ctx.message.add_reaction(ERROR)
             await ctx.send(
                 "Error fetching data for that league. Check the name and try again."
             )
@@ -40,13 +42,13 @@ class Div(commands.Cog):
         await ctx.send(
             f"Current Divine price in {league} league: **{div_price} Chaos**"
         )
-        await ctx.message.add_reaction("✅")
+        await ctx.message.add_reaction(DONE)
 
     async def fetch_div_price(self, league):
         session = get_session()
         params = {"league": league, "type": "Currency"}
         async with session.get(
-            "https://poe.ninja/api/data/currencyoverview", params=params
+            POE_NINJA_CURRENCY_OVERVIEW_URL, params=params
         ) as response:
             response.raise_for_status()
             data = await response.json()

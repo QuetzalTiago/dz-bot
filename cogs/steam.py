@@ -4,6 +4,8 @@ import discord
 from discord.ext import commands
 
 from cogs.utils.config import load_config
+from cogs.utils.emojis import DONE, SEARCHING
+from cogs.utils.endpoints import STEAM_STORE_API_URL, STEAM_STORE_URL
 from cogs.utils.http import get_session
 
 
@@ -14,13 +16,13 @@ class Steam(commands.Cog):
         self.logger = logging.getLogger("discord")
         config = load_config()
         self.steam_api_key = config["secrets"].get("steamApiKey")
-        self.steam_store_api_url = "https://store.steampowered.com/api"
+        self.steam_store_api_url = STEAM_STORE_API_URL
 
     @commands.hybrid_command(aliases=["steam"])
     @commands.cooldown(1, 3, commands.BucketType.user)
     async def gameinfo(self, ctx, *, game_name: str):
         """Fetches information about a Steam game."""
-        await ctx.message.add_reaction("🔍")
+        await ctx.message.add_reaction(SEARCHING)
         try:
             game_id, game_details = await self.search_game(game_name)
         except Exception:
@@ -33,7 +35,7 @@ class Steam(commands.Cog):
             await ctx.send("Game not found. Please check the name and try again.")
 
         await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
+        await ctx.message.add_reaction(DONE)
 
     async def search_game(self, game_name):
         session = get_session()
@@ -78,7 +80,7 @@ class Steam(commands.Cog):
                 "short_description", "No description available."
             ),
             color=0x1B2838,
-            url=f"https://store.steampowered.com/app/{game_details['steam_appid']}/",
+            url=f"{STEAM_STORE_URL}/app/{game_details['steam_appid']}/",
         )
         embed.add_field(name="Price", value=price, inline=True)
         embed.add_field(name="Release Date", value=release_date, inline=True)

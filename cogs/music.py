@@ -7,6 +7,7 @@ from discord.ext import commands
 
 from cogs.api.youtube import DOWNLOAD_DIR
 from cogs.utils.config import load_config
+from cogs.utils.emojis import DONE, ERROR
 from cogs.utils.music.guild_state import GuildMusicState
 from cogs.utils.music.state_machine import State
 
@@ -38,14 +39,14 @@ class Music(commands.Cog):
     async def cog_success(self, message):
         try:
             await message.clear_reactions()
-            await message.add_reaction("✅")
+            await message.add_reaction(DONE)
         except discord.DiscordException:
             pass
 
     async def cog_failure(self, sent_message, query_message):
         try:
             await query_message.clear_reactions()
-            await query_message.add_reaction("❌")
+            await query_message.add_reaction(ERROR)
         except discord.DiscordException:
             pass
 

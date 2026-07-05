@@ -4,6 +4,7 @@ import textwrap
 from discord.ext import commands
 
 from cogs.utils.config import load_config
+from cogs.utils.emojis import DONE, ERROR, PROCESSING, REFRESH
 from cogs.utils.formatting import split_message
 from cogs.utils.http import get_session
 
@@ -121,7 +122,7 @@ class AI(commands.Cog):
         if len(question) > MAX_PROMPT_CHARS:
             await ctx.send("That question is too long. Please shorten it.")
             return
-        await ctx.message.add_reaction("⌛")
+        await ctx.message.add_reaction(PROCESSING)
         # System instructions and user input are kept in separate roles so a user
         # can't trivially override the persona/guardrails by concatenation.
         messages = [
@@ -133,13 +134,13 @@ class AI(commands.Cog):
         except Exception:
             logger.exception("AI ask request failed")
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
+            await ctx.message.add_reaction(ERROR)
             await ctx.send("There was an error connecting to the AI service.")
             return
 
         await self._send_response(ctx, response_text)
         await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
+        await ctx.message.add_reaction(DONE)
 
     @commands.hybrid_command()
     @commands.cooldown(1, 5, commands.BucketType.user)
@@ -148,7 +149,7 @@ class AI(commands.Cog):
         if len(prompt) > MAX_PROMPT_CHARS:
             await ctx.send("That message is too long. Please shorten it.")
             return
-        await ctx.message.add_reaction("⌛")
+        await ctx.message.add_reaction(PROCESSING)
 
         conversation = self.get_conversation(ctx)
         conversation.append({"role": "user", "content": prompt})
@@ -160,14 +161,14 @@ class AI(commands.Cog):
         except Exception:
             logger.exception("AI chat request failed")
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
+            await ctx.message.add_reaction(ERROR)
             await ctx.send("There was an error connecting to the AI service.")
             return
 
         conversation.append({"role": "assistant", "content": response_text})
         await self._send_response(ctx, response_text)
         await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
+        await ctx.message.add_reaction(DONE)
 
     @commands.hybrid_command()
     @commands.cooldown(1, 5, commands.BucketType.user)
@@ -175,11 +176,11 @@ class AI(commands.Cog):
         """Start a new chat session (clears conversation history)."""
         self.clear_conversation(ctx)
         if prompt:
-            await ctx.send("🔄 Conversation history cleared. Starting a new chat!")
+            await ctx.send(f"{REFRESH} Conversation history cleared. Starting a new chat!")
             await self.chat(ctx, prompt=prompt)
         else:
-            await ctx.send("🔄 Conversation history cleared. Ready for a new chat!")
-            await ctx.message.add_reaction("✅")
+            await ctx.send(f"{REFRESH} Conversation history cleared. Ready for a new chat!")
+            await ctx.message.add_reaction(DONE)
 
 
 async def setup(bot):

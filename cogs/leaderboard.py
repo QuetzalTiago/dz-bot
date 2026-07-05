@@ -2,6 +2,8 @@ import asyncio
 
 from discord.ext import commands
 
+from cogs.utils.emojis import DONE
+
 
 class Leaderboard(commands.Cog):
 
@@ -34,7 +36,7 @@ class Leaderboard(commands.Cog):
 
         await ctx.send(leaderboard_message)
         await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
+        await ctx.message.add_reaction(DONE)
 
     async def _resolve_user(self, user_id):
         user = self.bot.get_user(user_id)

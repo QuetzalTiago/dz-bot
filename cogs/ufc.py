@@ -6,6 +6,8 @@ import discord
 from discord.ext import commands
 
 from cogs.utils.config import load_config
+from cogs.utils.emojis import DONE, ERROR, PROCESSING
+from cogs.utils.endpoints import MMA_API_BASE_URL
 from cogs.utils.formatting import to_local
 from cogs.utils.http import get_json
 from cogs.utils.images import combine_fighter_logos
@@ -19,7 +21,7 @@ class UFC(commands.Cog):
         self.bot = bot
         self.logger = logging.getLogger("discord")
         self.api_key = load_config()["secrets"].get("apiSportsKey")
-        self.base_url = "https://v1.mma.api-sports.io"
+        self.base_url = MMA_API_BASE_URL
 
     def get_headers(self):
         return {
@@ -53,13 +55,13 @@ class UFC(commands.Cog):
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def ufc(self, ctx: commands.Context):
         """Get the next upcoming UFC event with main card fight information."""
-        await ctx.message.add_reaction("⌛")
+        await ctx.message.add_reaction(PROCESSING)
         try:
             fights, event_date = await self.get_next_event()
             if not fights:
                 await ctx.send("No upcoming UFC events found.")
                 await ctx.message.clear_reactions()
-                await ctx.message.add_reaction("✅")
+                await ctx.message.add_reaction(DONE)
                 return
 
             main_card_fights = fights[-5:]
@@ -96,11 +98,11 @@ class UFC(commands.Cog):
             embed.set_footer(text="UFC Events provided by API-Sports")
             await ctx.send(embed=embed, file=file)
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("✅")
+            await ctx.message.add_reaction(DONE)
         except Exception:
             self.logger.exception("Failed to retrieve UFC events")
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
+            await ctx.message.add_reaction(ERROR)
             await ctx.send("Could not retrieve UFC events right now.")
 
 

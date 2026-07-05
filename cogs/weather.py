@@ -5,6 +5,8 @@ import discord
 from discord.ext import commands
 
 from cogs.utils.config import load_config
+from cogs.utils.emojis import DONE, ERROR, PROCESSING
+from cogs.utils.endpoints import OPENWEATHER_URL
 from cogs.utils.http import get_session
 
 
@@ -29,17 +31,15 @@ class Weather(commands.Cog):
             )
             return
 
-        await ctx.message.add_reaction("⌛")
+        await ctx.message.add_reaction(PROCESSING)
         # City is passed as a query parameter so aiohttp URL-encodes it.
         params = {"q": city, "appid": self.api_key, "units": "metric"}
         try:
             session = get_session()
-            async with session.get(
-                "https://api.openweathermap.org/data/2.5/weather", params=params
-            ) as response:
+            async with session.get(OPENWEATHER_URL, params=params) as response:
                 if response.status == 404:
                     await ctx.message.clear_reactions()
-                    await ctx.message.add_reaction("❌")
+                    await ctx.message.add_reaction(ERROR)
                     await ctx.send("City not found. Check the name and try again.")
                     return
                 response.raise_for_status()
@@ -47,14 +47,14 @@ class Weather(commands.Cog):
         except Exception:
             self.logger.exception("Weather lookup failed for %s", city)
             await ctx.message.clear_reactions()
-            await ctx.message.add_reaction("❌")
+            await ctx.message.add_reaction(ERROR)
             await ctx.send("Could not retrieve weather right now. Try again later.")
             return
 
         embed = self.create_weather_embed(city, data)
         await ctx.send(embed=embed)
         await ctx.message.clear_reactions()
-        await ctx.message.add_reaction("✅")
+        await ctx.message.add_reaction(DONE)
 
     def create_weather_embed(self, city, data):
         # Timezone offset (seconds from UTC) is supplied by the API so

@@ -101,10 +101,9 @@ class Downloader:
             await self.state.cog_failure(sent_message, message)
             return
 
-        if all(message is not item[1] for item in self.queue):
-            await self.state.cog_success(message)
-
         if self.queue_cancelled:
+            if all(message is not item[1] for item in self.queue):
+                await self.state.cog_success(message)
             self.set_queue_cancelled(False)
             self.process_queue.stop()
             await self.state.state_machine.stop()
@@ -113,9 +112,18 @@ class Downloader:
             if spotify_req:
                 lyrics = await self.genius.fetch_lyrics(next_song_name)
                 next_song_name = f"{next_song_name} audio"
-            await self.state.playlist.add(
+            queued = await self.state.playlist.add(
                 next_song_path, next_song_info, message, lyrics
             )
+            if queued:
+                if all(message is not item[1] for item in self.queue):
+                    await self.state.cog_success(message)
+            else:
+                sent_message = await message.channel.send(
+                    f"**{next_song_name}** was downloaded, but you left the "
+                    "voice channel before it could be queued. Try again."
+                )
+                await self.state.cog_failure(sent_message, message)
 
         await self.state.playlist.update_message()
 
@@ -136,7 +144,12 @@ class Downloader:
 
         if not self.process_queue.is_running():
             await self.download_next_song()
-            self.process_queue.start()
+            try:
+                self.process_queue.start()
+            except RuntimeError:
+                # A concurrent enqueue() call already started the loop while
+                # we were awaiting download_next_song() above; nothing to do.
+                pass
 
         self.state.state_machine.start()
 

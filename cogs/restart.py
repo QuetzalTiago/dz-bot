@@ -20,16 +20,17 @@ class Restart(commands.Cog):
         """Restarts the bot and resets its state (owner/admin only)."""
         await ctx.message.add_reaction(PROCESSING)
 
-        db = self.bot.get_cog("Database")
-        if db is not None:
-            await db.set_startup_notification(ctx.message.id, ctx.message.channel.id)
-
         try:
             subprocess.Popen(["aws/scripts/application-start.sh"])
         except OSError:
             self.logger.exception("Failed to launch restart script")
             await ctx.send("Failed to trigger restart.")
             return
+
+        db = self.bot.get_cog("Database")
+        if db is not None:
+            await db.set_startup_notification(ctx.message.id, ctx.message.channel.id)
+
         await self.bot.close()
 
 

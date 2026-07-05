@@ -53,25 +53,32 @@ class Player:
 
         self.state.cleanup_files(song, playlist.songs)
 
-    async def join_voice_channel(self, message):
-        if self.state.state_machine.get_state() == State.DISCONNECTED:
-            if message.author.voice is None:
-                self.logger.warning("Requester is not in a voice channel.")
-                return None
-            voice_channel = message.author.voice.channel
-            self.logger.info(f"Joining voice channel: {voice_channel.name}")
-            try:
-                self.voice_client = await voice_channel.connect()
-            except discord.DiscordException as e:
-                self.logger.error(
-                    "Failed to connect to voice channel %s: %s",
-                    voice_channel.name,
-                    e,
-                    exc_info=True,
-                )
-                return None
-            self.state.state_machine.transition_to(State.STOPPED)
-            return self.voice_client
+    async def join_voice_channel(self, message) -> bool:
+        """Ensure the bot is connected to voice for this request.
+
+        Returns True if the bot is (now) connected, False if it needed to
+        join but could not (e.g. the requester is no longer in a voice
+        channel) — callers must not queue the song as playable in that case.
+        """
+        if self.state.state_machine.get_state() != State.DISCONNECTED:
+            return True
+        if message.author.voice is None:
+            self.logger.warning("Requester is not in a voice channel.")
+            return False
+        voice_channel = message.author.voice.channel
+        self.logger.info(f"Joining voice channel: {voice_channel.name}")
+        try:
+            self.voice_client = await voice_channel.connect()
+        except discord.DiscordException as e:
+            self.logger.error(
+                "Failed to connect to voice channel %s: %s",
+                voice_channel.name,
+                e,
+                exc_info=True,
+            )
+            return False
+        self.state.state_machine.transition_to(State.STOPPED)
+        return True
 
     def play_audio(self, song_path):
         self.logger.debug("Playing audio for song path: %s", song_path)

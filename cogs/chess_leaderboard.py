@@ -11,7 +11,7 @@ class ChessLeaderboard(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.hybrid_command(aliases=["clb", "chess leaderboard"])
+    @commands.hybrid_command(aliases=["clb"])
     @commands.cooldown(1, 5, commands.BucketType.channel)
     async def chess_leaderboard(self, ctx):
         """Shows the top 5 players on the chess leaderboard, including their win rates"""

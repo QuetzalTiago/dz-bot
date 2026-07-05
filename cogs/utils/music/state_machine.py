@@ -56,7 +56,11 @@ class StateMachine:
 
     async def stop(self):
         if self.handle_state.is_running():
-            self.handle_state.cancel()
+            # `stop()` (not `cancel()`): this is routinely invoked from inside
+            # the loop's own currently-running tick (e.g. via handle_idle()),
+            # and cancel() would deliver CancelledError into that same task at
+            # its next await, aborting the cleanup calls that follow.
+            self.handle_state.stop()
             self.logger.info("State machine loop stopped.")
 
     @tasks.loop(seconds=2)

@@ -36,3 +36,29 @@ Here is the cog code:
 
 python
 # Insert your cog code here
+
+---
+
+Repo-specific gotchas learned while writing tests (avoid re-discovering these):
+
+- `discord.ext.tasks.Loop` objects (`@tasks.loop(...)`): to invoke the loop
+  body directly without waiting on the real interval, call
+  `await cog.some_task.coro(cog)` — `.coro` is the original undecorated
+  async function.
+- Calling `.cancel()` on a running `Loop` does NOT make `is_running()` False
+  or `is_being_cancelled()` True synchronously — those only flip once the
+  underlying asyncio task actually processes the `CancelledError`, which
+  requires yielding to the event loop. To assert a loop was really
+  cancelled: grab `task = cog.some_task.get_task()` before cancelling, then
+  `with contextlib.suppress(asyncio.CancelledError): await task`, then check
+  `is_running()`.
+- A plain `commands.Bot(...)` built in a test fixture (not logged in) never
+  becomes "ready", so any loop with a `before_loop` hook awaiting
+  `bot.wait_until_ready()` will hang there forever once started. That's fine
+  for tests as long as you cancel the task during teardown instead of
+  awaiting it to finish naturally.
+- When a cog stores state keyed by something (channel/guild/user id) rather
+  than a single shared attribute, write a test with two distinct ids to
+  catch "only the last one wins" regressions — this caught a real bug in
+  `cogs/btc.py` where a single `self.sent_message` was overwritten across
+  channels.

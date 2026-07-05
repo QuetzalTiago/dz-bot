@@ -52,9 +52,13 @@ class Playlist:
         song_info: dict,
         message: Message,
         lyrics: Optional[str] = None,
-    ):
-        await self.state.player.join_voice_channel(message)
+    ) -> bool:
+        """Queue a downloaded song. Returns False if the bot couldn't join
+        voice for it (e.g. the requester left) — the song is not queued."""
+        if not await self.state.player.join_voice_channel(message):
+            return False
         self.songs.append(Song(song_path, song_info, message, lyrics))
+        return True
 
     async def get_next(self) -> Optional[Song]:
         looped_song = self._get_looped_song()
@@ -121,7 +125,7 @@ class Playlist:
 
         description = ""
         for index, song in enumerate(self.songs, 1):
-            if index < 20:
+            if index <= 20:
                 description += f"{index}. **{song.title}**\n"
             else:
                 description += "and more...\n"
@@ -133,7 +137,7 @@ class Playlist:
         return embed
 
     async def send_song_embed(self, song: Song) -> Optional[Message]:
-        embed = song.to_embed(self.songs, self.shuffle)
+        embed = song.to_embed(self.songs, self.shuffle, self.loop)
         try:
             msg = await song.message.channel.send(embed=embed)
             song.embed_message = msg

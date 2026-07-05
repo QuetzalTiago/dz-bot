@@ -102,11 +102,17 @@ class Database(commands.Cog):
             seconds = int((now - join_time).total_seconds())
             if seconds <= 0:
                 continue
-            self.bot.online_users[user_id] = now
             try:
                 await asyncio.to_thread(self._update_user_duration, user_id, seconds)
             except Exception:
                 self.logger.exception("Failed to update duration for %s", user_id)
+                continue
+            # Only refresh the marker if the user is still the same session
+            # that was flushed; a concurrent disconnect (or disconnect+
+            # reconnect) between the snapshot above and this point must not
+            # be overwritten with a stale "still online" timestamp.
+            if self.bot.online_users.get(user_id) == join_time:
+                self.bot.online_users[user_id] = now
 
     @update_user_durations.before_loop
     async def _before_durations(self):
@@ -199,8 +205,10 @@ class Database(commands.Cog):
                 notification.message_id = None
                 notification.channel_id = None
 
-    def get_startup_notification(self):
-        """Synchronous read used once during on_ready (before commands run)."""
+    async def get_startup_notification(self):
+        return await asyncio.to_thread(self._get_startup_notification)
+
+    def _get_startup_notification(self):
         with self._session() as session:
             notification = session.query(StartupNotification).first()
             if notification and notification.notify_on_startup:

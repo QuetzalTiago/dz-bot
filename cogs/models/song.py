@@ -18,11 +18,13 @@ class Song:
         return self.info["title"]
 
     @property
+    def duration_seconds(self):
+        # Livestreams and some entries have no/zero duration.
+        return self.info.get("duration") or 0
+
+    @property
     def duration(self):
-        total_seconds = self.info["duration"]
-
-        minutes, seconds = divmod(total_seconds, 60)
-
+        minutes, seconds = divmod(int(self.duration_seconds), 60)
         return "{}:{:02}".format(minutes, seconds)
 
     @property
@@ -33,7 +35,7 @@ class Song:
 
     @property
     def views(self):
-        return "{:,}".format(self.info["view_count"])
+        return "{:,}".format(self.info.get("view_count", 0))
 
     @property
     def url(self):
@@ -46,13 +48,6 @@ class Song:
     @property
     def uploader(self):
         return self.info.get("uploader", "N/A")
-
-    @property
-    def upload_date(self):
-        raw_date = self.info.get("upload_date", None)
-        if raw_date:
-            return datetime.datetime.strptime(raw_date, "%Y%m%d").strftime("%Y-%m-%d")
-        return "N/A"
 
     @property
     def like_count(self):
@@ -126,11 +121,14 @@ class Song:
         return embed
 
     def get_progress_bar(self, bar_length=30):
-        duration_seconds = self.info["duration"]
+        duration_seconds = self.duration_seconds
+        # Livestreams/unknown durations have no meaningful progress bar.
+        if not duration_seconds:
+            return f"**{self.progress}**          \n"
+
         if self.current_seconds > duration_seconds:
             self.current_seconds = duration_seconds
 
         filled_length = int(bar_length * self.current_seconds // duration_seconds)
         bar = "█" * filled_length + "▒" * (bar_length - filled_length)
-
         return f"{bar} **{self.progress}/{self.duration}**          \n"

@@ -1,15 +1,17 @@
 import logging
+import random
+from typing import List, Optional
+
 import discord
 from discord import Message
-import random
-from typing import Optional, List
 
 from cogs.models.song import Song
 
 
 class Playlist:
-    def __init__(self, music, max_size=25):
-        self.music = music
+    def __init__(self, state, max_size=25):
+        # `state` is the per-guild GuildMusicState.
+        self.state = state
         self.songs: List[Song] = []
         self.max_size: int = max_size
         self.shuffle: bool = False
@@ -27,14 +29,12 @@ class Playlist:
         return None
 
     async def clear_last(self):
-        self.logger.info("Clearing last song")
         if self.last_song:
             await self.delete_song_log(self.last_song)
             self.last_song = None
-            self.logger.info("Last song cleared")
 
     def _handle_index(self) -> int:
-        if self.shuffle:
+        if self.shuffle and self.songs:
             return random.randint(0, len(self.songs) - 1)
         return 0
 
@@ -53,8 +53,7 @@ class Playlist:
         message: Message,
         lyrics: Optional[str] = None,
     ):
-        await self.music.player.join_voice_channel(message)
-
+        await self.state.player.join_voice_channel(message)
         self.songs.append(Song(song_path, song_info, message, lyrics))
 
     async def get_next(self) -> Optional[Song]:
@@ -69,32 +68,19 @@ class Playlist:
 
         index = self._handle_index()
         next_song = self.songs.pop(index)
-
         self.set_current_song(next_song)
         return next_song
 
     def empty(self) -> bool:
         return len(self.songs) == 0
 
-    def clear(self):
-        self.songs = []
-
     def set_current_song(self, song: Optional[Song]):
         self.current_song = song
-        if song:
-            self.logger.info(f"Current song set as {song.title}")
-        else:
-            self.logger.info("Current song cleared")
 
     def set_last_song(self, song: Optional[Song]):
         self.last_song = song
-        if song:
-            self.logger.info(f"Last song set as {song.title}")
-        else:
-            self.logger.info("Last song cleared")
 
     async def delete_song_log(self, song: Song):
-        self.logger.info(f"Deleting song log for {song.title}")
         for message in song.messages_to_delete:
             try:
                 await message.delete()
@@ -104,33 +90,29 @@ class Playlist:
 
     async def update_curr_song_message(self):
         song = self.current_song
-
         if song:
-            self.logger.debug(f"Updating message for song: {song.title}")
             song.current_seconds += 2
             embed = song.to_embed(self.songs, self.shuffle, self.loop)
             if song.embed_message:
                 try:
                     await song.embed_message.edit(embed=embed)
-                    self.logger.debug(f"Message updated for song {song.title}")
                 except Exception as e:
                     self.logger.warning(
-                        f"Exception while updating message for song: {song.title} - {e}"
+                        "Exception while updating message for song %s: %s",
+                        song.title,
+                        e,
                     )
 
     async def update_message(self):
-        self.logger.info(f"Updating existing playlist message")
         if not self.sent_message:
-            self.logger.warning(f"Cannot update playlist message, not found.")
             return
         try:
-            updated_embed = self.get_embed()
-            await self.sent_message.edit(embed=updated_embed)
+            await self.sent_message.edit(embed=self.get_embed())
         except Exception as e:
             self.logger.warning(f"Exception while updating playlist message: {e}")
 
     def get_embed(self) -> discord.Embed:
-        dl_queue = self.music.downloader.queue
+        dl_queue = self.state.downloader.queue
         embed = discord.Embed(color=0x1ABC9C)
         embed.title = "🎵 Current Playlist 🎵"
         if not self.songs:
@@ -142,34 +124,28 @@ class Playlist:
             if index < 20:
                 description += f"{index}. **{song.title}**\n"
             else:
-                description += f"and more...\n"
+                description += "and more...\n"
                 break
 
         if dl_queue:
             description += f"**{len(dl_queue)}** more in the download queue."
         embed.description = description
-
-        self.logger.info(f"Embed generated for playlist")
         return embed
 
     async def send_song_embed(self, song: Song) -> Optional[Message]:
-        self.logger.info(f"Sending embed for song {song.title}")
         embed = song.to_embed(self.songs, self.shuffle)
         try:
             msg = await song.message.channel.send(embed=embed)
             song.embed_message = msg
-            self.logger.info(f"Embed sent for song: {song.title}")
             return msg
         except Exception as e:
             self.logger.warning(
-                f"Exception while sending embed for song: {song.title} - {e}"
+                "Exception while sending embed for song %s: %s", song.title, e
             )
             return None
 
     async def clear(self):
-        self.logger.info("Clearing the playlist")
         await self.clear_last()
         self.songs = []
         self.current_song = None
         self.last_song = None
-        self.logger.info("Playlist cleared")

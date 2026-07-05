@@ -25,8 +25,15 @@ jobs:
         run: pip install -r requirements-dev.txt
       - name: Lint
         run: ruff check .
-      - name: Run tests
-        run: pytest -q
+      - name: Run tests with coverage
+        # Ratchet floor: raise COV_FAIL_UNDER whenever coverage improves,
+        # but never past what's actually achieved. Target is 80%; this
+        # only blocks regressions below the last known-good level.
+        env:
+          COV_FAIL_UNDER: 31
+        run: |
+          pytest -q --cov=cogs --cov=bot --cov-report=term-missing \
+            --cov-fail-under=$COV_FAIL_UNDER
 
   deploy:
     needs: test

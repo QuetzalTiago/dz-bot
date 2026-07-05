@@ -15,3 +15,5 @@ venv/
 downloads/
 lyrics.txt
 .pytest_cache/
+.coverage
+htmlcov/

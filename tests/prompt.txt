@@ -36,3 +36,27 @@ Here is the cog code:
 
 python
 # Insert your cog code here
+
+---
+
+Gotchas found while adding tests (avoid re-discovering these):
+
+- Run pytest via `python -m pytest`, not the bare `pytest` script — in this
+  environment the bare entry point fails to pick up `pytest.ini`
+  ("unrecognized arguments") while `python -m pytest` works correctly.
+- If `pip install -r requirements.txt -r requirements-dev.txt` fails on
+  uninstalling `cryptography` (a distro-provided package with no RECORD
+  file), rerun with `--ignore-installed`.
+- For `discord.ext.tasks.Loop` objects: calling `.start()` on a
+  relative-interval loop (`@tasks.loop(seconds=N)`) runs the loop body
+  immediately (no initial sleep) before waiting — don't manually invoke the
+  wrapped coroutine right before `.start()`, and don't assume it. Also,
+  `loop_obj.cancel()` does not make `is_running()` return `False`
+  synchronously/immediately in a test — patch `.cancel` and assert it was
+  called instead of asserting on `is_running()` post-cancel.
+- Calling a `@tasks.loop`-wrapped method directly (`await cog.some_task()`)
+  invokes the wrapped coroutine body once, bypassing the loop's scheduling —
+  useful for testing one iteration without starting the real interval loop.
+- `bot.get_cog("X")` is a plain (non-async) `MagicMock`/`AsyncMock` method;
+  mock it with `bot.get_cog = MagicMock(return_value=<mock db cog with
+  AsyncMock methods>)`, not `AsyncMock()`.

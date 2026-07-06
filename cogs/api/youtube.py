@@ -1,12 +1,35 @@
 import asyncio
 import os
 import uuid
+from urllib.parse import urlparse
 
 import yt_dlp
 
 # Downloaded audio is kept in a dedicated directory instead of the repo working
 # directory, so cleanup is scoped and the source tree stays clean.
 DOWNLOAD_DIR = os.environ.get("DZ_DOWNLOAD_DIR", "downloads")
+
+# Hosts allowed to be treated as a direct video URL rather than a search
+# query. A substring check (e.g. "youtube.com" in video_url) would let a
+# crafted URL like "http://internal-host/?x=youtube.com" slip past as a
+# "real" URL and get handed straight to yt-dlp's generic extractor, an SSRF
+# vector -- so the actual hostname is matched instead.
+_YOUTUBE_HOSTS = {
+    "youtube.com",
+    "www.youtube.com",
+    "m.youtube.com",
+    "music.youtube.com",
+    "youtu.be",
+    "www.youtu.be",
+}
+
+
+def _is_youtube_url(video_url):
+    try:
+        host = urlparse(video_url).hostname
+    except ValueError:
+        return False
+    return host is not None and host.lower() in _YOUTUBE_HOSTS
 
 
 class YouTubeAPI:
@@ -39,7 +62,7 @@ class YouTubeAPI:
         self.downloading = True
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            is_query = "youtube.com" not in video_url and "youtu.be" not in video_url
+            is_query = not _is_youtube_url(video_url)
             if is_query:
                 video_url = f"ytsearch:{video_url}"
 
@@ -74,7 +97,7 @@ class YouTubeAPI:
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            is_query = "youtube.com" not in video_url and "youtu.be" not in video_url
+            is_query = not _is_youtube_url(video_url)
             if is_query:
                 video_url = f"ytsearch:{video_url}"
 
@@ -85,7 +108,8 @@ class YouTubeAPI:
             if is_query:
                 info = info["entries"][0]
 
-            if info["duration"] > self.max_duration:
+            duration = info.get("duration")
+            if duration is not None and duration > self.max_duration:
                 return False
 
             return True

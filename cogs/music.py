@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import uuid
 
 import discord
 from discord.ext import commands
@@ -189,7 +190,7 @@ class Music(commands.Cog):
             return
 
         if song.lyrics:
-            lyrics_file_name = "lyrics.txt"
+            lyrics_file_name = f"lyrics_{uuid.uuid4().hex}.txt"
             try:
                 with open(lyrics_file_name, "w", encoding="utf-8") as file:
                     file.write(song.lyrics)

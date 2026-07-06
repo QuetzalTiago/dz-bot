@@ -101,7 +101,9 @@ class Downloader:
             await self.state.cog_failure(sent_message, message)
             return
 
-        if all(message is not item[1] for item in self.queue):
+        if not self.queue_cancelled and all(
+            message is not item[1] for item in self.queue
+        ):
             await self.state.cog_success(message)
 
         if self.queue_cancelled:
@@ -135,7 +137,8 @@ class Downloader:
                         self.set_queue_cancelled(False)
 
         if not self.process_queue.is_running():
-            await self.download_next_song()
+            # `.start()` on a relative-interval loop runs the body immediately,
+            # so a manual call here would download two songs back-to-back.
             self.process_queue.start()
 
         self.state.state_machine.start()

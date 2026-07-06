@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+from urllib.parse import urlparse
 
 import discord
 from discord.ext import commands
@@ -30,7 +31,7 @@ class Football(commands.Cog):
     def get_headers(self):
         return {
             "x-rapidapi-key": self.api_key,
-            "x-rapidapi-host": "v3.football.api-sports.io",
+            "x-rapidapi-host": urlparse(self.base_url).netloc,
         }
 
     @commands.hybrid_command()

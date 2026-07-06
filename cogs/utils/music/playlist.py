@@ -53,14 +53,15 @@ class Playlist:
         song_info: dict,
         message: Message,
         lyrics: Optional[str] = None,
-    ):
+    ) -> bool:
         voice_client = await self.state.player.join_voice_channel(message)
         if voice_client is None:
             self.logger.warning(
                 "Could not join a voice channel; dropping song %s", song_path
             )
-            return
+            return False
         self.songs.append(Song(song_path, song_info, message, lyrics))
+        return True
 
     async def get_next(self) -> Optional[Song]:
         looped_song = self._get_looped_song()

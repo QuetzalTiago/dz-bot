@@ -1,6 +1,7 @@
 import datetime
 import logging
 import os
+from urllib.parse import urlparse
 
 import discord
 from discord.ext import commands
@@ -26,7 +27,7 @@ class UFC(commands.Cog):
     def get_headers(self):
         return {
             "x-rapidapi-key": self.api_key,
-            "x-rapidapi-host": "v1.mma.api-sports.io",
+            "x-rapidapi-host": urlparse(self.base_url).netloc,
         }
 
     async def _fights_on(self, date_str):

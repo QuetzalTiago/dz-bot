@@ -1,8 +1,8 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, PropertyMock
+from unittest.mock import AsyncMock, MagicMock
 
 from discord.ext import commands
-from discord import Message, TextChannel, ClientUser, Member
+from discord import Message, TextChannel, ClientUser, Member, Guild
 
 
 def make_command(name, aliases):
@@ -19,10 +19,24 @@ def mock_config():
     return {"prefix": "!"}
 
 
+def make_guild(name, channel_names):
+    guild = MagicMock(spec=Guild)
+    guild.name = name
+    channels = []
+    for position, channel_name in enumerate(channel_names):
+        channel = MagicMock(spec=TextChannel)
+        channel.name = channel_name
+        channel.position = position
+        channel.purge = AsyncMock(return_value=[])
+        channels.append(channel)
+    guild.text_channels = channels
+    return guild
+
+
 @pytest.fixture
 def mock_bot(mock_config):
     bot = MagicMock(spec=commands.Bot)
-    bot.main_channel = MagicMock(spec=TextChannel)
+    bot.guilds = [make_guild("guild-one", ["general", "random"])]
     bot.user = MagicMock(spec=ClientUser)
     bot.user.id = 123456789
     bot.walk_commands = MagicMock(
@@ -106,16 +120,33 @@ async def test_purge_command_success(purge_cog_instance, mock_ctx):
 
 
 @pytest.mark.asyncio
-async def test_purge_job(purge_cog_instance, mock_bot):
-    mock_bot.main_channel.purge = AsyncMock(return_value=[])
+async def test_purge_job_purges_first_channel_of_every_guild(
+    purge_cog_instance, mock_bot
+):
+    second_guild = make_guild("guild-two", ["announcements", "general"])
+    mock_bot.guilds.append(second_guild)
+
     await purge_cog_instance.purge_job()
-    assert mock_bot.main_channel.purge.await_count == 2
+
+    first_channel = mock_bot.guilds[0].text_channels[0]
+    second_channel = second_guild.text_channels[0]
+    assert first_channel.purge.await_count == 2
+    assert second_channel.purge.await_count == 2
+    # Only the lowest-position channel per guild is touched.
+    assert mock_bot.guilds[0].text_channels[1].purge.await_count == 0
+    assert second_guild.text_channels[1].purge.await_count == 0
 
 
 @pytest.mark.asyncio
-async def test_purge_job_when_no_main_channel(purge_cog_instance, mock_bot):
-    type(mock_bot).main_channel = PropertyMock(return_value=None)
-    await purge_cog_instance.purge_job()
+async def test_purge_job_skips_guild_with_no_text_channels(
+    purge_cog_instance, mock_bot
+):
+    empty_guild = make_guild("empty-guild", [])
+    mock_bot.guilds.append(empty_guild)
+
+    await purge_cog_instance.purge_job()  # must not raise
+
+    assert mock_bot.guilds[0].text_channels[0].purge.await_count == 2
 
 
 @pytest.mark.asyncio

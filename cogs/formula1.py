@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import urlparse
 
 import discord
 from discord.ext import commands
@@ -21,7 +22,7 @@ class Formula1(commands.Cog):
     def get_headers(self):
         return {
             "x-rapidapi-key": self.api_key,
-            "x-rapidapi-host": "v1.formula-1.api-sports.io",
+            "x-rapidapi-host": urlparse(self.base_url).netloc,
         }
 
     @commands.hybrid_command()

@@ -95,24 +95,28 @@ def test_toggle_shuffle_flips_state_and_returns_label(playlist):
 @pytest.mark.asyncio
 async def test_add_appends_song_and_joins_voice_channel(playlist, state):
     message = MagicMock()
-    await playlist.add("path", {"title": "new song"}, message)
+    result = await playlist.add("path", {"title": "new song"}, message)
 
     state.player.join_voice_channel.assert_awaited_once_with(message)
     assert len(playlist.songs) == 1
     assert playlist.songs[0].title == "new song"
+    assert result is True
 
 
 @pytest.mark.asyncio
 async def test_add_drops_song_when_join_voice_channel_fails(playlist, state):
     # Regression test: if the bot couldn't join voice (requester left, missing
     # permission, etc.), the song must not be queued - otherwise the state
-    # machine later crashes trying to play with no voice client.
+    # machine later crashes trying to play with no voice client. The caller
+    # (downloader.download_next_song) relies on this return value to decide
+    # whether to react success or send a failure instead.
     state.player.join_voice_channel = AsyncMock(return_value=None)
     message = MagicMock()
 
-    await playlist.add("path", {"title": "new song"}, message)
+    result = await playlist.add("path", {"title": "new song"}, message)
 
     assert playlist.songs == []
+    assert result is False
 
 
 @pytest.mark.asyncio

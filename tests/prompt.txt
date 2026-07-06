@@ -203,3 +203,35 @@ Environment / gotchas learned from past runs (read this before writing new tests
   current value is a `dict` (e.g. never let a stray `DZ_SECRETS=x` env var
   replace the whole `secrets` section with a string) - only scalar top-level
   keys should ever be override targets that way.
+- `GuildMusicState.stop()` (`guild_state.py`) must call `state_machine.stop()`
+  (which does `self.handle_state.cancel()`) *last*, after `downloader.stop()`,
+  `player.stop()` and `clear()` have already run - not first. The two
+  auto-triggered stop paths (`Player.handle_idle()`'s timeout and
+  `state_machine._tick()`'s "alone in channel" check) call `state.stop()` from
+  *inside* the running `handle_state` loop's own task, so cancelling that task
+  first means the task's own pending `CancelledError` gets delivered at the
+  next genuine suspension point - `player.stop()`'s
+  `await voice_client.disconnect()` - aborting every cleanup line after it
+  (`voice_client = None`, state reset to `DISCONNECTED`, playlist/downloader
+  clear). Manual `!stop`/forced-disconnect teardown aren't affected since
+  those run from a different task and don't self-cancel. To test this for
+  real (not just call-order assertions), you need an actual running
+  `tasks.loop`: build a real `GuildMusicState`, set a fake voice client whose
+  `disconnect()` does a real `await asyncio.sleep(...)` (a genuine suspension
+  point), drive `handle_idle()`'s timeout so it calls `state.stop()`, `.start()`
+  the `handle_state` loop, `await asyncio.sleep(...)` briefly, then assert the
+  cleanup actually completed (see `tests/guild_state_test.py`).
+- `Downloader.download_next_song()` must call `playlist.add()` and check its
+  return value *before* reacting "done" on the requester's message - not
+  after. `playlist.add()` can silently drop a finished download (returns
+  `False`) if the requester left voice while it was downloading; reacting
+  success first left a false checkmark with no error and no queued song.
+  `playlist.add()` now returns `True`/`False` for exactly this reason - any
+  new caller must check it and call `cog_failure` (not `cog_success`) on
+  `False`.
+- `bot.py` no longer has a single process-wide `main_channel` - the opt-in
+  auto-purge (`purge.py::purge_job`) used to cache only the *first* guild's
+  first text channel at `on_ready` and silently never purge any other guild.
+  `purge_job` now iterates `self.bot.guilds` and computes each guild's own
+  first text channel per run. Tests mock `bot.guilds` (a list of guild mocks
+  with `.text_channels`), not `bot.main_channel`.

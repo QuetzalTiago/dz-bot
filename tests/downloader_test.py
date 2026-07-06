@@ -100,3 +100,61 @@ async def test_download_next_song_cleans_up_when_queue_cancelled_mid_download(
     state.cog_success.assert_not_awaited()
     state.playlist.add.assert_not_awaited()
     assert downloader.queue_cancelled is False
+
+
+@pytest.mark.asyncio
+async def test_download_next_song_does_not_react_success_when_playlist_drops_it(
+    downloader, state
+):
+    # Regression test: the requester's message used to get a "done" reaction
+    # (and no error) even when playlist.add() silently dropped the song
+    # (e.g. the requester left voice while the download was in flight).
+    message = MagicMock()
+    message.reactions = []
+    message.add_reaction = AsyncMock()
+    message.channel.send = AsyncMock()
+
+    downloader.queue = [("some song", message, False)]
+
+    state.bot.loop.run_in_executor = AsyncMock(
+        side_effect=[True, ("downloads/12345.mp3", {"title": "Some Song"})]
+    )
+    state.cog_success = AsyncMock()
+    state.cog_failure = AsyncMock()
+    state.playlist.add = AsyncMock(return_value=False)
+    state.playlist.update_message = AsyncMock()
+
+    await downloader.download_next_song()
+
+    state.playlist.add.assert_awaited_once()
+    state.cog_success.assert_not_awaited()
+    state.cog_failure.assert_awaited_once()
+    message.channel.send.assert_awaited_once()
+    state.playlist.update_message.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_download_next_song_reacts_success_only_after_song_is_queued(
+    downloader, state
+):
+    message = MagicMock()
+    message.reactions = []
+    message.add_reaction = AsyncMock()
+    message.channel.send = AsyncMock()
+
+    downloader.queue = [("some song", message, False)]
+
+    state.bot.loop.run_in_executor = AsyncMock(
+        side_effect=[True, ("downloads/12345.mp3", {"title": "Some Song"})]
+    )
+    state.cog_success = AsyncMock()
+    state.cog_failure = AsyncMock()
+    state.playlist.add = AsyncMock(return_value=True)
+    state.playlist.update_message = AsyncMock()
+
+    await downloader.download_next_song()
+
+    state.playlist.add.assert_awaited_once()
+    state.cog_success.assert_awaited_once_with(message)
+    state.cog_failure.assert_not_awaited()
+    state.playlist.update_message.assert_awaited_once()

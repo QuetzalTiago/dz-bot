@@ -20,7 +20,6 @@ class Khaled(commands.AutoShardedBot):
         super().__init__(*args, **kwargs)
         self.initial_extensions = initial_extensions
         self.online_users = {}
-        self.main_channel = None
         self.dj_khaled_quotes = [
             "Another one",
             "We the best",
@@ -51,7 +50,6 @@ class Khaled(commands.AutoShardedBot):
         await super().close()
 
     async def on_ready(self):
-        await self.set_first_text_channel_as_main()
         self.logger.info(f"Logged on as {self.user} (ID: {self.user.id})")
 
         btc = self.get_cog("Btc")
@@ -135,17 +133,6 @@ class Khaled(commands.AutoShardedBot):
             music = self.get_cog("Music")
             if music is not None:
                 await music.handle_forced_disconnect(before.channel.guild)
-
-    async def set_first_text_channel_as_main(self):
-        for guild in self.guilds:
-            text_channels = sorted(guild.text_channels, key=lambda x: x.position)
-            if text_channels:
-                self.main_channel = text_channels[0]
-                self.logger.info(
-                    f"Main channel set to: {self.main_channel.name} "
-                    f"(ID: {self.main_channel.id}) in guild {guild.name}"
-                )
-                break
 
     async def fetch_message_by_id(self, channel_id, message_id):
         try:

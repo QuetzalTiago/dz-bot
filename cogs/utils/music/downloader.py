@@ -118,16 +118,27 @@ class Downloader:
             self._delete_file_quietly(next_song_path)
             return
 
-        if all(message is not item[1] for item in self.queue):
-            await self.state.cog_success(message)
-
         lyrics = None
         if spotify_req:
             lyrics = await self.genius.fetch_lyrics(next_song_name)
             next_song_name = f"{next_song_name} audio"
-        await self.state.playlist.add(
+
+        # React success (or send a failure) only once the song is actually
+        # queued - reacting beforehand left a false "done" checkmark on
+        # requests dropped because the requester left voice mid-download.
+        added = await self.state.playlist.add(
             next_song_path, next_song_info, message, lyrics
         )
+        if not added:
+            sent_message = await message.channel.send(
+                f"Could not queue **{next_song_name}**: you're no longer in a "
+                "voice channel."
+            )
+            await self.state.cog_failure(sent_message, message)
+            return
+
+        if all(message is not item[1] for item in self.queue):
+            await self.state.cog_success(message)
 
         await self.state.playlist.update_message()
 

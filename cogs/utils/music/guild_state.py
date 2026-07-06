@@ -41,10 +41,16 @@ class GuildMusicState:
         self.cog.cleanup_files(current_song, queue)
 
     async def stop(self, ctx=None):
-        await self.state_machine.stop()
+        # state_machine.stop() cancels the handle_state loop's own task, which
+        # is the task running this code when called from an auto-stop tick
+        # (idle timeout / alone-in-channel). Cancelling first meant the
+        # CancelledError surfaced at player.stop()'s voice disconnect await
+        # and skipped every cleanup step after it - so cancel the loop last,
+        # once all other cleanup has actually run.
         await self.downloader.stop()
         await self.player.stop()
         await self.clear()
+        await self.state_machine.stop()
 
     async def clear(self, ctx=None):
         await self.downloader.clear()

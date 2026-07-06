@@ -56,12 +56,22 @@ class Purge(commands.Cog):
             limit=50, check=lambda m: self.is_bot_or_command(m, params=True)
         )
 
+    def _first_text_channel(self, guild):
+        text_channels = sorted(guild.text_channels, key=lambda c: c.position)
+        return text_channels[0] if text_channels else None
+
     @tasks.loop(hours=2)
     async def purge_job(self):
-        if self.bot.main_channel is not None:
-            self.set_cmd_list()
-            await self.bot.main_channel.purge(limit=50, check=self.is_bot_or_command)
-            await self.bot.main_channel.purge(
+        # Every guild's own first text channel is purged, not just one cached
+        # guild - a process-wide "main channel" silently skipped every other
+        # guild the bot is in.
+        self.set_cmd_list()
+        for guild in self.bot.guilds:
+            channel = self._first_text_channel(guild)
+            if channel is None:
+                continue
+            await channel.purge(limit=50, check=self.is_bot_or_command)
+            await channel.purge(
                 limit=50, check=lambda m: self.is_bot_or_command(m, params=True)
             )
 

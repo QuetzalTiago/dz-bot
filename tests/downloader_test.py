@@ -170,6 +170,48 @@ async def test_download_next_song_reacts_success_only_after_song_is_queued(
 
 
 @pytest.mark.asyncio
+async def test_download_next_song_reserves_path_while_fetching_lyrics(downloader, state):
+    # Regression test: for a Spotify-sourced request, download_next_song()
+    # awaits genius.fetch_lyrics() *after* the file is on disk but *before*
+    # playlist.add() appends it to this guild's playlist - a yield point
+    # another guild's cleanup_files() could run in. The path must be reserved
+    # in the shared cog-level set for that whole window, and released once
+    # add() resolves either way.
+    message = MagicMock()
+    message.reactions = []
+    message.add_reaction = AsyncMock()
+    message.channel.send = AsyncMock()
+
+    downloader.queue = [("some song", message, True)]  # spotify_req=True
+
+    state.bot.loop.run_in_executor = AsyncMock(
+        side_effect=[True, ("downloads/12345.mp3", {"title": "Some Song"})]
+    )
+    state.cog.pending_download_paths = set()
+    state.cog_success = AsyncMock()
+    state.playlist.update_message = AsyncMock()
+
+    path_reserved_during_fetch = None
+
+    async def fetch_lyrics(_name):
+        nonlocal path_reserved_during_fetch
+        path_reserved_during_fetch = "downloads/12345.mp3" in state.cog.pending_download_paths
+        return "some lyrics"
+
+    async def add(*args, **kwargs):
+        assert "downloads/12345.mp3" in state.cog.pending_download_paths
+        return True
+
+    downloader.genius.fetch_lyrics = fetch_lyrics
+    state.playlist.add = add
+
+    await downloader.download_next_song()
+
+    assert path_reserved_during_fetch is True
+    assert "downloads/12345.mp3" not in state.cog.pending_download_paths
+
+
+@pytest.mark.asyncio
 async def test_enqueue_notifies_when_queue_is_full(downloader, state):
     # Regression test: enqueue() used to silently drop songs that didn't fit
     # under playlist.max_size (e.g. a large Spotify playlist import), with no

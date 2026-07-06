@@ -34,6 +34,17 @@ def api(config):
     return GeniusAPI(config)
 
 
+def test_init_does_not_raise_when_secret_missing():
+    # Regression test: Genius lyrics are optional. Downloader unconditionally
+    # constructs GeniusAPI for every guild, so a direct
+    # `config["secrets"]["geniusApiKey"]` index (raising KeyError when the
+    # deployment skips the optional Genius integration) used to break every
+    # music command, not just lyrics ones - matching every sibling API-key cog
+    # (football/formula1/ufc/steam/weather), this must use `.get(...)`.
+    api = GeniusAPI({"secrets": {}})
+    assert api.headers == {"Authorization": "Bearer None"}
+
+
 LYRICS_HTML = """
 <html><body>
 <script>ignore me</script>

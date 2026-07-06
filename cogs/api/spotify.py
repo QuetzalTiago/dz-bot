@@ -8,8 +8,8 @@ class SpotifyAPI:
     def __init__(self, config):
         self.spotify = spotipy.Spotify(
             auth_manager=SpotifyClientCredentials(
-                client_id=config["secrets"]["spotifyClientId"],
-                client_secret=config["secrets"]["spotifyClientSecret"],
+                client_id=config["secrets"].get("spotifyClientId"),
+                client_secret=config["secrets"].get("spotifyClientSecret"),
             )
         )
 

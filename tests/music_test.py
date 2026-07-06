@@ -331,6 +331,23 @@ async def test_stop_command(music_cog, bot):
 
 
 @pytest.mark.asyncio
+async def test_stop_command_survives_already_deleted_invocation(music_cog, bot):
+    # Regression test: `ctx.message` is synthetic for slash-command
+    # invocations (discord.py can't delete it) and may already be gone (a
+    # concurrent purge, manual deletion, double-invocation) - either raises
+    # discord.NotFound, which must not surface as a command failure.
+    ctx = mock_ctx(bot)
+    ctx.message.delete = AsyncMock(side_effect=discord.NotFound(MagicMock(), "Unknown Message"))
+    state = state_for(music_cog, ctx)
+    with patch.object(state.state_machine, "stop", new_callable=AsyncMock), \
+         patch.object(state.downloader, "stop", new_callable=AsyncMock), \
+         patch.object(state.player, "stop", new_callable=AsyncMock), \
+         patch.object(music_cog, "_clear_state", new_callable=AsyncMock), \
+         patch.object(music_cog, "cog_success", new_callable=AsyncMock):
+        await call(music_cog.stop, music_cog, ctx)  # must not raise
+
+
+@pytest.mark.asyncio
 async def test_clear_command(music_cog, bot):
     ctx = mock_ctx(bot)
     state = state_for(music_cog, ctx)
@@ -427,3 +444,23 @@ async def test_cleanup_files_does_not_delete_other_guilds_active_song(
     assert os.path.exists(song_a_path)
     assert os.path.exists(song_b_path)
     assert not os.path.exists(stale_path)
+
+
+@pytest.mark.asyncio
+async def test_cleanup_files_does_not_delete_pending_download(music_cog, bot, tmp_path):
+    # Regression test: a file can finish downloading before it's appended to
+    # any guild's playlist (e.g. a Spotify-sourced request still awaiting
+    # lyrics in Downloader.download_next_song()). Another guild's cleanup
+    # triggered in that window must not delete it.
+    song_a = MagicMock()
+    song_a.path = str(tmp_path / "song_a.mp3")
+    pending_path = str(tmp_path / "pending.mp3")
+    for path in (song_a.path, pending_path):
+        open(path, "w").close()
+
+    music_cog.pending_download_paths.add(pending_path)
+
+    with patch("cogs.music.DOWNLOAD_DIR", str(tmp_path)):
+        music_cog.cleanup_files(song_a, [])
+
+    assert os.path.exists(pending_path)

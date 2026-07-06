@@ -13,7 +13,9 @@ logger = logging.getLogger("discord")
 class GeniusAPI:
     def __init__(self, config):
         self.base_url = GENIUS_BASE_URL
-        self.headers = {"Authorization": f"Bearer {config['secrets']['geniusApiKey']}"}
+        self.headers = {
+            "Authorization": f"Bearer {config['secrets'].get('geniusApiKey')}"
+        }
 
     async def fetch_lyrics(self, song_name):
         if "/playlist/" in song_name or "list=" in song_name:

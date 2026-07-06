@@ -108,45 +108,53 @@ class Downloader:
             await self.state.cog_failure(sent_message, message)
             return
 
-        if self.queue_cancelled:
-            # The queue was cancelled while this download was in flight: the
-            # song will never play, so don't react success and don't leak the
-            # file that was just downloaded for it. Only stop the download
-            # queue here - the state machine may still be actively playing a
-            # previous song (e.g. a plain `clear`), and stopping it would
-            # silently kill that playback's progress/idle-timeout tracking.
-            self.set_queue_cancelled(False)
-            self.process_queue.stop()
-            self._delete_file_quietly(next_song_path)
-            try:
-                await message.clear_reactions()
-            except Exception:
-                pass
-            return
+        # The file is on disk but not in any guild's playlist yet - reserve it
+        # so another guild's cleanup_files() (triggered by e.g. the
+        # `await self.genius.fetch_lyrics(...)` below) can't delete it out
+        # from under this download before playlist.add() runs.
+        self.state.cog.pending_download_paths.add(next_song_path)
+        try:
+            if self.queue_cancelled:
+                # The queue was cancelled while this download was in flight: the
+                # song will never play, so don't react success and don't leak the
+                # file that was just downloaded for it. Only stop the download
+                # queue here - the state machine may still be actively playing a
+                # previous song (e.g. a plain `clear`), and stopping it would
+                # silently kill that playback's progress/idle-timeout tracking.
+                self.set_queue_cancelled(False)
+                self.process_queue.stop()
+                self._delete_file_quietly(next_song_path)
+                try:
+                    await message.clear_reactions()
+                except Exception:
+                    pass
+                return
 
-        lyrics = None
-        if spotify_req:
-            lyrics = await self.genius.fetch_lyrics(next_song_name)
-            next_song_name = f"{next_song_name} audio"
+            lyrics = None
+            if spotify_req:
+                lyrics = await self.genius.fetch_lyrics(next_song_name)
+                next_song_name = f"{next_song_name} audio"
 
-        # React success (or send a failure) only once the song is actually
-        # queued - reacting beforehand left a false "done" checkmark on
-        # requests dropped because the requester left voice mid-download.
-        added = await self.state.playlist.add(
-            next_song_path, next_song_info, message, lyrics
-        )
-        if not added:
-            sent_message = await message.channel.send(
-                f"Could not queue **{next_song_name}**: you're no longer in a "
-                "voice channel."
+            # React success (or send a failure) only once the song is actually
+            # queued - reacting beforehand left a false "done" checkmark on
+            # requests dropped because the requester left voice mid-download.
+            added = await self.state.playlist.add(
+                next_song_path, next_song_info, message, lyrics
             )
-            await self.state.cog_failure(sent_message, message)
-            return
+            if not added:
+                sent_message = await message.channel.send(
+                    f"Could not queue **{next_song_name}**: you're no longer in a "
+                    "voice channel."
+                )
+                await self.state.cog_failure(sent_message, message)
+                return
 
-        if all(message is not item[1] for item in self.queue):
-            await self.state.cog_success(message)
+            if all(message is not item[1] for item in self.queue):
+                await self.state.cog_success(message)
 
-        await self.state.playlist.update_message()
+            await self.state.playlist.update_message()
+        finally:
+            self.state.cog.pending_download_paths.discard(next_song_path)
 
     def _delete_file_quietly(self, file_path):
         try:

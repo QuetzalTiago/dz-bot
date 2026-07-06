@@ -375,3 +375,41 @@ Environment / gotchas learned from past runs (read this before writing new tests
   guard, so the log line fired (falsely claiming success) even when the
   Database cog wasn't loaded and nothing was actually saved. Fixed by moving
   the log line inside the `if db is not None:` block.
+- `cogs/api/spotify.py.__init__`/`cogs/api/genius.py.__init__` used direct
+  `config["secrets"]["spotifyClientId"/"spotifyClientSecret"/"geniusApiKey"]`
+  indexing instead of `.get(...)` (see the `weather.py` entry above for the
+  same bug class) - but here the blast radius is worse than one cog's load
+  failing: `Downloader.__init__` unconditionally constructs both
+  `SpotifyAPI`/`GeniusAPI` for *every* guild, and `GuildMusicState`/
+  `Downloader` are created lazily inside `Music.get_state()` from inside the
+  `play`/`stop`/`clear`/etc. command bodies, not during extension load - so a
+  deployment that configures YouTube-only music but skips the optional
+  Spotify/Genius integration got a `KeyError` out of *every* music command,
+  even a plain YouTube-URL `play`. Fixed to match every sibling API-key cog.
+- `cogs/music.py`'s `stop`/`clear` commands called `await ctx.message.delete()`
+  bare at the end, unlike every other message-delete site in the codebase
+  (`player.py`, `playlist.py`, `music.py`'s `_playlist`/`delete_error_log`),
+  which all wrap deletes in try/except. `ctx.message` is synthetic for a
+  slash-command invocation (discord.py can't delete it) and may already be
+  gone (concurrent purge, manual deletion, double-invocation) - either raises
+  an unhandled `discord.NotFound`, which `on_command_error`'s fallback turns
+  into a false "Something went wrong" even though stop/clear fully succeeded.
+  Fixed with a shared `Music._delete_invocation()` helper that catches
+  `discord.DiscordException`. Check any new hybrid_command that deletes
+  `ctx.message` directly for the same gap.
+- `cogs/utils/music/downloader.py::download_next_song()` has a real (if
+  narrow) await gap between a file finishing download and
+  `playlist.add()` appending it to that guild's playlist: for a Spotify-
+  sourced request, `lyrics = await self.genius.fetch_lyrics(...)` runs in
+  between. `cogs/music.py::cleanup_files()`'s "keep" set is built from every
+  guild's *playlist* contents (current song + queued songs), so a file that
+  finished downloading but hasn't reached `playlist.add()` yet isn't in
+  anyone's keep set - a different guild's cleanup running in that window
+  deletes it, and the guild whose download just "succeeded" ends up with a
+  playlist entry pointing at a deleted file (silent playback failure).
+  Fixed by reserving the path in a new cog-level `Music.pending_download_paths`
+  set immediately after the download completes, adding it to `cleanup_files`'s
+  keep set, and releasing it in a `finally` covering every exit path of the
+  rest of `download_next_song()` (including the `queue_cancelled` branch,
+  which already deletes the file itself and must release the reservation
+  too, not leak it).

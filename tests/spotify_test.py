@@ -75,6 +75,21 @@ async def test_get_playlist_songs_skips_removed_tracks(api):
     assert songs == ["A - Song A"]
 
 
+def test_init_does_not_raise_when_secrets_missing():
+    # Regression test: Spotify/Genius integration is optional. Downloader
+    # unconditionally constructs SpotifyAPI for every guild, so a direct
+    # `config["secrets"]["spotifyClientId"]` index (raising KeyError when the
+    # deployment skips the optional Spotify integration) used to break every
+    # music command, not just Spotify ones - matching every sibling API-key
+    # cog (football/formula1/ufc/steam/weather), this must use `.get(...)`.
+    with patch("cogs.api.spotify.SpotifyClientCredentials") as mock_creds, patch(
+        "cogs.api.spotify.spotipy.Spotify"
+    ):
+        SpotifyAPI({"secrets": {}})
+
+    mock_creds.assert_called_once_with(client_id=None, client_secret=None)
+
+
 @pytest.mark.asyncio
 async def test_get_album_songs_follows_pagination(api):
     page1 = {"items": [{"artists": [{"name": "A"}], "name": "Track 1"}], "next": "page2"}

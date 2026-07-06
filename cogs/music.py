@@ -21,6 +21,11 @@ class Music(commands.Cog):
         # One music state per guild so guilds don't share a voice client,
         # playlist or download queue.
         self.guild_states: dict[int, GuildMusicState] = {}
+        # Paths that have finished downloading but aren't in any guild's
+        # playlist yet (e.g. a Spotify-sourced request still awaiting lyrics
+        # before Downloader.download_next_song() calls playlist.add()) -
+        # cleanup_files must not delete these out from under that guild.
+        self.pending_download_paths: set[str] = set()
 
     def get_state(self, guild) -> GuildMusicState:
         if guild.id not in self.guild_states:
@@ -72,7 +77,7 @@ class Music(commands.Cog):
     def cleanup_files(self, current_song, queue):
         if not os.path.isdir(DOWNLOAD_DIR):
             return
-        keep = {current_song.path} | {s.path for s in queue}
+        keep = {current_song.path} | {s.path for s in queue} | self.pending_download_paths
         for state in self.guild_states.values():
             playlist = state.playlist
             if playlist.current_song:
@@ -305,11 +310,20 @@ class Music(commands.Cog):
 
         await self._clear_state(state)
         await self.cog_success(ctx.message)
-        await ctx.message.delete()
+        await self._delete_invocation(ctx.message)
 
     async def _clear_state(self, state: GuildMusicState):
         await state.downloader.clear()
         await state.playlist.clear()
+
+    async def _delete_invocation(self, message):
+        # `message` is synthetic for slash-command invocations (discord.py
+        # can't delete it) and may already be gone (concurrent purge, manual
+        # deletion, double-invocation) - neither should surface as a failure.
+        try:
+            await message.delete()
+        except discord.DiscordException:
+            pass
 
     @commands.hybrid_command()
     @commands.guild_only()
@@ -319,7 +333,7 @@ class Music(commands.Cog):
         await self._clear_state(state)
         await ctx.send("The playlist has been cleared!")
         await self.cog_success(ctx.message)
-        await ctx.message.delete()
+        await self._delete_invocation(ctx.message)
 
     @commands.hybrid_command(aliases=["pl", "playlist"])
     @commands.guild_only()

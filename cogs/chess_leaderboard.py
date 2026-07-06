@@ -11,11 +11,15 @@ class ChessLeaderboard(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.hybrid_command(aliases=["clb", "chess leaderboard"])
+    @commands.hybrid_command(aliases=["clb"])
     @commands.cooldown(1, 5, commands.BucketType.channel)
     async def chess_leaderboard(self, ctx):
         """Shows the top 5 players on the chess leaderboard, including their win rates"""
-        matches = await self.bot.get_cog("Database").get_chess_games()
+        db = self.bot.get_cog("Database")
+        if db is None:
+            await ctx.send("Data storage is not available right now.")
+            return
+        matches = await db.get_chess_games()
         leaderboard = self.calculate_leaderboard(matches)
 
         if not leaderboard:

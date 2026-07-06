@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import uuid
 
 import discord
 from discord.ext import commands
@@ -64,11 +65,17 @@ class Music(commands.Cog):
         with open(file_name, "rb") as file:
             return await channel.send(file=discord.File(file, file_name))
 
-    # Cleanup: only touches the dedicated downloads directory.
+    # Cleanup: only touches the dedicated downloads directory. DOWNLOAD_DIR is
+    # shared by every guild, so `keep` must span every guild's state, not just
+    # the guild that just finished playing a song.
     def cleanup_files(self, current_song, queue):
         if not os.path.isdir(DOWNLOAD_DIR):
             return
         keep = {current_song.path} | {s.path for s in queue}
+        for state in self.guild_states.values():
+            if state.playlist.current_song:
+                keep.add(state.playlist.current_song.path)
+            keep |= {s.path for s in state.playlist.songs}
         for file_name in os.listdir(DOWNLOAD_DIR):
             full_path = os.path.join(DOWNLOAD_DIR, file_name)
             if full_path in keep:
@@ -189,7 +196,7 @@ class Music(commands.Cog):
             return
 
         if song.lyrics:
-            lyrics_file_name = "lyrics.txt"
+            lyrics_file_name = f"lyrics-{uuid.uuid4().hex}.txt"
             try:
                 with open(lyrics_file_name, "w", encoding="utf-8") as file:
                     file.write(song.lyrics)

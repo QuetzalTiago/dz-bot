@@ -36,3 +36,24 @@ Here is the cog code:
 
 python
 # Insert your cog code here
+
+Notes from prior test-writing sessions (avoid re-discovering these):
+
+- `commands.Bot` exposes `user`, `guilds`, etc. as read-only properties — you
+  cannot do `bot.user = MagicMock()` on a real `commands.Bot()` fixture. If a
+  cog only calls `self.bot.get_cog(...)`, `self.bot.get_user(...)`,
+  `self.bot.fetch_user(...)`, `self.bot.user.id`, etc., just use a plain
+  `MagicMock()` for `bot` instead of a real `commands.Bot` instance — far less
+  friction.
+- `discord.ext.tasks.Loop`-decorated methods (`@tasks.loop(...)`) are not
+  directly callable on the instance; call the undecorated body via
+  `cog.some_loop.coro(cog)` in tests (see `tests/btc_test.py`).
+- For hybrid/regular commands, invoke the underlying function directly with
+  `await cog.command_name.callback(cog, ctx, ...)` rather than trying to
+  invoke through the command framework.
+- Prefer testing real behavior/branches (success, empty/None guard, exception
+  path) over asserting a mock was called — e.g. assert on the actual message
+  text sent, embed field values, or returned data shape.
+- Many cogs guard `db = self.bot.get_cog("Database"); if db is None: ...`
+  (added for resilience when the DB cog fails to load) — cover both the
+  guarded and happy paths.

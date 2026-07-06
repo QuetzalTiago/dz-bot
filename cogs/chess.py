@@ -24,7 +24,9 @@ GAME_ENDED_STATUSES = {
 }
 
 POLL_INTERVAL_SECONDS = 20
-MAX_POLLS = 270  # ~90 minutes
+# A 60min+60s game can legitimately run for hours (each move adds increment),
+# so this is a runaway-task safety net (~24h), not a real expected game length.
+MAX_POLLS = 4320
 
 
 class Chess(commands.Cog):

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import random
 from concurrent.futures import ThreadPoolExecutor
@@ -20,6 +21,10 @@ class Downloader:
         self.queue_cancelled = False
         # A single shared executor rather than one per download.
         self.executor = ThreadPoolExecutor(max_workers=1)
+        # Guards the check-then-start below so two concurrent enqueue() calls
+        # (e.g. two quick `!play`s) can't both decide to start process_queue,
+        # which would raise on the second `.start()` and double-download.
+        self._start_lock = asyncio.Lock()
 
         self.spotify = SpotifyAPI(state.config)
         self.youtube = YouTubeAPI(state.config)
@@ -134,9 +139,10 @@ class Downloader:
                     if self.queue_cancelled:
                         self.set_queue_cancelled(False)
 
-        if not self.process_queue.is_running():
-            await self.download_next_song()
-            self.process_queue.start()
+        async with self._start_lock:
+            if not self.process_queue.is_running():
+                await self.download_next_song()
+                self.process_queue.start()
 
         self.state.state_machine.start()
 

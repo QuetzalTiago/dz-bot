@@ -26,7 +26,7 @@ class Emoji(commands.Cog):
         emoji_text = ""
         for char in text:
             char = char.lower()
-            if char.isalpha():
+            if "a" <= char <= "z":
                 emoji_text += f":regional_indicator_{char}: "
             elif char == "?":
                 emoji_text += "❔ "

@@ -12,7 +12,11 @@ class Status(commands.Cog):
     @commands.cooldown(1, 3, commands.BucketType.user)
     async def status(self, ctx):
         """Gets the current status for a user"""
-        user_hours = await self.bot.get_cog("Database").get_user_hours(ctx.author.id)
+        db = self.bot.get_cog("Database")
+        if db is None:
+            await ctx.send("Data storage is not available right now.")
+            return
+        user_hours = await db.get_user_hours(ctx.author.id)
         user_hours = round(user_hours, 2)  # rounding off to 2 decimal   places
 
         if user_hours < 1:

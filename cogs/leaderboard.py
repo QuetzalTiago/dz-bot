@@ -14,7 +14,11 @@ class Leaderboard(commands.Cog):
     @commands.cooldown(1, 5, commands.BucketType.channel)
     async def leaderboard(self, ctx):
         """Gets the leaderboard for the top 5 users with most hours."""
-        user_hours_list = await self.bot.get_cog("Database").get_all_user_hours()
+        db = self.bot.get_cog("Database")
+        if db is None:
+            await ctx.send("Data storage is not available right now.")
+            return
+        user_hours_list = await db.get_all_user_hours()
 
         bot_user_id = self.bot.user.id
         user_hours_list = [uh for uh in user_hours_list if uh[0] != bot_user_id]

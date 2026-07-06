@@ -199,8 +199,10 @@ class Database(commands.Cog):
                 notification.message_id = None
                 notification.channel_id = None
 
-    def get_startup_notification(self):
-        """Synchronous read used once during on_ready (before commands run)."""
+    async def get_startup_notification(self):
+        return await asyncio.to_thread(self._get_startup_notification)
+
+    def _get_startup_notification(self):
         with self._session() as session:
             notification = session.query(StartupNotification).first()
             if notification and notification.notify_on_startup:

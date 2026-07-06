@@ -85,7 +85,10 @@ class YouTubeAPI:
             if is_query:
                 info = info["entries"][0]
 
-            if info["duration"] > self.max_duration:
+            # Livestreams and some entries have no/zero duration; treat as playable
+            # (mirrors cogs.models.song.Song.duration_seconds' handling).
+            duration = info.get("duration")
+            if duration is not None and duration > self.max_duration:
                 return False
 
             return True

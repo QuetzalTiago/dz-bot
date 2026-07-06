@@ -121,7 +121,7 @@ class Playlist:
 
         description = ""
         for index, song in enumerate(self.songs, 1):
-            if index < 20:
+            if index <= 20:
                 description += f"{index}. **{song.title}**\n"
             else:
                 description += "and more...\n"

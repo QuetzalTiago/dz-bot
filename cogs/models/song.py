@@ -121,7 +121,7 @@ class Song:
         return embed
 
     def get_progress_bar(self, bar_length=30):
-        duration_seconds = self.duration_seconds
+        duration_seconds = int(self.duration_seconds)
         # Livestreams/unknown durations have no meaningful progress bar.
         if not duration_seconds:
             return f"**{self.progress}**          \n"

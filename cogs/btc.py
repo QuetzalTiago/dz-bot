@@ -11,7 +11,10 @@ from cogs.utils.http import get_json
 class Btc(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.sent_message = None
+        # Keyed by channel id: every channel that has run `!btc` gets its own
+        # message kept up to date, instead of one shared message that the next
+        # channel's invocation would silently steal.
+        self.sent_messages = {}
         self.logger = logging.getLogger("discord")
 
     @commands.hybrid_command()
@@ -29,7 +32,7 @@ class Btc(commands.Cog):
             return
 
         embed = self.create_price_embed(btc_price)
-        self.sent_message = await ctx.send(embed=embed)
+        self.sent_messages[ctx.channel.id] = await ctx.send(embed=embed)
         await ctx.message.clear_reactions()
         await ctx.message.add_reaction(DONE)
 
@@ -38,20 +41,25 @@ class Btc(commands.Cog):
 
     @tasks.loop(seconds=30)
     async def btc_price_task(self):
-        """Update the latest BTC price message.
+        """Update every channel's latest BTC price message.
 
         Exceptions are handled inside the loop body so a transient network or
         Discord error does not permanently kill the task (a bare `tasks.loop`
         stops for good on the first unhandled exception).
         """
-        if self.sent_message is None:
+        if not self.sent_messages:
             return
         try:
             btc_price = await self.fetch_btc_price()
-            embed = self.create_price_embed(btc_price)
-            await self.sent_message.edit(embed=embed)
         except Exception as e:
-            self.logger.warning("Failed to update BTC price message: %s", e)
+            self.logger.warning("Failed to fetch BTC price: %s", e)
+            return
+        embed = self.create_price_embed(btc_price)
+        for message in list(self.sent_messages.values()):
+            try:
+                await message.edit(embed=embed)
+            except Exception as e:
+                self.logger.warning("Failed to update BTC price message: %s", e)
 
     @btc_price_task.before_loop
     async def before_btc_price_task(self):

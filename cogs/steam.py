@@ -4,7 +4,7 @@ import discord
 from discord.ext import commands
 
 from cogs.utils.config import load_config
-from cogs.utils.emojis import DONE, SEARCHING
+from cogs.utils.emojis import DONE, ERROR, SEARCHING
 from cogs.utils.endpoints import STEAM_STORE_API_URL, STEAM_STORE_URL
 from cogs.utils.http import get_session
 
@@ -27,15 +27,18 @@ class Steam(commands.Cog):
             game_id, game_details = await self.search_game(game_name)
         except Exception:
             self.logger.exception("Steam lookup failed for %s", game_name)
-            game_id, game_details = None, None
-
-        if game_id and game_details:
-            await ctx.send(embed=self.create_game_embed(game_details))
-        else:
-            await ctx.send("Game not found. Please check the name and try again.")
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(ERROR)
+            await ctx.send("An error occurred while fetching Steam data.")
+            return
 
         await ctx.message.clear_reactions()
-        await ctx.message.add_reaction(DONE)
+        if game_id and game_details:
+            await ctx.send(embed=self.create_game_embed(game_details))
+            await ctx.message.add_reaction(DONE)
+        else:
+            await ctx.send("Game not found. Please check the name and try again.")
+            await ctx.message.add_reaction(ERROR)
 
     async def search_game(self, game_name):
         session = get_session()

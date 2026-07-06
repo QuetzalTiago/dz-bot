@@ -1,0 +1,9 @@
+State Machine->Player: Check if idle
+State Machine->Playlist: Check if empty
+Player->Player: Track idle time
+Player->Player: Idle timeout reached (300s)
+Player->Player: Stop current audio
+Player->Player: Disconnect from voice channel
+Player->State Machine: Set state (STOPPED -> DISCONNECTED)
+Player->Playlist: Clear playlist
+State Machine->State Machine: Stop state loop

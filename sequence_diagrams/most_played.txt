@@ -1,0 +1,5 @@
+User->Discord: Sends most played command
+Discord->DJ Khaled: Command received
+DJ Khaled->Database: Get most played songs
+Database->DJ Khaled: Top 5 songs with play counts
+DJ Khaled->Discord: Send leaderboard embed

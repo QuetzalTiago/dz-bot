@@ -1,0 +1,8 @@
+User->Discord: Sends queue command
+Discord->DJ Khaled: Command received
+DJ Khaled->Playlist: Get playlist embed
+Playlist->Downloader: Get download queue size
+Playlist->DJ Khaled: Playlist embed
+DJ Khaled->Discord: Send playlist message
+DJ Khaled->Discord: Delete previous playlist message
+DJ Khaled->Playlist: Store new playlist message

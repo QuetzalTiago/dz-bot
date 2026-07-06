@@ -1,0 +1,8 @@
+User->Discord: Sends pause command
+Discord->DJ Khaled: Command received
+DJ Khaled->State Machine: Check state is PLAYING
+DJ Khaled->State Machine: Transition state (PLAYING -> PAUSED)
+State Machine->Player: Pause audio
+Player->Player: Pause playback
+State Machine->Player: Track idle time
+Player->Player: Stop music if idle timeout reached

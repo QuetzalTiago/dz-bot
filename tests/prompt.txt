@@ -235,3 +235,30 @@ Environment / gotchas learned from past runs (read this before writing new tests
   `purge_job` now iterates `self.bot.guilds` and computes each guild's own
   first text channel per run. Tests mock `bot.guilds` (a list of guild mocks
   with `.text_channels`), not `bot.main_channel`.
+- `downloader.py::download_next_song()`'s `queue_cancelled` branch must only
+  stop the download queue (`process_queue.stop()`), not
+  `state.state_machine.stop()` - a plain `clear` command (`Music.clear` ->
+  `downloader.clear()`) sets `queue_cancelled` without intending to touch
+  playback at all, but if a *different* song was still downloading at that
+  moment, this branch used to also cancel the whole per-guild tick loop,
+  silently freezing the currently-*playing* song's progress/auto-advance/
+  idle-timeout until the next `play` restarted the loop via
+  `state_machine.start()`. The real full-stop path (`GuildMusicState.stop()`)
+  already calls `state_machine.stop()` itself after `downloader.stop()`
+  finishes, so this line was redundant there and actively wrong for `clear`.
+- `database.py::update_user_durations()` must not unconditionally write
+  `self.bot.online_users[user_id] = now` after snapshotting
+  `list(online_users.items())` - the loop `await`s a `to_thread` DB call per
+  user, and a user who disconnects (gets popped by `on_voice_state_update`)
+  while an *earlier* user in the same tick is still being awaited would
+  otherwise get resurrected into `online_users` with a fresh `now` marker,
+  looking connected forever and getting credited a phantom ~1 hour of voice
+  time on every subsequent tick with no way to self-correct. Fix: skip an
+  entry entirely (no resurrect, no `_update_user_duration` call) unless
+  `self.bot.online_users.get(user_id) is join_time` (identity, not equality -
+  dict values are the same object reference the snapshot captured) still
+  holds - i.e. nothing touched that key since the snapshot was taken. To
+  test the race without real threads: patch `cogs.database.asyncio.to_thread`
+  with an async wrapper that mutates `db_cog.bot.online_users` for a
+  *different* key before delegating to the real `to_thread`, simulating the
+  interleaving.

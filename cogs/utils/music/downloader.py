@@ -111,10 +111,12 @@ class Downloader:
         if self.queue_cancelled:
             # The queue was cancelled while this download was in flight: the
             # song will never play, so don't react success and don't leak the
-            # file that was just downloaded for it.
+            # file that was just downloaded for it. Only stop the download
+            # queue here - the state machine may still be actively playing a
+            # previous song (e.g. a plain `clear`), and stopping it would
+            # silently kill that playback's progress/idle-timeout tracking.
             self.set_queue_cancelled(False)
             self.process_queue.stop()
-            await self.state.state_machine.stop()
             self._delete_file_quietly(next_song_path)
             return
 

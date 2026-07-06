@@ -102,6 +102,13 @@ class Database(commands.Cog):
         """
         now = datetime.datetime.now(datetime.timezone.utc)
         for user_id, join_time in list(self.bot.online_users.items()):
+            if self.bot.online_users.get(user_id) is not join_time:
+                # Disconnected (or disconnected-and-reconnected) while we were
+                # awaiting a previous user's flush in this same tick: their
+                # time for this segment was already flushed by
+                # on_voice_state_update, so don't resurrect them here or
+                # double-count it.
+                continue
             seconds = int((now - join_time).total_seconds())
             if seconds <= 0:
                 continue

@@ -100,6 +100,11 @@ async def test_download_next_song_cleans_up_when_queue_cancelled_mid_download(
     state.cog_success.assert_not_awaited()
     state.playlist.add.assert_not_awaited()
     assert downloader.queue_cancelled is False
+    # Regression: a cancelled queue (e.g. from a plain `clear`) must not stop
+    # the state machine - it may still be actively playing a previous song,
+    # and stopping it would silently kill that playback's progress/idle-
+    # timeout tracking until the next `play` restarts the loop.
+    state.state_machine.stop.assert_not_awaited()
 
 
 @pytest.mark.asyncio

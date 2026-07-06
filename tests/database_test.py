@@ -1,3 +1,5 @@
+import datetime
+
 import pytest
 from unittest.mock import MagicMock
 from sqlalchemy import create_engine
@@ -105,3 +107,52 @@ async def test_get_chess_games_returns_empty_list_on_error(db_cog):
     games = await db_cog.get_chess_games()
 
     assert games == []
+
+
+@pytest.mark.asyncio
+async def test_update_user_durations_credits_connected_users(db_cog):
+    now = datetime.datetime.now(datetime.timezone.utc)
+    one_hour_ago = now - datetime.timedelta(hours=1)
+    db_cog.bot.online_users = {1: one_hour_ago, 2: one_hour_ago}
+
+    await db_cog.update_user_durations.coro(db_cog)
+
+    hours = dict(await db_cog.get_all_user_hours())
+    assert hours[1] == pytest.approx(1, abs=0.01)
+    assert hours[2] == pytest.approx(1, abs=0.01)
+    # The marker is reset so the next tick only credits time since now.
+    assert db_cog.bot.online_users[1] > one_hour_ago
+    assert db_cog.bot.online_users[2] > one_hour_ago
+
+
+@pytest.mark.asyncio
+async def test_update_user_durations_does_not_resurrect_user_who_disconnects_mid_tick(
+    db_cog,
+):
+    # Regression test: a plain read of `list(online_users.items())` followed by
+    # an unconditional `online_users[user_id] = now` would resurrect a user who
+    # disconnected (and was popped by on_voice_state_update) while an earlier
+    # user in the same tick was still being awaited - falsely marking them
+    # online forever and double-crediting their voice time on every future
+    # tick.
+    now = datetime.datetime.now(datetime.timezone.utc)
+    one_hour_ago = now - datetime.timedelta(hours=1)
+    db_cog.bot.online_users = {1: one_hour_ago, 2: one_hour_ago}
+
+    real_to_thread = database_module.asyncio.to_thread
+
+    async def racing_to_thread(func, *args, **kwargs):
+        if args and args[0] == 1:
+            # Simulate user 2 disconnecting (and being flushed/popped by
+            # on_voice_state_update) while user 1's flush is in flight.
+            del db_cog.bot.online_users[2]
+        return await real_to_thread(func, *args, **kwargs)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(database_module.asyncio, "to_thread", racing_to_thread)
+        await db_cog.update_user_durations.coro(db_cog)
+
+    assert 2 not in db_cog.bot.online_users
+    hours = dict(await db_cog.get_all_user_hours())
+    assert hours.get(2, 0) == 0
+    assert hours[1] == pytest.approx(1, abs=0.01)

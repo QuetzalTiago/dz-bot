@@ -11,7 +11,10 @@ from cogs.utils.http import get_json
 class Btc(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.sent_message = None
+        # Keyed by channel id: one instance-wide `sent_message` would let a
+        # `!btc` in a second channel silently take over the periodic-update
+        # target, leaving the first channel's embed stale forever.
+        self.sent_messages = {}
         self.logger = logging.getLogger("discord")
 
     @commands.hybrid_command()
@@ -29,7 +32,7 @@ class Btc(commands.Cog):
             return
 
         embed = self.create_price_embed(btc_price)
-        self.sent_message = await ctx.send(embed=embed)
+        self.sent_messages[ctx.channel.id] = await ctx.send(embed=embed)
         await ctx.message.clear_reactions()
         await ctx.message.add_reaction(DONE)
 
@@ -44,14 +47,21 @@ class Btc(commands.Cog):
         Discord error does not permanently kill the task (a bare `tasks.loop`
         stops for good on the first unhandled exception).
         """
-        if self.sent_message is None:
+        if not self.sent_messages:
             return
         try:
             btc_price = await self.fetch_btc_price()
-            embed = self.create_price_embed(btc_price)
-            await self.sent_message.edit(embed=embed)
         except Exception as e:
-            self.logger.warning("Failed to update BTC price message: %s", e)
+            self.logger.warning("Failed to fetch BTC price: %s", e)
+            return
+
+        embed = self.create_price_embed(btc_price)
+        for channel_id, message in list(self.sent_messages.items()):
+            try:
+                await message.edit(embed=embed)
+            except Exception as e:
+                self.logger.warning("Failed to update BTC price message: %s", e)
+                del self.sent_messages[channel_id]
 
     @btc_price_task.before_loop
     async def before_btc_price_task(self):

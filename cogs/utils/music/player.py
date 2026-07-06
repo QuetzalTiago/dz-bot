@@ -41,7 +41,15 @@ class Player:
             song.message is item[1] for item in self.state.downloader.queue
         )
         pending_in_playlist = any(song.message is s.message for s in playlist.songs)
-        if not pending_download and not pending_in_playlist:
+        # A looped song replays the same Song object each cycle; without the
+        # membership check this appends a duplicate every replay, and each
+        # duplicate turns into a wasted (and logged) failing delete() once the
+        # song is finally cleaned up.
+        if (
+            not pending_download
+            and not pending_in_playlist
+            and song.message not in song.messages_to_delete
+        ):
             song.messages_to_delete.append(song.message)
 
         playlist.set_last_song(song)

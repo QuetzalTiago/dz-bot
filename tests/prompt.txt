@@ -100,6 +100,55 @@ Environment / gotchas learned from past runs (read this before writing new tests
   each thread its own DB, and `_get_*`/`_save_*` hop threads via
   `asyncio.to_thread`) for the second, then call the real `cog._init_engine()`
   so the exact sessionmaker kwargs under test actually run.
+- `DOWNLOAD_DIR` (`cogs/api/youtube.py`) is a single process-wide directory
+  shared by every guild's music session. Any cleanup routine that walks that
+  directory (`Music.cleanup_files`) must build its "keep" set from *every*
+  guild's `GuildMusicState.playlist` (current song + queued songs), not just
+  the guild that triggered the cleanup - otherwise a busy guild's active
+  download gets deleted by another guild finishing a song. Same class of bug
+  as the guild-state-leak this cog was already refactored to fix once; it
+  recurred here because `cleanup_files` was missed in that refactor.
+- Any cog instance attribute that stores a single "last sent message" (e.g.
+  `Btc.sent_message`) is shared across every guild/channel, since discord.py
+  cogs are one instance for the whole bot - a second invocation from a
+  different channel silently steals the periodic-update target and the
+  first channel's embed goes stale forever. Fix: key by channel id in a dict
+  (`self.sent_messages[channel.id] = message`), and drop entries whose
+  `.edit()` fails (message/channel deleted) instead of leaving them forever.
+- `player.py::play()` reuses the same `Song` object every replay of a looped
+  song. Any `messages_to_delete.append(...)` call in that method needs a
+  `not in` membership check, or a looped song accumulates one duplicate
+  message reference per replay - harmless until the loop ends, then each
+  duplicate is a wasted, logged, failing `message.delete()` call.
+- `self.bot.get_cog("Database")` can return `None` (each extension loads in
+  its own try/except in `bot.py`, so a Database load failure doesn't stop
+  the bot) - every call site must guard with `if db is None: ...; return`
+  (see `privacy.py`/`chess.py`/`restart.py` for the pattern) rather than
+  chaining `.get_cog("Database").some_method()` directly. This bug class
+  recurred in `leaderboard.py`, `status.py`, `chess_leaderboard.py`, and
+  `music.py`'s `most_played`/`most_requested` - check any new command that
+  touches the Database cog for the same unguarded chain.
+- Cogs that build a Discord embed from an external API's dict response
+  (`steam.py`, `weather.py`, `ci.py`) must build the embed *inside* the same
+  try/except that wraps the fetch, not after it - `football.py`/
+  `formula1.py`/`ufc.py` already do this correctly. Otherwise a response
+  missing an expected key (e.g. OpenWeatherMap omits `wind.deg` for calm-wind
+  reports) raises an unhandled `KeyError` that leaves the PROCESSING/
+  SEARCHING reaction stuck forever with no reply to the user.
+- To unit-test a cog that calls `get_session().get(url, params=...)` (an
+  aiohttp session used as an async context manager), build a small
+  `FakeResponse` with `status`, `async def json()`, and `async def
+  __aenter__/__aexit__` returning/no-oping self, then `patch("cogs.X.get_session",
+  return_value=fake_session)` where `fake_session.get = MagicMock(return_value=FakeResponse(...))`
+  (see `chess_test.py`, `steam_test.py`, `weather_test.py`). Don't forget
+  `raise_for_status()` on the fake if the cog calls it.
+- To unit-test `cogs/utils/music/player.py::Player`, build a `state` fixture
+  as a plain `MagicMock()` and explicitly set the methods `Player.play()`
+  awaits (`state.playlist.update_message`, `state.playlist.send_song_embed`)
+  to `AsyncMock()` - a bare `MagicMock()` attribute is not awaitable and
+  raises `TypeError` under `await`. To test `handle_idle()`'s timeout logic,
+  patch `cogs.utils.music.player.time.time` (the module-level `time` import,
+  not `time.time` globally) to control elapsed-time calculations directly.
 - Two coroutines can race on a `is_running()`-then-`await
   foo()`-then-`.start()` guard (e.g. `downloader.py::enqueue`) because the
   `await` between the check and the start is a yield point — a second

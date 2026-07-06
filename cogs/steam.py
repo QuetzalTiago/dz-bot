@@ -25,14 +25,13 @@ class Steam(commands.Cog):
         await ctx.message.add_reaction(SEARCHING)
         try:
             game_id, game_details = await self.search_game(game_name)
+            if game_id and game_details:
+                await ctx.send(embed=self.create_game_embed(game_details))
+            else:
+                await ctx.send("Game not found. Please check the name and try again.")
         except Exception:
             self.logger.exception("Steam lookup failed for %s", game_name)
-            game_id, game_details = None, None
-
-        if game_id and game_details:
-            await ctx.send(embed=self.create_game_embed(game_details))
-        else:
-            await ctx.send("Game not found. Please check the name and try again.")
+            await ctx.send("Could not retrieve Steam game info right now.")
 
         await ctx.message.clear_reactions()
         await ctx.message.add_reaction(DONE)

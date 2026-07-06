@@ -34,12 +34,17 @@ class CedulaInfo(commands.Cog):
         await ctx.message.add_reaction(PROCESSING)
         cedula_data = await self.fetch_cedula_info(cedula_id)
 
-        if cedula_data and "resp" in cedula_data:
-            embed = self.create_cedula_embed(cedula_data)
-            await ctx.send(embed=embed)
-            await ctx.message.clear_reactions()
-            await ctx.message.add_reaction(DONE)
-        else:
+        try:
+            if cedula_data and "resp" in cedula_data:
+                embed = self.create_cedula_embed(cedula_data)
+                await ctx.send(embed=embed)
+                await ctx.message.clear_reactions()
+                await ctx.message.add_reaction(DONE)
+            else:
+                await ctx.message.clear_reactions()
+                await ctx.message.add_reaction(ERROR)
+        except Exception:
+            self.logger.exception("Failed to build cedula embed")
             await ctx.message.clear_reactions()
             await ctx.message.add_reaction(ERROR)
 

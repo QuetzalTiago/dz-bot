@@ -379,3 +379,35 @@ async def test_states_are_per_guild(music_cog, bot):
     state_b = music_cog.get_state(guild_b)
     assert state_a is not state_b
     assert music_cog.get_state(guild_a) is state_a
+
+
+@pytest.mark.asyncio
+async def test_cleanup_files_does_not_delete_other_guilds_active_song(
+    music_cog, bot, tmp_path
+):
+    # Regression test: DOWNLOAD_DIR is shared by every guild, so cleanup
+    # triggered by guild A must not delete a file that guild B is actively
+    # using (playing or queued), even though guild A's cleanup call only
+    # knows about its own current song/queue.
+    guild_b = MagicMock(spec=discord.Guild)
+    guild_b.id = 2
+    state_b = music_cog.get_state(guild_b)
+
+    song_a_path = str(tmp_path / "song_a.mp3")
+    song_b_path = str(tmp_path / "song_b.mp3")
+    stale_path = str(tmp_path / "stale.mp3")
+    for path in (song_a_path, song_b_path, stale_path):
+        open(path, "w").close()
+
+    song_a = MagicMock()
+    song_a.path = song_a_path
+    song_b = MagicMock()
+    song_b.path = song_b_path
+    state_b.playlist.current_song = song_b
+
+    with patch("cogs.music.DOWNLOAD_DIR", str(tmp_path)):
+        music_cog.cleanup_files(song_a, [])
+
+    assert os.path.exists(song_a_path)
+    assert os.path.exists(song_b_path)
+    assert not os.path.exists(stale_path)

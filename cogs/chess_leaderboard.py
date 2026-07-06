@@ -15,7 +15,11 @@ class ChessLeaderboard(commands.Cog):
     @commands.cooldown(1, 5, commands.BucketType.channel)
     async def chess_leaderboard(self, ctx):
         """Shows the top 5 players on the chess leaderboard, including their win rates"""
-        matches = await self.bot.get_cog("Database").get_chess_games()
+        db = self.bot.get_cog("Database")
+        if db is None:
+            await ctx.send("Chess leaderboard is temporarily unavailable.")
+            return
+        matches = await db.get_chess_games()
         leaderboard = self.calculate_leaderboard(matches)
 
         if not leaderboard:

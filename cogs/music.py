@@ -65,11 +65,19 @@ class Music(commands.Cog):
         with open(file_name, "rb") as file:
             return await channel.send(file=discord.File(file, file_name))
 
-    # Cleanup: only touches the dedicated downloads directory.
+    # Cleanup: only touches the dedicated downloads directory. DOWNLOAD_DIR is
+    # shared by every guild, so `keep` must cover every guild's current song
+    # and queue, not just the guild that triggered this cleanup - otherwise a
+    # busy guild's files get deleted out from under it.
     def cleanup_files(self, current_song, queue):
         if not os.path.isdir(DOWNLOAD_DIR):
             return
         keep = {current_song.path} | {s.path for s in queue}
+        for state in self.guild_states.values():
+            playlist = state.playlist
+            if playlist.current_song:
+                keep.add(playlist.current_song.path)
+            keep.update(s.path for s in playlist.songs)
         for file_name in os.listdir(DOWNLOAD_DIR):
             full_path = os.path.join(DOWNLOAD_DIR, file_name)
             if full_path in keep:
@@ -244,7 +252,11 @@ class Music(commands.Cog):
     @commands.guild_only()
     async def most_played(self, ctx):
         """Shows most played songs."""
-        most_played_songs = await self.bot.get_cog("Database").get_most_played_songs()
+        db = self.bot.get_cog("Database")
+        if db is None:
+            await ctx.send("Most played songs are temporarily unavailable.")
+            return
+        most_played_songs = await db.get_most_played_songs()
         embed = discord.Embed(title="Top 5 Most Played Songs 🎵", color=0x3498DB)
         for index, (url, title, total_plays) in enumerate(most_played_songs, start=1):
             embed.add_field(
@@ -261,7 +273,11 @@ class Music(commands.Cog):
     @commands.guild_only()
     async def most_requested(self, ctx):
         """Shows the top 5 users with most song requests."""
-        top_users = await self.bot.get_cog("Database").get_most_song_requests()
+        db = self.bot.get_cog("Database")
+        if db is None:
+            await ctx.send("Most requested songs are temporarily unavailable.")
+            return
+        top_users = await db.get_most_song_requests()
         embed = discord.Embed(
             title="Top 5 users with most requested songs 🎵", color=0x3498DB
         )

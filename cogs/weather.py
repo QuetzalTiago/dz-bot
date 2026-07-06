@@ -44,6 +44,8 @@ class Weather(commands.Cog):
                     return
                 response.raise_for_status()
                 data = await response.json()
+            embed = self.create_weather_embed(city, data)
+            await ctx.send(embed=embed)
         except Exception:
             self.logger.exception("Weather lookup failed for %s", city)
             await ctx.message.clear_reactions()
@@ -51,8 +53,6 @@ class Weather(commands.Cog):
             await ctx.send("Could not retrieve weather right now. Try again later.")
             return
 
-        embed = self.create_weather_embed(city, data)
-        await ctx.send(embed=embed)
         await ctx.message.clear_reactions()
         await ctx.message.add_reaction(DONE)
 

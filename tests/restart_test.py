@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from discord.ext import commands
 
 from cogs.restart import Restart
+from cogs.utils.emojis import ERROR
 
 
 @pytest.fixture
@@ -22,6 +23,7 @@ def mock_ctx():
     ctx.message.id = 555
     ctx.message.channel.id = 777
     ctx.message.add_reaction = AsyncMock()
+    ctx.message.clear_reactions = AsyncMock()
     ctx.send = AsyncMock()
     return ctx
 
@@ -69,6 +71,10 @@ async def test_restart_launch_failure_reports_error_and_does_not_close(
 
     ctx.send.assert_awaited_once_with("Failed to trigger restart.")
     mock_bot.close.assert_not_awaited()
+    # Regression: a failed launch must clear the stuck PROCESSING reaction and
+    # show an error indicator, matching every other PROCESSING/DONE/ERROR cog.
+    ctx.message.clear_reactions.assert_awaited_once()
+    ctx.message.add_reaction.assert_awaited_with(ERROR)
 
 
 @pytest.mark.asyncio

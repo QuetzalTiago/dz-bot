@@ -257,7 +257,7 @@ class Music(commands.Cog):
 
         await state.player.skip(ctx.message)
 
-    @commands.hybrid_command(aliases=["top songs", "top", "mtop"])
+    @commands.hybrid_command(aliases=["top", "mtop"])
     @commands.guild_only()
     async def most_played(self, ctx):
         """Shows most played songs."""
@@ -277,7 +277,7 @@ class Music(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.hybrid_command(
-        aliases=["top users", "topreq", "rtop", "topdj", "plays", "reqs"]
+        aliases=["topreq", "rtop", "topdj", "plays", "reqs"]
     )
     @commands.guild_only()
     async def most_requested(self, ctx):

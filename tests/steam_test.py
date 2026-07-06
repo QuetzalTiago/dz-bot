@@ -118,6 +118,24 @@ async def test_gameinfo_search_raises_is_caught(cog):
 
 
 @pytest.mark.asyncio
+async def test_gameinfo_error_clears_reaction_before_a_failing_send(cog):
+    # Regression test: the ERROR reaction must be applied before ctx.send, not
+    # after - otherwise a failing/rate-limited ctx.send (the exact scenario
+    # this except block exists to report) leaves the SEARCHING reaction stuck
+    # forever with no error indicator, matching every sibling API cog's order.
+    ctx = mock_ctx()
+    ctx.send = AsyncMock(side_effect=Exception("discord is down"))
+    with patch.object(
+        cog, "search_game", new=AsyncMock(side_effect=Exception("network down"))
+    ):
+        with pytest.raises(Exception, match="discord is down"):
+            await cog.gameinfo.callback(cog, ctx, game_name="Portal 2")
+
+    ctx.message.clear_reactions.assert_awaited_once()
+    ctx.message.add_reaction.assert_any_call("❌")
+
+
+@pytest.mark.asyncio
 async def test_gameinfo_malformed_details_does_not_crash(cog):
     # Regression test: create_game_embed used to run outside the try/except
     # wrapping search_game, so a Steam response missing an expected key (a

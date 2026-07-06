@@ -52,6 +52,22 @@ async def test_play_starts_playback_and_saves_stats(player, state):
 
 
 @pytest.mark.asyncio
+async def test_play_resets_stale_end_timestamp(player, state):
+    # Regression test: a stale end_timestamp left over from the idle gap
+    # before this song started must be cleared - otherwise the very next
+    # idle tick (once this song ends) computes elapsed_time against a
+    # timestamp from long before this song even started playing, and the
+    # idle timeout looks already-exceeded on its first tick.
+    player.end_timestamp = 1.0
+    song = make_song()
+
+    with patch.object(player, "play_audio"):
+        await player.play(song)
+
+    assert player.end_timestamp is None
+
+
+@pytest.mark.asyncio
 async def test_play_does_not_log_stats_saved_when_database_unavailable(player, state):
     # Regression test: the "Song statistics saved" log line used to fire
     # unconditionally even when the Database cog wasn't loaded (get_cog

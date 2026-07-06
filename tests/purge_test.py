@@ -158,3 +158,94 @@ async def test_cog_setup(monkeypatch):
     bot.add_cog = AsyncMock()
     await purge.setup(bot)
     bot.add_cog.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_cog_load_does_not_start_job_when_auto_purge_disabled(
+    mock_bot, mock_config, monkeypatch
+):
+    monkeypatch.delenv("DZ_AUTO_PURGE", raising=False)
+    from cogs.purge import Purge
+
+    cog = Purge(mock_bot, mock_config)
+    cog.purge_job.start = MagicMock()
+
+    await cog.cog_load()
+
+    cog.purge_job.start.assert_not_called()
+    assert "ping" in cog.cmd_list
+
+
+@pytest.mark.asyncio
+async def test_cog_load_starts_job_when_auto_purge_enabled(
+    mock_bot, mock_config, monkeypatch
+):
+    monkeypatch.setenv("DZ_AUTO_PURGE", "true")
+    from cogs.purge import Purge
+
+    cog = Purge(mock_bot, mock_config)
+    cog.purge_job.start = MagicMock()
+
+    await cog.cog_load()
+
+    cog.purge_job.start.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cog_unload_cancels_running_job(purge_cog_instance):
+    purge_cog_instance.purge_job.is_running = MagicMock(return_value=True)
+    purge_cog_instance.purge_job.cancel = MagicMock()
+
+    await purge_cog_instance.cog_unload()
+
+    purge_cog_instance.purge_job.cancel.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cog_unload_noop_when_job_not_running(purge_cog_instance):
+    purge_cog_instance.purge_job.is_running = MagicMock(return_value=False)
+    purge_cog_instance.purge_job.cancel = MagicMock()
+
+    await purge_cog_instance.cog_unload()
+
+    purge_cog_instance.purge_job.cancel.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_purge_job_continues_after_one_guild_raises(
+    purge_cog_instance, mock_bot
+):
+    # A single guild's purge failing (e.g. missing "Manage Messages") must not
+    # stop the loop from purging every other guild.
+    failing_guild = make_guild("failing-guild", ["general"])
+    failing_guild.text_channels[0].purge = AsyncMock(
+        side_effect=Exception("Missing Permissions")
+    )
+    mock_bot.guilds.insert(0, failing_guild)
+    good_guild = mock_bot.guilds[1]
+    purge_cog_instance.bot.logger = MagicMock()
+
+    await purge_cog_instance.purge_job()  # must not raise
+
+    assert good_guild.text_channels[0].purge.await_count == 2
+    purge_cog_instance.bot.logger.exception.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_before_purge_job_waits_until_ready(purge_cog_instance, mock_bot):
+    mock_bot.wait_until_ready = AsyncMock()
+
+    await purge_cog_instance._before_purge_job()
+
+    mock_bot.wait_until_ready.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_purge_job_error_logs_exception(purge_cog_instance):
+    purge_cog_instance.bot.logger = MagicMock()
+    error = RuntimeError("loop blew up")
+
+    await purge_cog_instance._purge_job_error(error)
+
+    purge_cog_instance.bot.logger.exception.assert_called_once()
+    assert purge_cog_instance.bot.logger.exception.call_args.kwargs["exc_info"] is error

@@ -65,8 +65,11 @@ def load_config() -> Dict[str, Any]:
             target = key[len("DZ_") :]
             existing_key = _env_to_existing_key(config, target)
             # Never let a scalar env value clobber a nested section (e.g. a
-            # stray DZ_SECRETS would otherwise replace the "secrets" dict).
-            if not isinstance(config.get(existing_key), dict):
+            # stray DZ_SECRETS would otherwise replace the "secrets" dict) or
+            # a list-valued key (e.g. DZ_OWNERS would otherwise replace the
+            # "owners" list with a raw string, which bot.py's _load_owner_ids
+            # then iterates character-by-character).
+            if not isinstance(config.get(existing_key), (dict, list)):
                 config[existing_key] = value
 
     return config

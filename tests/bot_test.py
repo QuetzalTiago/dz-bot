@@ -279,6 +279,21 @@ async def test_on_command_error_logs_and_sends_generic_message_for_unknown_error
 
 
 @pytest.mark.asyncio
+async def test_on_command_error_swallows_send_failure(khaled):
+    # If the channel/command context is already gone (e.g. concurrent purge),
+    # ctx.send raising must not propagate out of the error handler itself.
+    ctx = MagicMock()
+    ctx.send = AsyncMock(side_effect=discord.DiscordException("channel gone"))
+    ctx.command = MagicMock()
+    ctx.command.name = "somecmd"
+    khaled.logger = MagicMock()
+
+    await khaled.on_command_error(ctx, RuntimeError("kaboom"))  # must not raise
+
+    ctx.send.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_update_online_users_tracks_humans_not_bots_and_does_not_reset_join_time(
     khaled,
 ):

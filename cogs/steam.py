@@ -30,14 +30,14 @@ class Steam(commands.Cog):
                 await ctx.message.clear_reactions()
                 await ctx.message.add_reaction(DONE)
             else:
-                await ctx.send("Game not found. Please check the name and try again.")
                 await ctx.message.clear_reactions()
                 await ctx.message.add_reaction(ERROR)
+                await ctx.send("Game not found. Please check the name and try again.")
         except Exception:
             self.logger.exception("Steam lookup failed for %s", game_name)
-            await ctx.send("Could not retrieve Steam game info right now.")
             await ctx.message.clear_reactions()
             await ctx.message.add_reaction(ERROR)
+            await ctx.send("Could not retrieve Steam game info right now.")
 
     async def search_game(self, game_name):
         session = get_session()

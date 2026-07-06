@@ -19,7 +19,9 @@ def playlist(state):
 
 def make_song(title="song"):
     message = MagicMock()
-    return Song("path", {"title": title}, message)
+    return Song(
+        "path", {"title": title, "original_url": f"http://example.com/{title}"}, message
+    )
 
 
 def test_empty_true_when_no_songs_and_not_looping(playlist):
@@ -172,3 +174,137 @@ async def test_send_song_embed_reflects_loop_state(playlist):
 
     embed = song.message.channel.send.call_args.kwargs["embed"]
     assert any("Loop" in field.name or "Loop" in field.value for field in embed.fields)
+
+
+@pytest.mark.asyncio
+async def test_send_song_embed_returns_none_and_logs_on_send_failure(playlist):
+    song = make_song("Doomed Song")
+    song.message.channel.send = AsyncMock(side_effect=Exception("channel gone"))
+
+    result = await playlist.send_song_embed(song)
+
+    assert result is None
+    assert song.embed_message is None
+
+
+def test_handle_index_shuffle_picks_within_range(playlist, monkeypatch):
+    playlist.shuffle = True
+    playlist.songs = [make_song("a"), make_song("b"), make_song("c")]
+    monkeypatch.setattr("cogs.utils.music.playlist.random.randint", lambda a, b: 2)
+
+    assert playlist._handle_index() == 2
+
+
+def test_handle_index_no_shuffle_or_empty_returns_zero(playlist):
+    playlist.shuffle = False
+    playlist.songs = [make_song("a")]
+    assert playlist._handle_index() == 0
+
+    playlist.shuffle = True
+    playlist.songs = []
+    assert playlist._handle_index() == 0
+
+
+def test_set_last_song(playlist):
+    song = make_song()
+    playlist.set_last_song(song)
+    assert playlist.last_song is song
+
+
+@pytest.mark.asyncio
+async def test_delete_song_log_deletes_all_messages_and_clears_list(playlist):
+    song = make_song()
+    msg1, msg2 = MagicMock(), MagicMock()
+    msg1.delete = AsyncMock()
+    msg2.delete = AsyncMock()
+    song.messages_to_delete = [msg1, msg2]
+
+    await playlist.delete_song_log(song)
+
+    msg1.delete.assert_awaited_once()
+    msg2.delete.assert_awaited_once()
+    assert song.messages_to_delete == []
+
+
+@pytest.mark.asyncio
+async def test_delete_song_log_continues_past_delete_failure(playlist):
+    song = make_song()
+    ok_msg = MagicMock()
+    ok_msg.delete = AsyncMock()
+    failing_msg = MagicMock()
+    failing_msg.delete = AsyncMock(side_effect=Exception("already deleted"))
+    song.messages_to_delete = [failing_msg, ok_msg]
+
+    await playlist.delete_song_log(song)  # must not raise
+
+    ok_msg.delete.assert_awaited_once()
+    assert song.messages_to_delete == []
+
+
+@pytest.mark.asyncio
+async def test_update_curr_song_message_noop_without_current_song(playlist):
+    playlist.current_song = None
+    await playlist.update_curr_song_message()  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_update_curr_song_message_noop_without_embed_message(playlist):
+    song = make_song()
+    song.current_seconds = 0
+    song.embed_message = None
+    playlist.current_song = song
+
+    await playlist.update_curr_song_message()
+
+    assert song.current_seconds > 0
+
+
+@pytest.mark.asyncio
+async def test_update_curr_song_message_edits_existing_embed(playlist):
+    song = make_song()
+    song.current_seconds = 0
+    song.embed_message = MagicMock()
+    song.embed_message.edit = AsyncMock()
+    playlist.current_song = song
+
+    await playlist.update_curr_song_message()
+
+    song.embed_message.edit.assert_awaited_once()
+    assert "embed" in song.embed_message.edit.call_args.kwargs
+
+
+@pytest.mark.asyncio
+async def test_update_curr_song_message_swallows_edit_failure(playlist):
+    song = make_song()
+    song.embed_message = MagicMock()
+    song.embed_message.edit = AsyncMock(side_effect=Exception("message gone"))
+    playlist.current_song = song
+
+    await playlist.update_curr_song_message()  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_update_message_noop_without_sent_message(playlist):
+    playlist.sent_message = None
+    await playlist.update_message()  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_update_message_edits_sent_message_with_current_embed(playlist):
+    playlist.sent_message = MagicMock()
+    playlist.sent_message.edit = AsyncMock()
+    playlist.songs = [make_song("Queued")]
+
+    await playlist.update_message()
+
+    playlist.sent_message.edit.assert_awaited_once()
+    embed = playlist.sent_message.edit.call_args.kwargs["embed"]
+    assert "Queued" in embed.description
+
+
+@pytest.mark.asyncio
+async def test_update_message_swallows_edit_failure(playlist):
+    playlist.sent_message = MagicMock()
+    playlist.sent_message.edit = AsyncMock(side_effect=Exception("message gone"))
+
+    await playlist.update_message()  # must not raise

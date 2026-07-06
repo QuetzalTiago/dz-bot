@@ -74,6 +74,25 @@ def test_config_env_override_new_top_level_key_uses_camel_case_key(monkeypatch, 
     config_mod.reset_cache()
 
 
+def test_config_env_override_does_not_clobber_list_valued_key(monkeypatch, tmp_path):
+    # Regression test: DZ_OWNERS is documented as a *separate* override read
+    # directly by bot.py::_load_owner_ids, but the generic DZ_<KEY> loop's
+    # camelCase mapping for "owners" collides with the same env var name. If
+    # the generic loop clobbers "owners" (a list) with the raw env string,
+    # _load_owner_ids' `for raw_id in config.get("owners", [])` iterates over
+    # the string's characters instead of parsing an actual list of IDs.
+    cfg = tmp_path / "config.json"
+    cfg.write_text('{"owners": [111, 222], "secrets": {}}')
+    monkeypatch.setattr(config_mod, "CONFIG_PATH", str(cfg))
+    config_mod.reset_cache()
+    monkeypatch.setenv("DZ_OWNERS", "123,456")
+
+    loaded = config_mod.load_config()
+
+    assert loaded["owners"] == [111, 222]
+    config_mod.reset_cache()
+
+
 def test_load_config_missing_file_returns_empty_config(monkeypatch, tmp_path):
     missing = tmp_path / "does-not-exist.json"
     monkeypatch.setattr(config_mod, "CONFIG_PATH", str(missing))

@@ -25,6 +25,10 @@ class Player:
         playlist = self.state.playlist
         self.logger.info("Starting playback")
         self.play_audio(song.path)
+        # A stale end_timestamp from the idle gap before this song started
+        # would otherwise make the next idle period look like it's already
+        # exceeded idle_timeout on its very first tick.
+        self.end_timestamp = None
         playlist.set_current_song(song)
         self.logger.info(f"Playing song: {song.title}")
 

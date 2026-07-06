@@ -400,6 +400,69 @@ async def test_playlist_command(music_cog, bot):
         assert state.playlist.user_req_message == ctx.message
 
 
+# ---- most_played / most_requested -----------------------------------------
+
+def test_most_played_and_most_requested_have_no_multiword_aliases(music_cog):
+    # Regression test: discord.py's prefix-command parser only ever extracts
+    # a single whitespace-delimited word as invoked_with, so a multi-word
+    # alias like "top users" is never routed to its own command - it's parsed
+    # as "top" (an alias of the *other* command, most_played), silently
+    # invoking the wrong command instead of just being unreachable. Same bug
+    # class already fixed once in chess_leaderboard.py.
+    for alias in music_cog.most_played.aliases:
+        assert " " not in alias
+    for alias in music_cog.most_requested.aliases:
+        assert " " not in alias
+
+
+@pytest.mark.asyncio
+async def test_most_played_without_database(music_cog, bot):
+    ctx = mock_ctx(bot)
+    with patch.object(bot, "get_cog", return_value=None):
+        await call(music_cog.most_played, music_cog, ctx)
+    ctx.send.assert_awaited_once_with("Most played songs are temporarily unavailable.")
+
+
+@pytest.mark.asyncio
+async def test_most_played_with_database_builds_embed(music_cog, bot):
+    ctx = mock_ctx(bot)
+    db = MagicMock()
+    db.get_most_played_songs = AsyncMock(
+        return_value=[("http://example.com/a", "Song A", 3)]
+    )
+    with patch.object(bot, "get_cog", return_value=db):
+        await call(music_cog.most_played, music_cog, ctx)
+
+    embed = ctx.send.call_args.kwargs["embed"]
+    assert embed.title == "Top 5 Most Played Songs 🎵"
+    assert "[Song A](http://example.com/a)" in embed.fields[0].value
+    assert "3" in embed.fields[0].value
+
+
+@pytest.mark.asyncio
+async def test_most_requested_without_database(music_cog, bot):
+    ctx = mock_ctx(bot)
+    with patch.object(bot, "get_cog", return_value=None):
+        await call(music_cog.most_requested, music_cog, ctx)
+    ctx.send.assert_awaited_once_with(
+        "Most requested songs are temporarily unavailable."
+    )
+
+
+@pytest.mark.asyncio
+async def test_most_requested_with_database_builds_embed(music_cog, bot):
+    ctx = mock_ctx(bot)
+    db = MagicMock()
+    db.get_most_song_requests = AsyncMock(return_value=[(42, 7)])
+    with patch.object(bot, "get_cog", return_value=db):
+        await call(music_cog.most_requested, music_cog, ctx)
+
+    embed = ctx.send.call_args.kwargs["embed"]
+    assert embed.title == "Top 5 users with most requested songs 🎵"
+    assert "<@42>" in embed.fields[0].value
+    assert "7" in embed.fields[0].value
+
+
 # ---- per-guild isolation -------------------------------------------------
 
 @pytest.mark.asyncio

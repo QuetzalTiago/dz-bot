@@ -4,7 +4,7 @@ import subprocess
 from discord.ext import commands
 
 from cogs.utils.checks import is_owner_or_admin
-from cogs.utils.emojis import PROCESSING
+from cogs.utils.emojis import ERROR, PROCESSING
 
 
 class Restart(commands.Cog):
@@ -24,6 +24,8 @@ class Restart(commands.Cog):
             subprocess.Popen(["aws/scripts/application-start.sh"])
         except OSError:
             self.logger.exception("Failed to launch restart script")
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(ERROR)
             await ctx.send("Failed to trigger restart.")
             return
 

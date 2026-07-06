@@ -478,3 +478,49 @@ Environment / gotchas learned from past runs (read this before writing new tests
   a moment earlier can still very rarely land after the delete, which is an
   accepted narrow edge at the boundary of concurrent request handling, not a
   crash).
+- `cogs/utils/config.py`'s generic `DZ_<KEY>` env-override loop only guarded
+  against clobbering **dict**-valued top-level keys (the `secrets` section) -
+  but `config.json`'s `owners` key is a **list**, and `_camel_to_env("owners")`
+  == `"OWNERS"` collides with the separately-documented `DZ_OWNERS` env var
+  that `bot.py::_load_owner_ids` also reads directly. Setting `DZ_OWNERS`
+  clobbered `config["owners"]` (a list) with the raw env string, and
+  `_load_owner_ids`'s `for raw_id in config.get("owners", [])` then iterated
+  over the *characters* of that string, adding bogus single-digit "owner" ids.
+  Fixed by widening the guard to skip any non-scalar value: `isinstance(...,
+  (dict, list))`, not just `dict`. Check any future top-level config key that
+  is a list (not just the known `secrets` dict) for the same clobber risk.
+- `cogs/restart.py::restart()`'s `OSError` branch (missing/non-executable
+  restart script) logged the exception and sent a text reply, but never
+  cleared the `PROCESSING` reaction or added `ERROR` - unlike every other
+  PROCESSING/DONE/ERROR cog (`div.py`, `weather.py`, `steam.py`, etc.), which
+  clear-then-react on both success and failure. Fixed to match; the message
+  was left showing a stuck hourglass forever with no visual failure indicator.
+- `cogs/utils/music/player.py::play()` never reset `self.end_timestamp` when
+  starting a new song - only `resume()` and `stop()` did. `handle_idle()` sets
+  `end_timestamp` on any idle tick between songs (the normal gap while the
+  next song downloads); if playback then starts, plays a while, and goes idle
+  again, `handle_idle()`'s `elapsed_time = now - end_timestamp` measured
+  against the *stale* pre-previous-song timestamp - already exceeding
+  `idle_timeout` on the very first tick, since that gap included the entire
+  previous song's play time - so the bot disconnected and wiped the queue
+  almost immediately after the next idle gap instead of waiting a genuine
+  300s. Fixed by resetting `self.end_timestamp = None` in `play()`, matching
+  `resume()`.
+- `cogs/music.py`'s `most_played`/`most_requested` hybrid_command alias lists
+  included multi-word (space-containing) aliases (`"top songs"`, `"top
+  users"`) - same bug class already fixed once in `chess_leaderboard.py`
+  (see above): discord.py's prefix-command parser only ever extracts a single
+  whitespace-delimited word as `invoked_with`, so `"top users"` was actually
+  parsed as the single word `"top"`, which is `most_played`'s alias - silently
+  routing to the *wrong* command instead of just being unreachable. Fixed by
+  dropping both multi-word aliases. Check any new/edited hybrid_command's
+  `aliases=[...]` for a stray space whenever one is added.
+- `cogs/steam.py::gameinfo()`'s "not found" and `except Exception` branches
+  called `ctx.send(...)` *before* `ctx.message.clear_reactions()` /
+  `add_reaction(ERROR)`, the reverse of every sibling cog (`weather.py`,
+  `football.py`, `btc.py`, etc.), which clear-and-react *first*, then send.
+  If `ctx.send` itself fails in that window (rate limit, `HTTPException`) -
+  exactly the class of failure the `except` block exists to report - the
+  reaction update never runs, leaving the `SEARCHING` reaction stuck forever
+  with no error indicator. Fixed by reordering to match every sibling cog.
+  Check any new/edited API-fetch cog's error branch for the same order.

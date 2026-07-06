@@ -156,6 +156,7 @@ class Downloader:
         else:
             songs = [(query, message, False)]
 
+        dropped = 0
         for song in songs:
             if song not in self.queue:
                 playlist = self.state.playlist
@@ -164,6 +165,16 @@ class Downloader:
                     self.queue.append(song)
                     if self.queue_cancelled:
                         self.set_queue_cancelled(False)
+                else:
+                    dropped += 1
+
+        if dropped:
+            # Otherwise a full playlist/album import silently drops the songs
+            # that don't fit, with no indication anything was left out.
+            await message.channel.send(
+                f"Queue is full ({self.state.playlist.max_size} max) - "
+                f"{dropped} song(s) from this request were not added."
+            )
 
         async with self._start_lock:
             if not self.process_queue.is_running():

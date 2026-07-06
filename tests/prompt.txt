@@ -262,3 +262,58 @@ Environment / gotchas learned from past runs (read this before writing new tests
   with an async wrapper that mutates `db_cog.bot.online_users` for a
   *different* key before delegating to the real `to_thread`, simulating the
   interleaving.
+- `bot.py::on_ready` can fire more than once per process (discord.py re-fires
+  it after a full reconnect, not just on initial login) - `update_online_users()`
+  must not unconditionally overwrite `online_users[member.id]` for a member
+  it already knows about, or a reconnect mid-session resets their tracked
+  join time and silently discards whatever duration had already accrued.
+  Fixed with `setdefault` instead of a blind assignment.
+- `cogs/utils/config.py::_env_to_existing_key()`'s fallback path (used when an
+  env-var-supplied secret/key has *no* matching entry already in
+  config.json - the documented "no config file, env vars only" deployment
+  mode) must produce the same camelCase convention every consumer reads
+  (`config["secrets"]["geniusApiKey"]`, etc.), not a snake_case key derived
+  straight from the env var name - the value would otherwise be stored under
+  a key nothing looks up and raise `KeyError` at cog init. Fixed by adding
+  `_env_to_camel()` and using it as the fallback instead of `.lower()`.
+- `cogs/purge.py::purge_job` iterates every guild but had no per-guild
+  try/except (unlike `btc_price_task`, which was already hardened against
+  this) - one guild raising (e.g. missing "Manage Messages") lets the
+  exception escape `discord.ext.tasks`, which is not in its short retryable
+  list, so the *entire* loop task dies and auto-purge silently stops for
+  every guild until the process restarts. Fixed by wrapping the per-guild
+  purge body in try/except.
+- `cogs/restart.py::restart()` used to call `db.set_startup_notification(...)`
+  *before* attempting `subprocess.Popen(...)` - if `Popen` raises `OSError`
+  (e.g. the restart script is missing/non-executable), the DB write already
+  happened, so the next unrelated restart (crash, manual redeploy) reads that
+  stale notification in `bot.py::on_ready` and falsely marks the old failed
+  command's message as done. Fixed by only writing the notification after
+  `Popen` succeeds.
+- `cogs/chess_leaderboard.py`'s hybrid_command alias list included
+  `"chess leaderboard"` (a literal string with a space) - discord.py's
+  prefix-command parser only ever extracts a single whitespace-delimited
+  word as `invoked_with`, so that alias could never route correctly; typing
+  it actually invoked the unrelated `chess` command in `cogs/chess.py` with
+  `"leaderboard"` as its `minutes: int` argument, which fails to parse.
+  Multi-word aliases don't work for prefix commands - don't reintroduce one.
+- `cogs/football.py`'s fixture-venue lookup indexed
+  `fixture["fixture"]["venue"]["name"]` assuming `venue` is always a dict;
+  API-Sports can return `venue: null` for an unconfirmed venue, and a single
+  such fixture in the `next=12` batch raised `TypeError`, failing the whole
+  "Premier League Upcoming Fixtures" embed instead of just that one row. Use
+  `(fixture["fixture"]["venue"] or {}).get("name")`. Check `formula1.py`/
+  `ufc.py` for the same nullable-nested-dict shape if API-Sports fields are
+  ever added there.
+- `downloader.py::enqueue()` silently dropped songs that didn't fit under
+  `playlist.max_size` (e.g. importing a large Spotify playlist/album) with no
+  feedback to the requester - the request just looked like it worked with
+  fewer songs. Fixed by counting drops and sending one "queue is full, N
+  song(s) not added" message per `enqueue()` call when anything was dropped.
+- Any `downloader_test.py` test that calls `enqueue()` without first stubbing
+  `downloader.download_next_song` risks `process_queue.start()` actually
+  starting the real task loop (since `process_queue.is_running()` is False on
+  a fresh fixture) - that test must `await cancel_and_wait(downloader.process_queue)`
+  before returning, or pytest-asyncio closes the loop out from under the
+  still-running task and the *next* test (or the fixture's own teardown)
+  raises `RuntimeError: Event loop is closed` instead of the real failure.

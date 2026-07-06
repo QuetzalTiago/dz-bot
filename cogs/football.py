@@ -74,7 +74,7 @@ class Football(commands.Cog):
                 local_dt = to_local(fixture["fixture"]["date"])
                 home_team = fixture["teams"]["home"]["name"]
                 away_team = fixture["teams"]["away"]["name"]
-                venue = fixture["fixture"]["venue"]["name"] or "Unknown"
+                venue = (fixture["fixture"]["venue"] or {}).get("name") or "Unknown"
                 fixtures_by_date[local_dt.strftime("%Y-%m-%d")].append(
                     f"**{home_team} vs {away_team}**\n{venue}, **{local_dt.strftime('%H:%M')}**"
                 )

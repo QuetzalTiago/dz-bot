@@ -72,16 +72,24 @@ def load_config() -> Dict[str, Any]:
     return config
 
 
+def _env_to_camel(env_suffix: str) -> str:
+    """Convert an UPPER_SNAKE env suffix to the camelCase key convention."""
+    first, *rest = env_suffix.lower().split("_")
+    return first + "".join(word.capitalize() for word in rest)
+
+
 def _env_to_existing_key(section: Dict[str, Any], env_suffix: str) -> str:
     """Find an existing camelCase key whose UPPER_SNAKE form matches env_suffix.
 
-    Falls back to the lowercased suffix when there is no existing key so brand
-    new values can still be injected from the environment.
+    Falls back to the camelCase form of the suffix when there is no existing
+    key, so brand new values (e.g. a secret with no entry in config.json at
+    all) still land under the key every consumer reads, not a snake_case key
+    nothing looks up.
     """
     for existing in section:
         if _camel_to_env(existing) == env_suffix:
             return existing
-    return env_suffix.lower()
+    return _env_to_camel(env_suffix)
 
 
 def get_secret(name: str, required: bool = True) -> Optional[str]:

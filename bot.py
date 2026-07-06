@@ -107,12 +107,16 @@ class Khaled(commands.AutoShardedBot):
             pass
 
     async def update_online_users(self):
+        # on_ready can fire more than once per process (e.g. after a full
+        # reconnect), so this must not reset the join time of a member who
+        # was already being tracked - that would discard their accrued
+        # duration since their real join.
         for guild in self.guilds:
             for voice_channel in guild.voice_channels:
                 for member in voice_channel.members:
                     if not member.bot:
-                        self.online_users[member.id] = datetime.datetime.now(
-                            datetime.timezone.utc
+                        self.online_users.setdefault(
+                            member.id, datetime.datetime.now(datetime.timezone.utc)
                         )
 
     async def on_voice_state_update(self, member, before, after):

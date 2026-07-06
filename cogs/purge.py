@@ -70,10 +70,17 @@ class Purge(commands.Cog):
             channel = self._first_text_channel(guild)
             if channel is None:
                 continue
-            await channel.purge(limit=50, check=self.is_bot_or_command)
-            await channel.purge(
-                limit=50, check=lambda m: self.is_bot_or_command(m, params=True)
-            )
+            try:
+                await channel.purge(limit=50, check=self.is_bot_or_command)
+                await channel.purge(
+                    limit=50, check=lambda m: self.is_bot_or_command(m, params=True)
+                )
+            except Exception:
+                # A single guild's purge failing (e.g. missing "Manage Messages")
+                # must not kill the loop for every other guild.
+                self.bot.logger.exception(
+                    "Auto-purge failed for guild %s", guild.id
+                )
 
     @purge_job.before_loop
     async def _before_purge_job(self):

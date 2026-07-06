@@ -163,3 +163,36 @@ async def test_download_next_song_reacts_success_only_after_song_is_queued(
     state.cog_success.assert_awaited_once_with(message)
     state.cog_failure.assert_not_awaited()
     state.playlist.update_message.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_enqueue_notifies_when_queue_is_full(downloader, state):
+    # Regression test: enqueue() used to silently drop songs that didn't fit
+    # under playlist.max_size (e.g. a large Spotify playlist import), with no
+    # indication to the requester that anything was left out.
+    downloader.download_next_song = AsyncMock()
+    state.playlist.max_size = 1
+    downloader.queue = [("already queued song", MagicMock(), False)]
+
+    message = MagicMock()
+    message.channel.send = AsyncMock()
+
+    await downloader.enqueue("some new song", message)
+
+    assert ("some new song", message, False) not in downloader.queue
+    message.channel.send.assert_awaited_once()
+    assert "not added" in message.channel.send.call_args[0][0]
+    await cancel_and_wait(downloader.process_queue)
+
+
+@pytest.mark.asyncio
+async def test_enqueue_does_not_notify_when_song_fits(downloader, state):
+    downloader.download_next_song = AsyncMock()
+    message = MagicMock()
+    message.channel.send = AsyncMock()
+
+    await downloader.enqueue("some new song", message)
+
+    assert ("some new song", message, False) in downloader.queue
+    message.channel.send.assert_not_awaited()
+    await cancel_and_wait(downloader.process_queue)

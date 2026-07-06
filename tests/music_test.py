@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -321,3 +323,36 @@ async def test_states_are_per_guild(music_cog, bot):
     state_b = music_cog.get_state(guild_b)
     assert state_a is not state_b
     assert music_cog.get_state(guild_a) is state_a
+
+
+def test_cleanup_files_spares_other_guilds_songs(music_cog, bot, tmp_path):
+    """DOWNLOAD_DIR is shared by the whole process (one process, many guilds).
+
+    A cleanup triggered by guild A's playback must not delete a file that
+    guild B is still playing or has queued, even though guild A only knows
+    about its own current song and playlist.
+    """
+    guild_a = MagicMock(spec=discord.Guild)
+    guild_a.id = 1
+    guild_b = MagicMock(spec=discord.Guild)
+    guild_b.id = 2
+    music_cog.get_state(guild_a)
+    state_b = music_cog.get_state(guild_b)
+
+    a_playing = tmp_path / "a-playing.mp3"
+    b_playing = tmp_path / "b-playing.mp3"
+    b_queued = tmp_path / "b-queued.mp3"
+    orphan = tmp_path / "orphan.mp3"
+    for f in (a_playing, b_playing, b_queued, orphan):
+        f.write_bytes(b"data")
+
+    state_b.playlist.current_song = SimpleNamespace(path=str(b_playing))
+    state_b.playlist.songs = [SimpleNamespace(path=str(b_queued))]
+
+    with patch("cogs.music.DOWNLOAD_DIR", str(tmp_path)):
+        music_cog.cleanup_files(SimpleNamespace(path=str(a_playing)), [])
+
+    assert a_playing.exists()
+    assert b_playing.exists()
+    assert b_queued.exists()
+    assert not orphan.exists()

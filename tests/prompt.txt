@@ -36,3 +36,54 @@ Here is the cog code:
 
 python
 # Insert your cog code here
+
+---
+
+Repo-specific gotchas (learned the hard way — check here before re-debugging these):
+
+- Run tests with `python -m pytest`, not a bare `pytest` on PATH. On this
+  environment `pytest` resolves to a separate uv-tool install that doesn't have
+  `discord.py`/etc. installed, so it fails every collection with
+  `ModuleNotFoundError: No module named 'discord'`. `python -m pytest` uses the
+  interpreter that actually has `requirements-dev.txt` installed.
+- `commands.Bot.user` is a read-only property (backed by `Client._connection`).
+  You cannot do `bot.user = Mock(id=...)` on a real `commands.Bot()` instance —
+  it raises `AttributeError: property 'user' has no setter`. Either use
+  `MagicMock(spec=commands.Bot)` (settable) as the bot fixture when a test
+  needs `bot.user`, or set it on a real bot via
+  `bot.user = MagicMock(spec=discord.ClientUser)` only works on the mock spec,
+  not a live Bot. See `tests/purge_test.py` for the `spec=commands.Bot` pattern
+  and `tests/leaderboard_test.py` for another example.
+- Prefer real `commands.Bot(command_prefix=..., intents=...)` instances only
+  when the test doesn't need to stub `bot.user`/`bot.get_cog` in ways that
+  conflict with real properties; otherwise `MagicMock(spec=commands.Bot)` is
+  simpler and avoids intents/gateway setup entirely.
+- Cogs that call `self.bot.get_cog("Database")` are tested by setting
+  `bot.get_cog = Mock(return_value=<MagicMock with the async methods the cog
+  calls set to AsyncMock>)` — don't try to construct a real `Database` cog in
+  unit tests, it opens a real SQL engine in `cog_load`.
+- Test real computed behavior, not mock call assertions alone: e.g. for
+  `chess_leaderboard.calculate_leaderboard`, assert on the actual win/win-rate
+  numbers produced from constructed game objects (`SimpleNamespace` with
+  `.winner`/`.players` is enough — no need for the real `ChessGame` SQLAlchemy
+  model in unit tests). For `leaderboard.py`, assert on the actual ordering and
+  exclusion of the bot's own user id in the rendered message, not just that
+  `ctx.send` was awaited.
+- `cogs/music.py`'s `cleanup_files` scans `DOWNLOAD_DIR`, which is a single
+  process-wide directory shared by every guild (not per-guild). A test for it
+  must patch `cogs.music.DOWNLOAD_DIR` (the name as imported into `music.py`,
+  not `cogs.api.youtube.DOWNLOAD_DIR`) to a `tmp_path`, and must populate
+  `Music.guild_states[guild_id].playlist.current_song`/`.songs` for *other*
+  guilds to verify their files are spared — a regression test that only looks
+  at the calling guild's state would not have caught the cross-guild deletion
+  bug fixed in this repo's history.
+- Coverage floor lives in `.github/workflows/deploy.yml` as `COV_FAIL_UNDER`
+  under the `test` job's `Run tests with coverage` step — it's a ratchet
+  (raise it when coverage improves, round down, never above 80, never above
+  what `pytest --cov=cogs --cov=bot --cov-report=term-missing` actually
+  measures).
+- Zero-coverage cogs as of this session: `ai.py`, `btc.py`, `ci.py`,
+  `database.py`, `formula1.py`, `restart.py`, `steam.py`, `ufc.py`,
+  `weather.py`. `chess_leaderboard.py`, `leaderboard.py`, `privacy.py`,
+  `status.py` were brought to ~95-98% this session — check current
+  `--cov-report=term-missing` output before assuming these are still gaps.

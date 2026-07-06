@@ -69,6 +69,14 @@ class Music(commands.Cog):
         if not os.path.isdir(DOWNLOAD_DIR):
             return
         keep = {current_song.path} | {s.path for s in queue}
+        # DOWNLOAD_DIR is shared by the whole process, not per guild, so a
+        # cleanup triggered by one guild must also spare every other guild's
+        # currently playing/queued songs, or it deletes their audio files
+        # out from under them.
+        for state in self.guild_states.values():
+            if state.playlist.current_song:
+                keep.add(state.playlist.current_song.path)
+            keep.update(s.path for s in state.playlist.songs)
         for file_name in os.listdir(DOWNLOAD_DIR):
             full_path = os.path.join(DOWNLOAD_DIR, file_name)
             if full_path in keep:

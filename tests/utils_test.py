@@ -1,4 +1,6 @@
+import json
 
+import pytest
 
 from cogs.utils import config as config_mod
 from cogs.utils.checks import is_owner_or_admin, require_manage_messages
@@ -69,6 +71,70 @@ def test_config_env_override_new_top_level_key_uses_camel_case_key(monkeypatch, 
     loaded = config_mod.load_config()
     assert loaded["aiModel"] == "env-model"
     assert "ai_model" not in loaded
+    config_mod.reset_cache()
+
+
+def test_load_config_missing_file_returns_empty_config(monkeypatch, tmp_path):
+    missing = tmp_path / "does-not-exist.json"
+    monkeypatch.setattr(config_mod, "CONFIG_PATH", str(missing))
+    config_mod.reset_cache()
+
+    loaded = config_mod.load_config()
+
+    assert loaded == {"secrets": {}}
+    config_mod.reset_cache()
+
+
+def test_load_config_invalid_json_raises(monkeypatch, tmp_path):
+    cfg = tmp_path / "config.json"
+    cfg.write_text("{not valid json")
+    monkeypatch.setattr(config_mod, "CONFIG_PATH", str(cfg))
+    config_mod.reset_cache()
+
+    with pytest.raises(json.JSONDecodeError):
+        config_mod.load_config()
+    config_mod.reset_cache()
+
+
+def test_get_secret_reads_from_config_file(monkeypatch, tmp_path):
+    cfg = tmp_path / "config.json"
+    cfg.write_text('{"secrets": {"discordToken": "file-token"}}')
+    monkeypatch.setattr(config_mod, "CONFIG_PATH", str(cfg))
+    config_mod.reset_cache()
+
+    assert config_mod.get_secret("discordToken") == "file-token"
+    config_mod.reset_cache()
+
+
+def test_get_secret_falls_back_to_env_var(monkeypatch, tmp_path):
+    cfg = tmp_path / "config.json"
+    cfg.write_text('{"secrets": {}}')
+    monkeypatch.setattr(config_mod, "CONFIG_PATH", str(cfg))
+    config_mod.reset_cache()
+    monkeypatch.setenv("DZ_SECRET_GENIUS_API_KEY", "env-genius-key")
+
+    assert config_mod.get_secret("geniusApiKey") == "env-genius-key"
+    config_mod.reset_cache()
+
+
+def test_get_secret_missing_required_raises_keyerror(monkeypatch, tmp_path):
+    cfg = tmp_path / "config.json"
+    cfg.write_text('{"secrets": {}}')
+    monkeypatch.setattr(config_mod, "CONFIG_PATH", str(cfg))
+    config_mod.reset_cache()
+
+    with pytest.raises(KeyError):
+        config_mod.get_secret("someMissingSecret")
+    config_mod.reset_cache()
+
+
+def test_get_secret_missing_optional_returns_none(monkeypatch, tmp_path):
+    cfg = tmp_path / "config.json"
+    cfg.write_text('{"secrets": {}}')
+    monkeypatch.setattr(config_mod, "CONFIG_PATH", str(cfg))
+    config_mod.reset_cache()
+
+    assert config_mod.get_secret("someMissingSecret", required=False) is None
     config_mod.reset_cache()
 
 

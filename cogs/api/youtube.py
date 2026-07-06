@@ -46,7 +46,10 @@ class YouTubeAPI:
             info = ydl.extract_info(video_url, download=True)
 
             if is_query:
-                info = info["entries"][0]
+                entries = info.get("entries") or []
+                if not entries:
+                    raise LookupError(f"No results found for: {video_url}")
+                info = entries[0]
 
             file_path = f"{file_name}.{self.audio_format}"
 

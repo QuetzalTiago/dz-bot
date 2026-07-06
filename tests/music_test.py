@@ -1,3 +1,5 @@
+import os
+
 import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -116,6 +118,27 @@ async def test_play_success(music_cog, bot):
         mock_enqueue.assert_awaited_with(song_url, ctx.message)
 
 
+@pytest.mark.asyncio
+async def test_play_enqueue_failure_reports_error(music_cog, bot):
+    # A bad Spotify URL (or any enqueue failure) must not blow up as an
+    # uncaught exception - it should surface like every other command error.
+    ctx = mock_ctx(bot)
+    ctx.author.voice = MagicMock()
+    song_url = "https://open.spotify.com/track/doesnotexist"
+    state = state_for(music_cog, ctx)
+    with patch.object(
+        state.downloader, "enqueue", new_callable=AsyncMock
+    ) as mock_enqueue, patch.object(
+        music_cog, "cog_failure", new_callable=AsyncMock
+    ) as fail:
+        mock_enqueue.side_effect = Exception("spotify blew up")
+        await call(music_cog.play, music_cog, ctx, query=song_url)
+        ctx.send.assert_awaited_with(
+            "Something went wrong queueing that song. Check the URL and try again."
+        )
+        fail.assert_awaited()
+
+
 # ---- pause / resume ------------------------------------------------------
 
 @pytest.mark.asyncio
@@ -177,6 +200,41 @@ async def test_lyrics_no_song(music_cog, bot):
             "DJ Khaled is not playing anything! Play a spotify url to get lyrics."
         )
         fail.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_lyrics_success_writes_unique_file_and_cleans_up(music_cog, bot, tmp_path):
+    ctx = mock_ctx(bot)
+    state = state_for(music_cog, ctx)
+    song = MagicMock()
+    song.lyrics = "some lyrics"
+    song.title = "Sample Song"
+    song.message = MagicMock()
+    song.message.channel = ctx.channel
+    song.messages_to_delete = []
+    state.playlist.current_song = song
+
+    written_names = []
+    real_open = open
+
+    def tracking_open(path, *args, **kwargs):
+        written_names.append(path)
+        return real_open(os.path.join(tmp_path, os.path.basename(path)), *args, **kwargs)
+
+    with patch.object(
+        music_cog, "cog_success", new_callable=AsyncMock
+    ) as ok, patch.object(
+        music_cog, "send_lyrics_file", new_callable=AsyncMock
+    ) as send_file, patch("cogs.music.open", side_effect=tracking_open), patch(
+        "cogs.music.os.path.exists", return_value=True
+    ), patch("cogs.music.os.remove") as mock_remove:
+        await call(music_cog.lyrics, music_cog, ctx)
+
+    assert written_names[0] != "lyrics.txt"  # unique per-invocation filename
+    send_file.assert_awaited_once_with(song.message.channel, written_names[0])
+    mock_remove.assert_called_once_with(written_names[0])
+    ok.assert_awaited_with(ctx.message)
+    assert ctx.message in song.messages_to_delete
 
 
 @pytest.mark.asyncio

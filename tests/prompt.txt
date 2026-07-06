@@ -75,3 +75,40 @@ Environment / gotchas learned from past runs (read this before writing new tests
 - `ruff check .` is part of CI — run it before committing; it will flag
   unused imports left over from copy-pasted fixtures (e.g. importing a class
   directly when a test only uses a `importlib.reload`-obtained reference).
+- Testing a `@tasks.loop`-decorated method directly: call
+  `cog.the_loop.coro(cog)` to run the loop body once without starting the
+  timer. If a test does call `.start()`, it must also stop the task before
+  the test ends: `task = loop.get_task(); loop.cancel(); await task`
+  (suppressing `asyncio.CancelledError`) — pytest-asyncio closes the event
+  loop right after the test coroutine returns, so a fixture that calls
+  `.cancel()` in teardown (after the yield, once the test's loop is already
+  closed) raises `RuntimeError: Event loop is closed`. `@loop.before_loop`
+  registers a plain coroutine function, not a `Loop` — call it directly
+  (`await cog.before_x()`), no `.coro`.
+- `cogs/database.py`'s `Session` must be created with `expire_on_commit=False`
+  (sessionmaker kwarg) — `_session()` commits and closes before returning, so
+  the default would leave every entity `_get_*` returns expired *and*
+  detached; the first attribute access anywhere downstream raises
+  `sqlalchemy.orm.exc.DetachedInstanceError`. This bit `chess_leaderboard`
+  before the fix. To unit-test `database.py` methods without a real MySQL
+  server: `_init_engine()` does MySQL-only bootstrap DDL (`SHOW DATABASES
+  LIKE`), so monkeypatch `cogs.database.create_engine` to return a fake
+  bootstrap engine (whose `.connect()` context manager's `.execute(...)
+  .fetchone()` returns a truthy value) for the first call and a real
+  `sqlite:///:memory:` engine (with `poolclass=StaticPool,
+  connect_args={"check_same_thread": False}` — plain sqlite `:memory:` gives
+  each thread its own DB, and `_get_*`/`_save_*` hop threads via
+  `asyncio.to_thread`) for the second, then call the real `cog._init_engine()`
+  so the exact sessionmaker kwargs under test actually run.
+- Two coroutines can race on a `is_running()`-then-`await
+  foo()`-then-`.start()` guard (e.g. `downloader.py::enqueue`) because the
+  `await` between the check and the start is a yield point — a second
+  invocation can enter the same window before the first calls `.start()`,
+  and the second `.start()` raises `RuntimeError`. A same-pattern guard with
+  *no* `await` in between (e.g. `state_machine.py::start`, a sync method) is
+  not racy — don't flag it as the same bug without checking for an
+  intervening await. To reproduce/verify the race in a test: patch the
+  awaited method with an `AsyncMock` that blocks on an `asyncio.Event`, fire
+  two calls with `asyncio.ensure_future`, `await asyncio.sleep(0)` so both
+  reach the block, then release the event and `asyncio.gather` both —
+  without a lock this raises `RuntimeError` from the second `.start()`.

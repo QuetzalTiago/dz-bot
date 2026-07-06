@@ -85,6 +85,16 @@ def test_download_search_query_uses_first_entry(mock_youtube_dl, youtube_api):
 
 
 @patch("cogs.api.youtube.yt_dlp.YoutubeDL")
+def test_download_search_with_no_results_raises_lookup_error(
+    mock_youtube_dl, youtube_api
+):
+    mock_youtube_dl.return_value = make_ydl({"entries": []})
+
+    with pytest.raises(LookupError):
+        youtube_api.download("no results for this query")
+
+
+@patch("cogs.api.youtube.yt_dlp.YoutubeDL")
 def test_extract_playlist_songs_returns_titles(mock_youtube_dl, youtube_api):
     mock_youtube_dl.return_value = make_ydl(
         {

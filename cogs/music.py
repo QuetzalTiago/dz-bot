@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import uuid
 
 import discord
 from discord.ext import commands
@@ -115,7 +116,14 @@ class Music(commands.Cog):
             await self.cog_failure(sent_message, ctx.message)
             return
 
-        await state.downloader.enqueue(song_url, ctx.message)
+        try:
+            await state.downloader.enqueue(song_url, ctx.message)
+        except Exception:
+            self.logger.exception("Error enqueueing song: %s", song_url)
+            sent_message = await ctx.send(
+                "Something went wrong queueing that song. Check the URL and try again."
+            )
+            await self.cog_failure(sent_message, ctx.message)
 
     def _extract_query(self, ctx, query):
         """Prefer the parsed argument; fall back to slicing prefix commands.
@@ -189,7 +197,10 @@ class Music(commands.Cog):
             return
 
         if song.lyrics:
-            lyrics_file_name = "lyrics.txt"
+            # Unique per invocation: a shared name races across concurrent
+            # lyrics requests (own guild or others), corrupting/deleting a
+            # file another request is still writing/sending.
+            lyrics_file_name = f"lyrics_{uuid.uuid4().hex}.txt"
             try:
                 with open(lyrics_file_name, "w", encoding="utf-8") as file:
                     file.write(song.lyrics)

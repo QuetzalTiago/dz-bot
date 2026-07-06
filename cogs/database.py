@@ -70,7 +70,11 @@ class Database(commands.Cog):
 
         url = make_url(self.db_url).set(database=self.db_name)
         self.engine = create_engine(url, pool_pre_ping=True, pool_recycle=1800)
-        self.Session = sessionmaker(bind=self.engine)
+        # expire_on_commit=False: _session() commits and closes before
+        # returning, so a default sessionmaker would leave every returned
+        # entity expired and detached — the next attribute access (e.g.
+        # game.winner in chess_leaderboard) raises DetachedInstanceError.
+        self.Session = sessionmaker(bind=self.engine, expire_on_commit=False)
         Base.metadata.create_all(self.engine)
         self.logger.info("DB connection initialized")
 

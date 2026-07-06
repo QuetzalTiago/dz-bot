@@ -30,7 +30,7 @@ jobs:
         # but never past what's actually achieved. Target is 80%; this
         # only blocks regressions below the last known-good level.
         env:
-          COV_FAIL_UNDER: 39
+          COV_FAIL_UNDER: 52
         run: |
           pytest -q --cov=cogs --cov=bot --cov-report=term-missing \
             --cov-fail-under=$COV_FAIL_UNDER

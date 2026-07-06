@@ -36,3 +36,42 @@ Here is the cog code:
 
 python
 # Insert your cog code here
+
+---
+
+Environment / gotchas learned from past runs (read this before writing new tests):
+
+- The system python has no pytest installed. Create a venv first:
+  `python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements-dev.txt`
+  Run pytest/ruff from inside that venv for the rest of the session.
+- Commands are invoked as `await cog.command_name.callback(cog, ctx, ...)`, not
+  `await cog.command_name(ctx, ...)` — hybrid_command wraps the function, so
+  calling it directly skips discord.py's command machinery in tests.
+- Use `tests/mocks.py::mock_ctx(bot, **kwargs)` for a ready-made Context mock,
+  or build a lightweight `MagicMock()` with `AsyncMock()` on `.send`,
+  `.message.add_reaction`, `.message.clear_reactions` when a full Context is
+  overkill.
+- `MagicMock(name="x")` does NOT set the mock's `.name` attribute (it sets the
+  mock's repr) — assign `.name` after construction if the code under test
+  reads `obj.name`.
+- SQLAlchemy entities under `cogs/db/entities/` can be instantiated and
+  asserted on directly, no engine/session needed — their `__init__` just
+  copies dict keys onto attributes.
+- To unit-test `cogs/api/youtube.py`, patch `cogs.api.youtube.yt_dlp.YoutubeDL`
+  with a MagicMock configured as a context manager
+  (`mock.__enter__.return_value = mock`) and set `.extract_info.return_value`.
+  `DZ_DOWNLOAD_DIR` is read at import time via `os.environ.get(...)`, so if a
+  test needs a custom download dir, `monkeypatch.setenv` then
+  `importlib.reload(cogs.api.youtube)` before instantiating `YouTubeAPI`.
+- Known past bug classes worth a regression test whenever you touch these
+  areas again: (1) `cogs/utils/music/playlist.py::empty()` must treat a
+  looped `current_song` with no queued songs as non-empty, or the state
+  machine disconnects instead of replaying; (2) `cogs/api/youtube.py`
+  `is_video_playable`/`download` must not hard-index `info["entries"][0]`
+  (empty search results) or compare `info["duration"]` to an int without a
+  None-check (livestreams report `duration: None`); (3) Lichess omits the
+  `"opening"` key entirely for `aborted`/`noStart` games — `ChessGame.__init__`
+  must use `.get("opening")`, not `["opening"]`.
+- `ruff check .` is part of CI — run it before committing; it will flag
+  unused imports left over from copy-pasted fixtures (e.g. importing a class
+  directly when a test only uses a `importlib.reload`-obtained reference).

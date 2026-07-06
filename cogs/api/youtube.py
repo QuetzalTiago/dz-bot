@@ -83,9 +83,15 @@ class YouTubeAPI:
             self.downloading = False
 
             if is_query:
-                info = info["entries"][0]
+                entries = info.get("entries") or []
+                if not entries:
+                    return False
+                info = entries[0]
 
-            if info["duration"] > self.max_duration:
+            # Livestreams and some entries report no/zero duration; that's
+            # not the same as being too long, so don't reject them.
+            duration = info.get("duration")
+            if duration and duration > self.max_duration:
                 return False
 
             return True

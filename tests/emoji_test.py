@@ -38,6 +38,15 @@ def emoji_cog(bot):
         ),
         ("123?!#", "1 2 3 ❔ ❕ # "),
         ("", ""),
+        # Non-ASCII letters (e.g. "é") are alphabetic per str.isalpha() but
+        # have no `regional_indicator_*` Discord emoji; they must fall
+        # through to the literal-character branch instead of emitting a
+        # broken shortcode.
+        (
+            "café",
+            ":regional_indicator_c: :regional_indicator_a: "
+            ":regional_indicator_f: é ",
+        ),
     ],
 )
 def test_text_to_emoji(emoji_cog, input_text, expected_output):

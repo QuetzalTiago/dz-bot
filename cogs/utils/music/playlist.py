@@ -72,6 +72,8 @@ class Playlist:
         return next_song
 
     def empty(self) -> bool:
+        if self.loop and self.current_song:
+            return False
         return len(self.songs) == 0
 
     def set_current_song(self, song: Optional[Song]):

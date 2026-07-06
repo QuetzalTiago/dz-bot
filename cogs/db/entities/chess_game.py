@@ -35,7 +35,9 @@ class ChessGame(Base):
         self.lastMoveAt = game_data["lastMoveAt"]
         self.status = game_data["status"]
         self.players = game_data["players"]
-        self.opening = game_data["opening"]
+        # Aborted/no-move games (status in {"aborted", "noStart"}) never get an
+        # opening assigned by Lichess, so this key is absent, not just empty.
+        self.opening = game_data.get("opening")
         self.moves = game_data.get("moves", None)
         self.clock = game_data.get("clock", None)
         self.winner = game_data.get("winner", None)

@@ -1,0 +1,10 @@
+User->Discord: Sends loop command
+Discord->DJ Khaled: Command received
+DJ Khaled->Playlist: Toggle loop
+Playlist->DJ Khaled: Loop state (on/off)
+DJ Khaled->Discord: Send loop status message
+State Machine->Player: Check if idle
+State Machine->Playlist: Get next song
+Playlist->Playlist: Return current song again (loop on)
+State Machine->Player: Play same song
+Player->Player: Play audio

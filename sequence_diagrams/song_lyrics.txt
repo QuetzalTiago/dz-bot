@@ -1,0 +1,8 @@
+User->Discord: Sends lyrics command
+Discord->DJ Khaled: Command received
+DJ Khaled->Playlist: Get current song
+Playlist->DJ Khaled: Current song with lyrics
+DJ Khaled->DJ Khaled: Write lyrics to temp file
+DJ Khaled->Discord: Send lyrics file
+DJ Khaled->DJ Khaled: Delete temp file
+DJ Khaled->Playlist: Mark lyrics message for cleanup

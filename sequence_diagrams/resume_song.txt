@@ -1,0 +1,7 @@
+User->Discord: Sends resume command
+Discord->DJ Khaled: Command received
+DJ Khaled->State Machine: Check state is PAUSED
+DJ Khaled->State Machine: Transition state (PAUSED -> RESUMED)
+State Machine->Player: Resume audio
+Player->Player: Resume playback
+State Machine->State Machine: Transition state (RESUMED -> PLAYING)

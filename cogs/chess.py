@@ -38,9 +38,9 @@ class Chess(commands.Cog):
 
     async def cog_load(self):
         config = load_config()
-        self.lichess_token = config["secrets"]["lichessToken"]
+        self.lichess_token = config["secrets"].get("lichessToken")
         self.headers = {
-            "Authorization": "Bearer " + self.lichess_token,
+            "Authorization": f"Bearer {self.lichess_token}",
             "Accept": "application/json",
         }
         self.logger.info("Chess cog loaded and configured.")

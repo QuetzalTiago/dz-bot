@@ -413,3 +413,19 @@ Environment / gotchas learned from past runs (read this before writing new tests
   rest of `download_next_song()` (including the `queue_cancelled` branch,
   which already deletes the file itself and must release the reservation
   too, not leak it).
+- `cogs/ai.py.__init__` and `cogs/chess.py::cog_load()` used direct
+  `config["secrets"]["openaiKey"/"openaiUrl"/"lichessToken"]` indexing instead
+  of `.get(...)` - the same optional-secret bug class already fixed in
+  weather.py/football.py/formula1.py/ufc.py/steam.py/spotify.py/genius.py (see
+  above), but two more cogs were missed. `bot.py`'s per-extension try/except
+  in `setup_hook` swallows the resulting `KeyError` into a log line, so a
+  deployment without that one optional key silently loses the *entire* cog's
+  commands (for `chess.py` specifically: discord.py's `Cog._inject` calls
+  `cog_load()` before any command is registered, so a raise there means the
+  command never even gets added) instead of just failing that one API call.
+  Fixed to match every sibling API-key cog. When switching a token straight
+  from `config[...]["x"]` to `.get("x")`, also check every immediate use of
+  that value for a bare `+` string concat (e.g. `"Bearer " + self.token`) -
+  concatenating `None` raises `TypeError` even though the whole point of the
+  fix was to let the cog load without that secret. Use an f-string
+  (`f"Bearer {self.token}"`) instead, as `ai.py::_call_api` already did.

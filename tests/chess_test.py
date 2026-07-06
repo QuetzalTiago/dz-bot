@@ -42,6 +42,21 @@ def chess_cog(bot):
     return cog
 
 
+@pytest.mark.asyncio
+async def test_cog_load_does_not_raise_when_lichess_token_is_not_configured(bot):
+    # Regression test: this used to be `config["secrets"]["lichessToken"]`, a
+    # direct index that raised KeyError (and failed the whole cog's load) on a
+    # deployment without that optional key, unlike every sibling API-key cog
+    # (weather/football/formula1/ufc/steam/spotify/genius/ai), which all use
+    # .get(...). discord.py's Cog._inject calls cog_load() before any command
+    # is registered, so a raise here silently drops the entire chess command.
+    cog = Chess(bot)
+    with patch("cogs.chess.load_config", return_value={"secrets": {}}):
+        await cog.cog_load()
+    assert cog.lichess_token is None
+    assert cog.headers["Authorization"] == "Bearer None"
+
+
 def mock_ctx():
     ctx = MagicMock()
     ctx.message.add_reaction = AsyncMock()

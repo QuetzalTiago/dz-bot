@@ -65,8 +65,8 @@ class AI(commands.Cog):
     def __init__(self, bot, config):
         self.bot = bot
         self.config = config
-        self.api_key = config["secrets"]["openaiKey"]
-        self.api_url = config["secrets"]["openaiUrl"]
+        self.api_key = config["secrets"].get("openaiKey")
+        self.api_url = config["secrets"].get("openaiUrl")
         self.model = config.get("aiModel", "gemini_2_0_flash.google/gemini-2.0-flash-001")
         self.initial_prompt = initial_prompt
         self.conversations = {}

@@ -40,6 +40,16 @@ def cog(bot):
     return ai_cog
 
 
+def test_init_does_not_raise_when_openai_secrets_are_not_configured(bot):
+    # Regression test: this used to be `config["secrets"]["openaiKey"/"openaiUrl"]`,
+    # a direct index that raised KeyError (and failed the whole cog's load) on a
+    # deployment without those optional keys, unlike every sibling API-key cog
+    # (weather/football/formula1/ufc/steam/spotify/genius), which all use .get(...).
+    ai_cog = AI(bot, {"secrets": {}})
+    assert ai_cog.api_key is None
+    assert ai_cog.api_url is None
+
+
 def mock_ctx(guild=True):
     ctx = MagicMock(spec=commands.Context)
     ctx.message = MagicMock(spec=discord.Message)

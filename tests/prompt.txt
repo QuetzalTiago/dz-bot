@@ -429,3 +429,52 @@ Environment / gotchas learned from past runs (read this before writing new tests
   concatenating `None` raises `TypeError` even though the whole point of the
   fix was to let the cog load without that secret. Use an f-string
   (`f"Bearer {self.token}"`) instead, as `ai.py::_call_api` already did.
+- `cogs/utils/music/player.py::play()` logged `"Song statistics saved for
+  %s"` unconditionally after the `if db is not None: await
+  db.save_song(...)` guard - same bug class as the already-fixed
+  `chess.py::_watch_match()` log line, but this sibling call site was
+  missed. Fixed by moving the log line inside the `if db is not None:` block.
+- `cogs/restart.py::restart()` awaited `db.set_startup_notification(...)`
+  with no try/except between the successful `Popen(...)` and
+  `await self.bot.close()` - if the DB write raises (connection drop, lock),
+  the exception propagates out of the command callback and `bot.close()`
+  never runs, leaving the old process connected to Discord at the same time
+  the freshly-spawned process comes online (duplicate responses/voice
+  connections until someone manually kills the stale process). Fixed by
+  wrapping the notification write in its own try/except so a failure there
+  can't block the close.
+- `cogs/database.py::_update_user_duration()`'s "atomic UPDATE, insert if 0
+  rows" upsert only covers existing rows - for a **brand-new** `user_id` it's
+  a check-then-act race: the hourly `update_user_durations` tick and a
+  disconnect's `flush_user_duration` (or a `forget_me` delete racing a
+  flush) are separate `asyncio.to_thread` calls that can both see 0 rows
+  updated and both `session.add(User(id=user_id, ...))` for the same new
+  primary key, raising `IntegrityError` (and silently losing whichever
+  flush's credit doesn't win the commit race). Also, unlike every other
+  public method in this file, `flush_user_duration` had no try/except around
+  its `to_thread` call, so that IntegrityError could propagate uncaught out
+  of `bot.py`'s `on_voice_state_update`. Fixed with a per-`user_id`
+  `asyncio.Lock` dict (`self._user_locks`, a `defaultdict(asyncio.Lock)`)
+  that `update_user_durations`, `flush_user_duration`, and `delete_user_data`
+  all acquire around their `_update_user_duration`/`_delete_user_data` calls,
+  serializing every DB write for a given user - plus a try/except around
+  `flush_user_duration`'s call, matching its siblings. To reproduce the race
+  in a test without mocking threads: swap the real `_update_user_duration`
+  for a wrapper that records `time.monotonic()` before/after a small
+  `time.sleep()`, fire two `flush_user_duration()` calls for the same new
+  user_id via `asyncio.gather`, and assert the recorded intervals don't
+  overlap (removing the lock reproduces the exact `sqlite3.IntegrityError:
+  UNIQUE constraint failed: users.id` from a real concurrent run - this
+  isn't just a theoretical TOCTOU, real threads via `asyncio.to_thread` do
+  race on it).
+- `cogs/privacy.py::forget_me()` called `db.delete_user_data(...)` *before*
+  popping `self.bot.online_users[user_id]` - in the window between the two,
+  the hourly duration flush (or this same user disconnecting) could still
+  see the user in `online_users` and flush a duration for them, resurrecting
+  a row for a user who just asked to have their data erased. Fixed by
+  popping `online_users` first, so no *new* flush for this user can start
+  after the erasure request (combined with the `database.py` per-user lock
+  above, this closes the common case; an already in-flight flush that began
+  a moment earlier can still very rarely land after the delete, which is an
+  accepted narrow edge at the boundary of concurrent request handling, not a
+  crash).

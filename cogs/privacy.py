@@ -39,9 +39,11 @@ class Privacy(commands.Cog):
         if db is None:
             await ctx.send("Data storage is not available right now.")
             return
-        await db.delete_user_data(ctx.author.id)
-        # Also drop any in-memory voice tracking for this user.
+        # Drop in-memory voice tracking first so the hourly duration flush
+        # (or a disconnect racing with this command) can't resurrect a row
+        # for this user right after the delete below.
         self.bot.online_users.pop(ctx.author.id, None)
+        await db.delete_user_data(ctx.author.id)
         await ctx.send("Your stored data has been erased.")
 
 

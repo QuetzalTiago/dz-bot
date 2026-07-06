@@ -1,4 +1,6 @@
+import asyncio
 import datetime
+import time
 
 import pytest
 from unittest.mock import MagicMock
@@ -199,6 +201,43 @@ async def test_get_user_hours_for_known_user(db_cog):
     )
 
     assert await db_cog.get_user_hours(1) == pytest.approx(2, abs=0.01)
+
+
+@pytest.mark.asyncio
+async def test_concurrent_flushes_for_a_brand_new_user_do_not_race(db_cog):
+    # Regression test: `_update_user_duration`'s "update, insert if 0 rows"
+    # upsert is a check-then-act race for a never-before-seen user_id - two
+    # concurrent flushes (e.g. the hourly tick and a disconnect landing close
+    # together) can both see 0 rows updated and both try to insert the same
+    # new primary key, raising IntegrityError and losing one flush's credit.
+    # The per-user lock in flush_user_duration/update_user_durations must
+    # serialize these instead of letting both threads run at once.
+    calls = []
+    real_update = db_cog._update_user_duration
+
+    def tracking_update(user_id, seconds):
+        start = time.monotonic()
+        time.sleep(0.05)
+        real_update(user_id, seconds)
+        calls.append((start, time.monotonic()))
+
+    db_cog._update_user_duration = tracking_update
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    join_a = now - datetime.timedelta(seconds=10)
+    join_b = now - datetime.timedelta(seconds=20)
+
+    await asyncio.gather(
+        db_cog.flush_user_duration(999, join_a),
+        db_cog.flush_user_duration(999, join_b),
+    )
+
+    assert len(calls) == 2
+    (start1, end1), (start2, end2) = sorted(calls)
+    # The lock must have fully serialized the two DB calls - no overlap.
+    assert start2 >= end1
+
+    assert await db_cog.get_user_hours(999) == pytest.approx(30 / 3600, abs=0.001)
 
 
 @pytest.mark.asyncio

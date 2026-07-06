@@ -29,7 +29,10 @@ class Restart(commands.Cog):
 
         db = self.bot.get_cog("Database")
         if db is not None:
-            await db.set_startup_notification(ctx.message.id, ctx.message.channel.id)
+            try:
+                await db.set_startup_notification(ctx.message.id, ctx.message.channel.id)
+            except Exception:
+                self.logger.exception("Failed to record startup notification")
 
         await self.bot.close()
 

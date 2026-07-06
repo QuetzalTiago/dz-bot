@@ -70,6 +70,31 @@ async def test_forget_me_erases_data_and_in_memory_tracking(
 
 
 @pytest.mark.asyncio
+async def test_forget_me_drops_online_tracking_before_deleting_from_db(
+    privacy_cog, mock_bot, mock_ctx
+):
+    # Regression test: online_users must be popped *before* delete_user_data
+    # is awaited, not after - otherwise the hourly duration flush (or this
+    # same user disconnecting) can race the delete and re-insert a row for a
+    # user who just asked to have their data erased.
+    call_order = []
+
+    async def fake_delete(user_id):
+        call_order.append(("delete_user_data", dict(mock_bot.online_users)))
+
+    db = MagicMock()
+    db.delete_user_data = fake_delete
+    mock_bot.get_cog.return_value = db
+    mock_bot.online_users = {123: "some-join-time"}
+
+    await privacy_cog.forget_me.callback(privacy_cog, mock_ctx)
+
+    # By the time delete_user_data ran, the user was already gone from
+    # online_users.
+    assert call_order == [("delete_user_data", {})]
+
+
+@pytest.mark.asyncio
 async def test_forget_me_when_database_unavailable(privacy_cog, mock_bot, mock_ctx):
     mock_bot.get_cog.return_value = None
 

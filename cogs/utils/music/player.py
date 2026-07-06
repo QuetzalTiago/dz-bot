@@ -57,7 +57,7 @@ class Player:
         db = self.state.bot.get_cog("Database")
         if db is not None:
             await db.save_song(song.info, song.message.author.id)
-        self.logger.info("Song statistics saved for %s", song.title)
+            self.logger.info("Song statistics saved for %s", song.title)
 
         self.state.cleanup_files(song, playlist.songs)
 

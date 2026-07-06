@@ -52,6 +52,23 @@ async def test_play_starts_playback_and_saves_stats(player, state):
 
 
 @pytest.mark.asyncio
+async def test_play_does_not_log_stats_saved_when_database_unavailable(player, state):
+    # Regression test: the "Song statistics saved" log line used to fire
+    # unconditionally even when the Database cog wasn't loaded (get_cog
+    # returns None) and save_song was never called - falsely claiming the
+    # stats were persisted.
+    song = make_song()
+    state.bot.get_cog.return_value = None
+
+    with patch.object(player, "play_audio"), patch.object(player, "logger") as logger:
+        await player.play(song)
+
+    assert not any(
+        "statistics saved" in call.args[0] for call in logger.info.call_args_list
+    )
+
+
+@pytest.mark.asyncio
 async def test_play_skips_when_already_playing(player, state):
     state.state_machine.get_state.return_value = State.PLAYING
     song = make_song()

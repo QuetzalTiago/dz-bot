@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import logging
 import os
+from collections import defaultdict
 from contextlib import contextmanager
 
 from discord.ext import commands, tasks
@@ -41,6 +42,13 @@ class Database(commands.Cog):
         self.engine = None
         self.Session = None
         self.logger = logging.getLogger("discord")
+        # Serializes _update_user_duration/delete_user_data per user_id: the
+        # hourly tick, a disconnect flush, and a GDPR erasure can all target
+        # the same never-before-seen row concurrently (each a separate
+        # asyncio.to_thread call), and the "update, insert if 0 rows" upsert
+        # below is a check-then-act race without this - two concurrent
+        # inserts for the same new user_id raise IntegrityError.
+        self._user_locks = defaultdict(asyncio.Lock)
 
     async def cog_load(self):
         # Blocking DB setup is offloaded so it never stalls the event loop.
@@ -114,7 +122,8 @@ class Database(commands.Cog):
                 continue
             self.bot.online_users[user_id] = now
             try:
-                await asyncio.to_thread(self._update_user_duration, user_id, seconds)
+                async with self._user_locks[user_id]:
+                    await asyncio.to_thread(self._update_user_duration, user_id, seconds)
             except Exception:
                 self.logger.exception("Failed to update duration for %s", user_id)
 
@@ -152,7 +161,11 @@ class Database(commands.Cog):
             (datetime.datetime.now(datetime.timezone.utc) - join_time).total_seconds()
         )
         if seconds > 0:
-            await asyncio.to_thread(self._update_user_duration, user_id, seconds)
+            try:
+                async with self._user_locks[user_id]:
+                    await asyncio.to_thread(self._update_user_duration, user_id, seconds)
+            except Exception:
+                self.logger.exception("Failed to flush duration for %s", user_id)
 
     async def get_user_hours(self, user_id):
         return await asyncio.to_thread(self._get_user_hours, user_id)
@@ -261,7 +274,8 @@ class Database(commands.Cog):
 
     async def delete_user_data(self, user_id):
         """Erase all personal data stored for a user."""
-        return await asyncio.to_thread(self._delete_user_data, user_id)
+        async with self._user_locks[user_id]:
+            return await asyncio.to_thread(self._delete_user_data, user_id)
 
     def _delete_user_data(self, user_id):
         with self._session() as session:

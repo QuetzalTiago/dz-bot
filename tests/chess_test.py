@@ -110,3 +110,78 @@ async def test_fetch_match_url_failure(chess_cog):
 
 def test_get_match_id(chess_cog):
     assert chess_cog.get_match_id("https://lichess.org/abcd1234") == "abcd1234"
+
+
+def _finished_game_data(status="resign", winner="white"):
+    return {
+        "status": status,
+        "winner": winner,
+        "players": {
+            "white": {"user": {"name": "alice"}},
+            "black": {"user": {"name": "bob"}},
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_watch_match_saves_and_logs_when_database_present(chess_cog):
+    ctx = mock_ctx()
+    fake_session = MagicMock()
+    fake_session.get = MagicMock(
+        return_value=FakeResponse(200, json_data=_finished_game_data())
+    )
+    db = MagicMock()
+    db.save_chess_game = AsyncMock()
+    chess_cog.bot.get_cog = MagicMock(return_value=db)
+
+    with patch("cogs.chess.get_session", return_value=fake_session), patch(
+        "cogs.chess.asyncio.sleep", AsyncMock()
+    ):
+        await chess_cog._watch_match(ctx, "abcd1234")
+
+    db.save_chess_game.assert_awaited_once()
+    chess_cog.logger.info.assert_called_once()
+    ctx.send.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_watch_match_skips_save_and_log_when_database_missing(chess_cog):
+    # Regression test: the "Chess game saved" log line must not fire when the
+    # Database cog isn't loaded and the game was never actually saved.
+    ctx = mock_ctx()
+    fake_session = MagicMock()
+    fake_session.get = MagicMock(
+        return_value=FakeResponse(200, json_data=_finished_game_data())
+    )
+    chess_cog.bot.get_cog = MagicMock(return_value=None)
+
+    with patch("cogs.chess.get_session", return_value=fake_session), patch(
+        "cogs.chess.asyncio.sleep", AsyncMock()
+    ):
+        await chess_cog._watch_match(ctx, "abcd1234")
+
+    chess_cog.logger.info.assert_not_called()
+    ctx.send.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_watch_match_retries_on_non_200_then_saves_on_next_poll(chess_cog):
+    ctx = mock_ctx()
+    fake_session = MagicMock()
+    fake_session.get = MagicMock(
+        side_effect=[
+            FakeResponse(500),
+            FakeResponse(200, json_data=_finished_game_data(status="mate")),
+        ]
+    )
+    db = MagicMock()
+    db.save_chess_game = AsyncMock()
+    chess_cog.bot.get_cog = MagicMock(return_value=db)
+
+    with patch("cogs.chess.get_session", return_value=fake_session), patch(
+        "cogs.chess.asyncio.sleep", AsyncMock()
+    ):
+        await chess_cog._watch_match(ctx, "abcd1234")
+
+    assert fake_session.get.call_count == 2
+    db.save_chess_game.assert_awaited_once()

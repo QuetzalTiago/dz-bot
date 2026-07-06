@@ -317,3 +317,61 @@ Environment / gotchas learned from past runs (read this before writing new tests
   before returning, or pytest-asyncio closes the loop out from under the
   still-running task and the *next* test (or the fixture's own teardown)
   raises `RuntimeError: Event loop is closed` instead of the real failure.
+- `state_machine.py::_tick()`'s `State.STOPPED` branch must not start/advance
+  the idle timeout off of `playlist.empty()` alone - `download_next_song()`
+  pops a song off `downloader.queue` *before* it starts downloading, so the
+  playlist can be momentarily empty while a download is still in flight. Also
+  check `downloader.process_queue.is_running()` before calling
+  `player.handle_idle()`, or a slow download (large file, slow network) can
+  rack up 300s of "idle" time and self-disconnect mid-import, wiping the
+  queue. To unit-test `_tick()` directly (it's a plain coroutine, no need to
+  drive the `@tasks.loop` wrapper): build a `state` fixture as a plain
+  `MagicMock()` with `player`/`playlist`/`downloader` sub-mocks and the
+  methods `_tick()` awaits set to `AsyncMock()` explicitly.
+- `bot.py`'s `Khaled(commands.AutoShardedBot)` can be constructed directly in
+  tests (`Khaled(command_prefix="!", intents=..., initial_extensions=[])`) -
+  construction alone does no network I/O. But `Client.user` and `.guilds` are
+  read-only properties proxying `self._connection` - assigning
+  `khaled.user = ...` raises `AttributeError: no setter`. Swap the whole
+  `self._connection` for a `MagicMock(user=..., guilds=[...])` instead.
+- `cogs/utils/checks.py` documented `owners` (config.json) / `DZ_OWNERS` (env,
+  comma-separated) as ways to configure bot owners, but nothing ever read them
+  or set `owner_id`/`owner_ids` on the `Bot`, so `is_owner()` only ever
+  recognized the Discord application owner - a configured "extra" owner's
+  privileged commands (`restart`, `purge`) always raised `CheckFailure`. Fixed
+  with `bot.py::_load_owner_ids()`, wired into the `Khaled(...)` constructor's
+  `owner_ids` kwarg in `main()`.
+- `_configure_logging()` (`bot.py`) unconditionally opens a real
+  `RotatingFileHandler("discord.log")` and appends handlers to the shared
+  `logging.getLogger("discord")` logger every call - a test must
+  `monkeypatch.chdir(tmp_path)` first (or the test run leaves a `discord.log`
+  file in the repo root) and must remove/close the handlers it added in a
+  `finally` block, or they pile up on the shared logger across the rest of
+  the test session.
+- `_init_observability()` (`bot.py`) does `import sentry_sdk` lazily inside a
+  try/except - `sentry_sdk` isn't in `requirements-dev.txt`, so the
+  "installed" branch can't be exercised by actually installing it. Instead
+  `monkeypatch.setitem(sys.modules, "sentry_sdk", fake_module_or_None)`:
+  a `None` entry makes the `import` statement raise like the package is
+  missing; a `MagicMock()` entry makes it "succeed" and import that mock.
+- `discord.ext.commands.MissingRequiredArgument(param)` reads
+  `param.displayed_name or param.name` - a bare `MagicMock()` works as
+  `param` but `MagicMock(name="x")` does **not** set `.name` (see the
+  `.name`-vs-repr gotcha above); construct it, then assign `.name` and
+  `.displayed_name` afterward.
+- `cogs/weather.py.__init__` used `config["secrets"]["weatherApiKey"]` (a
+  direct index that raises `KeyError` and fails the whole cog's load if that
+  optional key is absent) while every sibling API-key cog
+  (`football.py`/`formula1.py`/`ufc.py`/`steam.py`) uses `.get(...)` - fixed
+  to match. Check any new cog reading an optional `secrets` key for the same
+  inconsistency.
+- `cogs/utils/music/downloader.py::download_next_song()`'s `queue_cancelled`
+  early-return (song finished downloading after a `clear` mid-download) never
+  cleared the requester's message's `PROCESSING` reaction, leaving it stuck
+  forever with no success/error indicator - fixed by `clear_reactions()`
+  (best-effort, wrapped in try/except) before the `return`.
+- `cogs/chess.py::_watch_match()` logged `"Chess game saved: {match_id}"`
+  unconditionally after the `if db is not None: await db.save_chess_game(...)`
+  guard, so the log line fired (falsely claiming success) even when the
+  Database cog wasn't loaded and nothing was actually saved. Fixed by moving
+  the log line inside the `if db is not None:` block.

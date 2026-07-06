@@ -174,7 +174,7 @@ class Chess(commands.Cog):
                 db = self.bot.get_cog("Database")
                 if db is not None:
                     await db.save_chess_game(data)
-                self.logger.info(f"Chess game saved: {match_id}")
+                    self.logger.info(f"Chess game saved: {match_id}")
                 try:
                     embed = self.create_game_summary_embed(
                         match_id,

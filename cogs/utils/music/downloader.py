@@ -118,6 +118,10 @@ class Downloader:
             self.set_queue_cancelled(False)
             self.process_queue.stop()
             self._delete_file_quietly(next_song_path)
+            try:
+                await message.clear_reactions()
+            except Exception:
+                pass
             return
 
         lyrics = None

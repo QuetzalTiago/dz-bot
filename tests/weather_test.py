@@ -49,6 +49,16 @@ def mock_ctx():
     return ctx
 
 
+def test_init_does_not_raise_when_weather_api_key_is_not_configured(bot):
+    # Regression test: this used to be `config["secrets"]["weatherApiKey"]`,
+    # a direct index that raised KeyError (and failed the whole cog's load)
+    # on a deployment without that optional key, unlike every sibling cog
+    # (football/formula1/ufc/steam), which all use .get(...).
+    with patch("cogs.weather.load_config", return_value={"secrets": {}}):
+        cog = Weather(bot)
+    assert cog.api_key is None
+
+
 WEATHER_DATA = {
     "timezone": -18000,
     "sys": {"sunset": 1700000000, "sunrise": 1699960000},

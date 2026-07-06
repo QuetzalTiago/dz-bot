@@ -96,7 +96,13 @@ class StateMachine:
 
             case State.STOPPED:
                 if playlist.empty():
-                    await player.handle_idle()
+                    # A download can still be in flight even though the
+                    # playlist is momentarily empty (the song is popped off
+                    # the queue before its download starts) - don't count
+                    # that as idle time, or a slow download can trigger the
+                    # idle-timeout disconnect and wipe the queue mid-import.
+                    if not self.state.downloader.process_queue.is_running():
+                        await player.handle_idle()
                 else:
                     next_song = await playlist.get_next()
                     if next_song is not None:

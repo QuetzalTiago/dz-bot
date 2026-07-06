@@ -16,7 +16,7 @@ class Weather(commands.Cog):
         self.bot = bot
         self.logger = logging.getLogger("discord")
         config = load_config()
-        self.api_key = config["secrets"]["weatherApiKey"]
+        self.api_key = config.get("secrets", {}).get("weatherApiKey")
         self.default_city = config.get("secrets", {}).get("defaultCity")
 
     @commands.hybrid_command(aliases=["w", "weather", "tiempo", "t"])

@@ -80,6 +80,7 @@ async def test_download_next_song_cleans_up_when_queue_cancelled_mid_download(
     message = MagicMock()
     message.reactions = []
     message.add_reaction = AsyncMock()
+    message.clear_reactions = AsyncMock()
     message.channel.send = AsyncMock()
 
     downloader.queue = [("some song", message, False)]
@@ -100,6 +101,9 @@ async def test_download_next_song_cleans_up_when_queue_cancelled_mid_download(
     state.cog_success.assert_not_awaited()
     state.playlist.add.assert_not_awaited()
     assert downloader.queue_cancelled is False
+    # Regression: the requester's message must not be left with a stuck
+    # PROCESSING reaction forever with no success/error indicator.
+    message.clear_reactions.assert_awaited_once()
     # Regression: a cancelled queue (e.g. from a plain `clear`) must not stop
     # the state machine - it may still be actively playing a previous song,
     # and stopping it would silently kill that playback's progress/idle-

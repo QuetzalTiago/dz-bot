@@ -181,6 +181,30 @@ def _configure_logging() -> logging.Logger:
     return logger
 
 
+def _load_owner_ids(config: dict, logger: logging.Logger) -> set:
+    """Parse bot owner IDs from config.json's ``owners`` list and DZ_OWNERS.
+
+    Documented in cogs/utils/checks.py's module docstring but previously never
+    wired up, so is_owner_or_admin()/is_owner() ignored both settings and only
+    ever recognized the Discord application owner.
+    """
+    owner_ids = set()
+    for raw_id in config.get("owners", []):
+        try:
+            owner_ids.add(int(raw_id))
+        except (TypeError, ValueError):
+            logger.warning("Ignoring invalid owner id in config: %r", raw_id)
+    for raw_id in os.environ.get("DZ_OWNERS", "").split(","):
+        raw_id = raw_id.strip()
+        if not raw_id:
+            continue
+        try:
+            owner_ids.add(int(raw_id))
+        except ValueError:
+            logger.warning("Ignoring invalid owner id in DZ_OWNERS: %r", raw_id)
+    return owner_ids
+
+
 def _init_observability(logger):
     """Initialize Sentry error tracking if configured and available.
 
@@ -256,8 +280,14 @@ async def main():
     intents.message_content = True
     intents.voice_states = True
 
+    owner_ids = _load_owner_ids(config, logger)
+
     async with Khaled(
-        prefix, case_insensitive=True, intents=intents, initial_extensions=exts
+        prefix,
+        case_insensitive=True,
+        intents=intents,
+        initial_extensions=exts,
+        owner_ids=owner_ids,
     ) as bot:
         bot.before_invoke(show_cmd_confirmation)
         await bot.start(token)

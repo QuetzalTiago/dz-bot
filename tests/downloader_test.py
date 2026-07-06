@@ -242,3 +242,195 @@ async def test_enqueue_does_not_notify_when_song_fits(downloader, state):
     assert ("some new song", message, False) in downloader.queue
     message.channel.send.assert_not_awaited()
     await cancel_and_wait(downloader.process_queue)
+
+
+@pytest.mark.asyncio
+async def test_enqueue_clears_cancelled_flag_when_song_is_added(downloader, state):
+    # A previous `clear` set queue_cancelled=True; a brand new enqueue() that
+    # actually adds a song must un-cancel the queue so process_queue doesn't
+    # immediately bail out on the next tick.
+    downloader.download_next_song = AsyncMock()
+    downloader.queue_cancelled = True
+    message = MagicMock()
+    message.channel.send = AsyncMock()
+
+    await downloader.enqueue("brand new song", message)
+
+    assert downloader.queue_cancelled is False
+    await cancel_and_wait(downloader.process_queue)
+
+
+@pytest.mark.asyncio
+async def test_get_spotify_songs_playlist_url(downloader):
+    downloader.spotify.get_playlist_songs = AsyncMock(return_value=["song a", "song b"])
+    message = MagicMock()
+
+    result = await downloader.get_spotify_songs(
+        "https://open.spotify.com/playlist/xyz", message
+    )
+
+    downloader.spotify.get_playlist_songs.assert_awaited_once_with(
+        "https://open.spotify.com/playlist/xyz"
+    )
+    assert result == [("song a", message, True), ("song b", message, True)]
+
+
+@pytest.mark.asyncio
+async def test_get_spotify_songs_album_url(downloader):
+    downloader.spotify.get_album_songs = AsyncMock(return_value=["album song"])
+    message = MagicMock()
+
+    result = await downloader.get_spotify_songs(
+        "https://open.spotify.com/album/xyz", message
+    )
+
+    downloader.spotify.get_album_songs.assert_awaited_once_with(
+        "https://open.spotify.com/album/xyz"
+    )
+    assert result == [("album song", message, True)]
+
+
+@pytest.mark.asyncio
+async def test_get_spotify_songs_track_url(downloader):
+    downloader.spotify.get_track_name = AsyncMock(return_value="track name")
+    message = MagicMock()
+
+    result = await downloader.get_spotify_songs(
+        "https://open.spotify.com/track/xyz", message
+    )
+
+    downloader.spotify.get_track_name.assert_awaited_once_with(
+        "https://open.spotify.com/track/xyz"
+    )
+    assert result == [("track name", message, True)]
+
+
+@pytest.mark.asyncio
+async def test_download_next_song_returns_immediately_when_queue_empty(downloader, state):
+    downloader.queue = []
+    state.bot.loop.run_in_executor = AsyncMock()
+
+    await downloader.download_next_song()
+
+    state.bot.loop.run_in_executor.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_download_next_song_swallows_reaction_add_failure(downloader, state):
+    # A message with no `.reactions` iterable (or a reaction API error) must
+    # not abort the download - the reaction is best-effort.
+    message = MagicMock()
+    message.reactions = []
+    message.add_reaction = AsyncMock(side_effect=Exception("boom"))
+    message.channel.send = AsyncMock()
+
+    downloader.queue = [("some song", message, False)]
+    state.bot.loop.run_in_executor = AsyncMock(
+        side_effect=[True, ("downloads/12345.mp3", {"title": "Some Song"})]
+    )
+    state.cog.pending_download_paths = set()
+    state.cog_success = AsyncMock()
+    state.playlist.add = AsyncMock(return_value=True)
+    state.playlist.update_message = AsyncMock()
+
+    await downloader.download_next_song()
+
+    state.cog_success.assert_awaited_once_with(message)
+
+
+@pytest.mark.asyncio
+async def test_download_next_song_treats_unplayable_as_failure(downloader, state):
+    message = MagicMock()
+    message.reactions = []
+    message.add_reaction = AsyncMock()
+    message.channel.send = AsyncMock(return_value="sent")
+
+    downloader.queue = [("bad song", message, False)]
+    state.bot.loop.run_in_executor = AsyncMock(return_value=False)
+    state.cog_failure = AsyncMock()
+
+    await downloader.download_next_song()
+
+    state.cog_failure.assert_awaited_once_with("sent", message)
+    assert "too long" in message.channel.send.call_args[0][0]
+
+
+@pytest.mark.asyncio
+async def test_download_next_song_handles_playability_check_exception(downloader, state):
+    # An exception raised while checking playability (e.g. yt-dlp network
+    # error) must be treated as "not playable", not crash the download loop.
+    message = MagicMock()
+    message.reactions = []
+    message.add_reaction = AsyncMock()
+    message.channel.send = AsyncMock(return_value="sent")
+
+    downloader.queue = [("bad song", message, False)]
+    state.bot.loop.run_in_executor = AsyncMock(side_effect=Exception("network error"))
+    state.cog_failure = AsyncMock()
+
+    await downloader.download_next_song()
+
+    state.cog_failure.assert_awaited_once_with("sent", message)
+
+
+@pytest.mark.asyncio
+async def test_download_next_song_handles_download_exception(downloader, state):
+    message = MagicMock()
+    message.reactions = []
+    message.add_reaction = AsyncMock()
+    message.channel.send = AsyncMock(return_value="sent")
+
+    downloader.queue = [("some song", message, False)]
+    state.bot.loop.run_in_executor = AsyncMock(
+        side_effect=[True, Exception("disk full")]
+    )
+    state.cog_failure = AsyncMock()
+
+    await downloader.download_next_song()
+
+    state.cog_failure.assert_awaited_once_with("sent", message)
+
+
+@pytest.mark.asyncio
+async def test_process_queue_stops_when_queue_empty(downloader):
+    downloader.queue = []
+    downloader.download_next_song = AsyncMock()
+
+    await downloader.process_queue.coro(downloader)
+
+    downloader.download_next_song.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_process_queue_logs_and_survives_download_exception(downloader):
+    downloader.queue = [("song", MagicMock(), False)]
+    downloader.download_next_song = AsyncMock(side_effect=Exception("boom"))
+
+    # Must not raise - a bare tasks.loop stops for good on the first
+    # unhandled exception, which would silently kill the download queue.
+    await downloader.process_queue.coro(downloader)
+
+    downloader.download_next_song.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_delete_file_quietly_swallows_os_error(downloader):
+    with patch("cogs.utils.music.downloader.os.remove", side_effect=OSError("gone")):
+        downloader._delete_file_quietly("missing/file.mp3")  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_stop_cancels_running_process_queue_and_transitions_to_stopped(
+    downloader, state
+):
+    downloader.queue = [("song", MagicMock(), False)]
+    downloader.download_next_song = AsyncMock(side_effect=lambda: asyncio.sleep(10))
+    downloader.process_queue.start()
+    await asyncio.sleep(0)
+    assert downloader.process_queue.is_running()
+
+    await downloader.stop()
+
+    assert downloader.queue == []
+    assert downloader.queue_cancelled is True
+    state.state_machine.transition_to.assert_called_once()

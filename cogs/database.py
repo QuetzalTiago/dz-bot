@@ -10,7 +10,6 @@ from sqlalchemy.engine.url import make_url
 from sqlalchemy.orm import sessionmaker
 
 from cogs.db.base import Base
-from cogs.db.entities.btc_price import BitcoinPrice
 from cogs.db.entities.chess_game import ChessGame
 from cogs.db.entities.song import Song
 from cogs.db.entities.startup_notification import StartupNotification
@@ -122,13 +121,23 @@ class Database(commands.Cog):
 
     def _update_user_duration(self, user_id, additional_seconds):
         with self._session() as session:
-            user = session.query(User).filter(User.id == user_id).first()
-            if user is None:
+            # Atomic SET x = x + inc at the DB level, so two concurrent flushes
+            # for the same user (e.g. the hourly tick and a disconnect landing
+            # close together) both apply instead of one clobbering the other.
+            updated = (
+                session.query(User)
+                .filter(User.id == user_id)
+                .update(
+                    {
+                        User.total_duration_seconds: User.total_duration_seconds
+                        + additional_seconds
+                    }
+                )
+            )
+            if not updated:
                 session.add(
                     User(id=user_id, total_duration_seconds=additional_seconds)
                 )
-            else:
-                user.total_duration_seconds += additional_seconds
 
     async def flush_user_duration(self, user_id, join_time):
         """Persist a single user's accrued time (called on disconnect)."""
@@ -210,30 +219,6 @@ class Database(commands.Cog):
             if notification and notification.notify_on_startup:
                 return notification.message_id, notification.channel_id
             return None, None
-
-    # ---- Bitcoin -------------------------------------------------------------
-
-    async def update_bitcoin_price(self, new_price):
-        try:
-            await asyncio.to_thread(self._update_bitcoin_price, new_price)
-        except Exception:
-            self.logger.exception("Error updating Bitcoin price")
-
-    def _update_bitcoin_price(self, new_price):
-        with self._session() as session:
-            btc_price = session.query(BitcoinPrice).filter(BitcoinPrice.id == 1).first()
-            if btc_price:
-                btc_price.price = new_price
-            else:
-                session.add(BitcoinPrice(id=1, price=new_price))
-
-    async def get_bitcoin_price(self):
-        return await asyncio.to_thread(self._get_bitcoin_price)
-
-    def _get_bitcoin_price(self):
-        with self._session() as session:
-            btc_price = session.query(BitcoinPrice).filter(BitcoinPrice.id == 1).first()
-            return btc_price.price if btc_price else None
 
     # ---- Songs ---------------------------------------------------------------
 

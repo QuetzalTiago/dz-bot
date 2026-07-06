@@ -72,9 +72,11 @@ class AI(commands.Cog):
         self.conversations = {}
 
     def _conversation_key(self, ctx):
-        # Keyed consistently on the author so get/clear operate on the same entry
-        # (previously get used author.id while clear used channel.id).
-        return ctx.author.id
+        # Keyed on (guild, author) so get/clear operate on the same entry and a
+        # user's conversation in one guild never leaks into another guild or a
+        # DM. DMs have no guild, so fall back to the channel for those.
+        guild_id = ctx.guild.id if ctx.guild else ctx.channel.id
+        return (guild_id, ctx.author.id)
 
     def get_conversation(self, ctx):
         key = self._conversation_key(ctx)
@@ -109,7 +111,10 @@ class AI(commands.Cog):
             if response.status != 200:
                 raise RuntimeError(f"AI API returned status {response.status}")
             data = await response.json()
-            return data["choices"][0]["message"]["content"]
+            content = data["choices"][0]["message"]["content"]
+            if not content:
+                raise RuntimeError("AI API returned empty content")
+            return content
 
     async def _send_response(self, ctx, text):
         for chunk in split_message(to_markdown(text)):

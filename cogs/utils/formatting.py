@@ -25,6 +25,8 @@ def format_local(
 
 def split_message(text: str, limit: int = 2000) -> list[str]:
     """Split text into Discord-sized chunks, preferring line boundaries."""
+    if not text:
+        return []
     if len(text) <= limit:
         return [text]
 

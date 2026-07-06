@@ -27,7 +27,7 @@ class CedulaInfo(commands.Cog):
     @commands.is_owner()
     async def cedula(self, ctx, cedula_id: str):
         """Fetches information for a given Uruguayan Cedula ID (owner only)."""
-        if not cedula_id.isdigit():
+        if not (cedula_id.isascii() and cedula_id.isdigit()):
             await ctx.send("Cedula ID must be numeric.")
             return
 

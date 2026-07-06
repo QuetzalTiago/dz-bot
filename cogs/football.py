@@ -46,6 +46,8 @@ class Football(commands.Cog):
             seasons = league_info["seasons"]
             if not seasons:
                 await ctx.send("No season data available for the Premier League.")
+                await ctx.message.clear_reactions()
+                await ctx.message.add_reaction(DONE)
                 return
             latest_season = seasons[-1]
 

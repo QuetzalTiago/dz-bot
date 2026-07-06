@@ -6,6 +6,7 @@ import discord
 from discord import Message
 
 from cogs.models.song import Song
+from cogs.utils.music.state_machine import TICK_INTERVAL_SECONDS
 
 
 class Playlist:
@@ -53,7 +54,12 @@ class Playlist:
         message: Message,
         lyrics: Optional[str] = None,
     ):
-        await self.state.player.join_voice_channel(message)
+        voice_client = await self.state.player.join_voice_channel(message)
+        if voice_client is None:
+            self.logger.warning(
+                "Could not join a voice channel; dropping song %s", song_path
+            )
+            return
         self.songs.append(Song(song_path, song_info, message, lyrics))
 
     async def get_next(self) -> Optional[Song]:
@@ -93,7 +99,7 @@ class Playlist:
     async def update_curr_song_message(self):
         song = self.current_song
         if song:
-            song.current_seconds += 2
+            song.current_seconds += TICK_INTERVAL_SECONDS
             embed = song.to_embed(self.songs, self.shuffle, self.loop)
             if song.embed_message:
                 try:
@@ -123,7 +129,7 @@ class Playlist:
 
         description = ""
         for index, song in enumerate(self.songs, 1):
-            if index < 20:
+            if index <= 20:
                 description += f"{index}. **{song.title}**\n"
             else:
                 description += "and more...\n"
@@ -135,7 +141,7 @@ class Playlist:
         return embed
 
     async def send_song_embed(self, song: Song) -> Optional[Message]:
-        embed = song.to_embed(self.songs, self.shuffle)
+        embed = song.to_embed(self.songs, self.shuffle, self.loop)
         try:
             msg = await song.message.channel.send(embed=embed)
             song.embed_message = msg

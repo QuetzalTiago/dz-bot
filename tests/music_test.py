@@ -96,13 +96,29 @@ async def test_play_missing_url(music_cog, bot):
 async def test_play_youtube_playlist(music_cog, bot):
     ctx = mock_ctx(bot)
     ctx.author.voice = MagicMock()
-    url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL123456789"
+    url = "https://www.youtube.com/playlist?list=PL123456789"
     with patch.object(music_cog, "cog_failure", new_callable=AsyncMock) as fail:
         await call(music_cog.play, music_cog, ctx, query=url)
         ctx.send.assert_awaited_with(
             "Youtube playlists not yet supported. Try a spotify link instead."
         )
         fail.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_play_single_video_with_list_param_is_not_rejected(music_cog, bot):
+    # Regression test: a single-video share link can carry a "list=" param
+    # (watch-later, mix/radio, up-next queue) without being a real playlist
+    # request - it must still be queued as that one video.
+    ctx = mock_ctx(bot)
+    ctx.author.voice = MagicMock()
+    url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=RD123456789"
+    state = music_cog._state_for_ctx(ctx)
+    state.downloader.enqueue = AsyncMock()
+    with patch.object(music_cog, "cog_failure", new_callable=AsyncMock) as fail:
+        await call(music_cog.play, music_cog, ctx, query=url)
+        state.downloader.enqueue.assert_awaited_once_with(url, ctx.message)
+        fail.assert_not_awaited()
 
 
 @pytest.mark.asyncio

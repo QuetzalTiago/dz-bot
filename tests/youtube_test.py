@@ -95,6 +95,34 @@ def test_download_search_with_no_results_raises_lookup_error(
 
 
 @patch("cogs.api.youtube.yt_dlp.YoutubeDL")
+def test_download_non_youtube_url_is_not_turned_into_a_search(
+    mock_youtube_dl, youtube_api
+):
+    # A SoundCloud/Bandcamp/direct-audio URL is not "youtube.com"/"youtu.be"
+    # but is still a real URL - it must be handed to yt-dlp as-is, not
+    # search-ified into "ytsearch:<url>".
+    mock_ydl = make_ydl({"title": "a song", "duration": 42})
+    mock_youtube_dl.return_value = mock_ydl
+
+    youtube_api.download("https://soundcloud.com/artist/track")
+
+    called_url = mock_ydl.extract_info.call_args.args[0]
+    assert called_url == "https://soundcloud.com/artist/track"
+
+
+@patch("cogs.api.youtube.yt_dlp.YoutubeDL")
+def test_download_resets_downloading_flag_on_exception(mock_youtube_dl, youtube_api):
+    mock_ydl = make_ydl(None)
+    mock_ydl.extract_info.side_effect = Exception("network error")
+    mock_youtube_dl.return_value = mock_ydl
+
+    with pytest.raises(Exception):
+        youtube_api.download("https://youtu.be/abc123")
+
+    assert youtube_api.downloading is False
+
+
+@patch("cogs.api.youtube.yt_dlp.YoutubeDL")
 def test_extract_playlist_songs_returns_titles(mock_youtube_dl, youtube_api):
     mock_youtube_dl.return_value = make_ydl(
         {

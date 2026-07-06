@@ -3,6 +3,10 @@ from enum import Enum
 
 from discord.ext import tasks
 
+# Shared with Playlist.update_curr_song_message(), which advances a song's
+# progress by this same amount every tick - keep both in sync.
+TICK_INTERVAL_SECONDS = 2
+
 
 class State(Enum):
     PLAYING = "playing"
@@ -59,7 +63,7 @@ class StateMachine:
             self.handle_state.cancel()
             self.logger.info("State machine loop stopped.")
 
-    @tasks.loop(seconds=2)
+    @tasks.loop(seconds=TICK_INTERVAL_SECONDS)
     async def handle_state(self):
         # Entire body guarded so a transient error can't permanently kill the
         # loop (a bare tasks.loop stops for good on the first exception).

@@ -1,8 +1,8 @@
 import asyncio
 import contextlib
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from cogs.utils.music.downloader import Downloader
 
@@ -68,3 +68,35 @@ async def test_concurrent_enqueue_does_not_double_start_the_loop(downloader):
 
     assert downloader.process_queue.is_running()
     await cancel_and_wait(downloader.process_queue)
+
+
+@pytest.mark.asyncio
+async def test_download_next_song_cleans_up_when_queue_cancelled_mid_download(
+    downloader, state
+):
+    # Regression test: if the queue is cancelled while a download is in
+    # flight, the finished file must not leak on disk and the message must
+    # not get a false "success" reaction for a song that will never play.
+    message = MagicMock()
+    message.reactions = []
+    message.add_reaction = AsyncMock()
+    message.channel.send = AsyncMock()
+
+    downloader.queue = [("some song", message, False)]
+    downloader.queue_cancelled = True
+
+    state.bot.loop.run_in_executor = AsyncMock(
+        side_effect=[True, ("downloads/12345.mp3", {"title": "Some Song"})]
+    )
+    state.state_machine.stop = AsyncMock()
+    state.cog_success = AsyncMock()
+    state.playlist.add = AsyncMock()
+    state.playlist.update_message = AsyncMock()
+
+    with patch("cogs.utils.music.downloader.os.remove") as mock_remove:
+        await downloader.download_next_song()
+
+    mock_remove.assert_called_once_with("downloads/12345.mp3")
+    state.cog_success.assert_not_awaited()
+    state.playlist.add.assert_not_awaited()
+    assert downloader.queue_cancelled is False

@@ -95,3 +95,16 @@ async def test_premier_error(cog):
     ctx.send.assert_awaited_with(
         "Could not retrieve Premier League fixtures right now."
     )
+
+
+@pytest.mark.asyncio
+async def test_premier_no_season_data_clears_processing_reaction(cog):
+    ctx = mock_ctx()
+    no_season_response = {"response": [{"league": {"logo": "http://x/logo.png"}, "seasons": []}]}
+    with patch("cogs.football.get_json", new=AsyncMock(return_value=no_season_response)):
+        await cog.premier.callback(cog, ctx)
+
+    ctx.send.assert_awaited_once_with("No season data available for the Premier League.")
+    ctx.message.add_reaction.assert_any_call("⌛")
+    ctx.message.add_reaction.assert_any_call("✅")
+    ctx.message.clear_reactions.assert_awaited_once()

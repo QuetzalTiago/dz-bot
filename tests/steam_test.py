@@ -76,7 +76,7 @@ async def test_gameinfo_success(cog):
 @pytest.mark.asyncio
 async def test_gameinfo_free_to_play(cog):
     ctx = mock_ctx()
-    details = {**GAME_DETAILS, "price_overview": {}}
+    details = {**GAME_DETAILS, "price_overview": {}, "is_free": True}
     with patch.object(
         cog, "search_game", new=AsyncMock(return_value=(620, details))
     ):
@@ -84,6 +84,14 @@ async def test_gameinfo_free_to_play(cog):
 
     _, kwargs = ctx.send.call_args
     assert kwargs["embed"].fields[0].value == "Free to Play"
+
+
+def test_create_game_embed_missing_price_and_not_free_shows_na(cog):
+    # A paid game unavailable/delisted for the queried country omits
+    # price_overview without being free - must not be reported as free.
+    details = {**GAME_DETAILS, "price_overview": {}, "is_free": False}
+    embed = cog.create_game_embed(details)
+    assert embed.fields[0].value == "N/A"
 
 
 @pytest.mark.asyncio
@@ -106,7 +114,7 @@ async def test_gameinfo_search_raises_is_caught(cog):
         await cog.gameinfo.callback(cog, ctx, game_name="Portal 2")
 
     ctx.send.assert_awaited_once_with("Could not retrieve Steam game info right now.")
-    ctx.message.add_reaction.assert_any_call("✅")
+    ctx.message.add_reaction.assert_any_call("❌")
 
 
 @pytest.mark.asyncio
@@ -125,7 +133,7 @@ async def test_gameinfo_malformed_details_does_not_crash(cog):
 
     ctx.send.assert_awaited_once_with("Could not retrieve Steam game info right now.")
     ctx.message.clear_reactions.assert_awaited_once()
-    ctx.message.add_reaction.assert_any_call("✅")
+    ctx.message.add_reaction.assert_any_call("❌")
 
 
 @pytest.mark.asyncio

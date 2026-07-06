@@ -117,7 +117,11 @@ class Music(commands.Cog):
             await self.cog_failure(sent_message, ctx.message)
             return
 
-        if "list=" in song_url:  # YouTube playlist
+        # A playlist page has no "v=" video id (e.g. .../playlist?list=...); a
+        # single-video link can carry a "list=" param too (watch-later,
+        # mix/radio, up-next queue - .../watch?v=XXX&list=...) and must still
+        # be queued as that one video, not rejected as an unsupported playlist.
+        if "list=" in song_url and "v=" not in song_url:  # YouTube playlist
             sent_message = await ctx.send(
                 "Youtube playlists not yet supported. Try a spotify link instead."
             )

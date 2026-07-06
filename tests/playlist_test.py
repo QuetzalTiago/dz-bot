@@ -103,6 +103,19 @@ async def test_add_appends_song_and_joins_voice_channel(playlist, state):
 
 
 @pytest.mark.asyncio
+async def test_add_drops_song_when_join_voice_channel_fails(playlist, state):
+    # Regression test: if the bot couldn't join voice (requester left, missing
+    # permission, etc.), the song must not be queued - otherwise the state
+    # machine later crashes trying to play with no voice client.
+    state.player.join_voice_channel = AsyncMock(return_value=None)
+    message = MagicMock()
+
+    await playlist.add("path", {"title": "new song"}, message)
+
+    assert playlist.songs == []
+
+
+@pytest.mark.asyncio
 async def test_clear_resets_songs_and_current_state(playlist):
     playlist.songs = [make_song()]
     playlist.current_song = make_song()
@@ -125,3 +138,33 @@ def test_get_embed_lists_queued_songs(playlist):
     embed = playlist.get_embed()
     assert "Song One" in embed.description
     assert "Song Two" in embed.description
+
+
+def test_get_embed_lists_exactly_20_songs_without_and_more(playlist):
+    # Regression test: with exactly 20 queued songs, the 20th must still be
+    # listed and no spurious "and more..." should be appended.
+    playlist.songs = [make_song(f"Song {i}") for i in range(1, 21)]
+    embed = playlist.get_embed()
+    assert "Song 20" in embed.description
+    assert "and more..." not in embed.description
+
+
+def test_get_embed_lists_more_than_20_songs_with_and_more(playlist):
+    playlist.songs = [make_song(f"Song {i}") for i in range(1, 22)]
+    embed = playlist.get_embed()
+    assert "Song 20" in embed.description
+    assert "Song 21" not in embed.description
+    assert "and more..." in embed.description
+
+
+@pytest.mark.asyncio
+async def test_send_song_embed_reflects_loop_state(playlist):
+    playlist.loop = True
+    song = make_song("Looped Song")
+    song.info["original_url"] = "http://example.com/looped"
+    song.message.channel.send = AsyncMock(return_value=MagicMock())
+
+    await playlist.send_song_embed(song)
+
+    embed = song.message.channel.send.call_args.kwargs["embed"]
+    assert any("Loop" in field.name or "Loop" in field.value for field in embed.fields)

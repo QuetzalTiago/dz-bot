@@ -14,7 +14,7 @@ from cogs.utils.http import get_bytes
 
 
 def _white_background(content: bytes) -> BytesIO:
-    img = Image.open(BytesIO(content))
+    img = Image.open(BytesIO(content)).convert("RGBA")
     background = Image.new("RGBA", img.size, (255, 255, 255, 255))
     background.paste(img, (0, 0), img)
     img_with_border = ImageOps.expand(background, border=20, fill="white")

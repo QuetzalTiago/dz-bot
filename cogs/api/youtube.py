@@ -39,23 +39,27 @@ class YouTubeAPI:
         self.downloading = True
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            is_query = "youtube.com" not in video_url and "youtu.be" not in video_url
+            # Anything that isn't itself a URL is a search term; a URL (YouTube
+            # or otherwise - SoundCloud, Bandcamp, a direct audio link, etc.)
+            # is handed to yt-dlp as-is instead of being turned into a literal
+            # text search on the URL string.
+            is_query = not video_url.startswith(("http://", "https://"))
             if is_query:
                 video_url = f"ytsearch:{video_url}"
 
-            info = ydl.extract_info(video_url, download=True)
+            try:
+                info = ydl.extract_info(video_url, download=True)
 
-            if is_query:
-                entries = info.get("entries") or []
-                if not entries:
-                    raise LookupError(f"No results found for: {video_url}")
-                info = entries[0]
+                if is_query:
+                    entries = info.get("entries") or []
+                    if not entries:
+                        raise LookupError(f"No results found for: {video_url}")
+                    info = entries[0]
 
-            file_path = f"{file_name}.{self.audio_format}"
-
-            self.downloading = False
-
-            return file_path, info
+                file_path = f"{file_name}.{self.audio_format}"
+                return file_path, info
+            finally:
+                self.downloading = False
 
     def is_video_playable(self, video_url):
         file_name = f"{uuid.uuid4().int}"
@@ -77,27 +81,32 @@ class YouTubeAPI:
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            is_query = "youtube.com" not in video_url and "youtu.be" not in video_url
+            # Anything that isn't itself a URL is a search term; a URL (YouTube
+            # or otherwise - SoundCloud, Bandcamp, a direct audio link, etc.)
+            # is handed to yt-dlp as-is instead of being turned into a literal
+            # text search on the URL string.
+            is_query = not video_url.startswith(("http://", "https://"))
             if is_query:
                 video_url = f"ytsearch:{video_url}"
 
-            info = ydl.extract_info(video_url, download=False)
+            try:
+                info = ydl.extract_info(video_url, download=False)
 
-            self.downloading = False
+                if is_query:
+                    entries = info.get("entries") or []
+                    if not entries:
+                        return False
+                    info = entries[0]
 
-            if is_query:
-                entries = info.get("entries") or []
-                if not entries:
+                # Livestreams and some entries report no/zero duration; that's
+                # not the same as being too long, so don't reject them.
+                duration = info.get("duration")
+                if duration and duration > self.max_duration:
                     return False
-                info = entries[0]
 
-            # Livestreams and some entries report no/zero duration; that's
-            # not the same as being too long, so don't reject them.
-            duration = info.get("duration")
-            if duration and duration > self.max_duration:
-                return False
-
-            return True
+                return True
+            finally:
+                self.downloading = False
 
     async def get_playlist_songs(self, playlist_url):
         # yt-dlp extraction is blocking network I/O; run it in a worker thread.

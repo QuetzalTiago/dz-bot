@@ -42,6 +42,7 @@ class Div(commands.Cog):
         await ctx.send(
             f"Current Divine price in {league} league: **{div_price} Chaos**"
         )
+        await ctx.message.clear_reactions()
         await ctx.message.add_reaction(DONE)
 
     async def fetch_div_price(self, league):

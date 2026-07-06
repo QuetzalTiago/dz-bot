@@ -169,18 +169,25 @@ class Chess(commands.Cog):
             )
 
             if game_status in GAME_ENDED_STATUSES:
-                embed = self.create_game_summary_embed(
-                    match_id,
-                    game_status,
-                    white_username,
-                    black_username,
-                    data.get("winner"),
-                )
-                await ctx.send(embed=embed)
+                # Persist before notifying: a channel/permission failure on the
+                # send below must not cost us the game result.
                 db = self.bot.get_cog("Database")
                 if db is not None:
                     await db.save_chess_game(data)
                 self.logger.info(f"Chess game saved: {match_id}")
+                try:
+                    embed = self.create_game_summary_embed(
+                        match_id,
+                        game_status,
+                        white_username,
+                        black_username,
+                        data.get("winner"),
+                    )
+                    await ctx.send(embed=embed)
+                except Exception:
+                    self.logger.exception(
+                        "Failed to post game summary for %s", match_id
+                    )
                 return
 
 

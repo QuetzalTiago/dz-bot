@@ -161,3 +161,45 @@ Environment / gotchas learned from past runs (read this before writing new tests
   two calls with `asyncio.ensure_future`, `await asyncio.sleep(0)` so both
   reach the block, then release the event and `asyncio.gather` both —
   without a lock this raises `RuntimeError` from the second `.start()`.
+- `player.py::join_voice_channel()` returns the *current* `self.voice_client`
+  (which is `None` only when it truly failed to join, not when the bot is
+  already connected) - it must NOT return `None` for the "already connected,
+  nothing to do" case, or every caller that treats `None` as failure (e.g.
+  `Playlist.add()`) will wrongly drop songs whenever the bot is already in
+  the channel. `Playlist.add()` checks this return value and drops the song
+  without appending it if `None`.
+- `images.py::_white_background()` must `.convert("RGBA")` the downloaded
+  image before using it as its own paste mask - a JPEG or palette-mode PNG
+  (no alpha channel) raises `ValueError: bad transparency mask` otherwise.
+  `_combine_logos` already does this; `_white_background` didn't.
+- `steam.py::create_game_embed()` must key "Free to Play" off the API's own
+  `is_free` boolean, not the absence of `price_overview` - Steam also omits
+  `price_overview` for paid games unavailable/delisted in the queried
+  country (`cc` param), which would otherwise be mislabeled free.
+- `music.py::play()`'s YouTube-playlist rejection (`"list=" in song_url`)
+  must also require the absence of a `v=` param - a plain video share link
+  can carry `list=` too (watch-later `WL`, autoplay mix/radio `RD...`,
+  up-next queue) without being a real playlist request, and those must
+  still be queued as that one video.
+- `cogs/utils/music/state_machine.py::TICK_INTERVAL_SECONDS` is the single
+  source of truth for the `handle_state` loop period; `playlist.py`'s
+  `current_seconds` increment in `update_curr_song_message()` must use the
+  same constant, not an independent hardcoded `2`.
+- `ai.py::_conversation_key()` must scope on `(guild_id, author_id)`, not
+  just `author.id` - otherwise a user's `chat` history leaks across guilds
+  (and DMs, which have no guild - fall back to `channel.id` there).
+- `ai.py::_call_api()` must treat empty/`None` API content as a failure
+  (raise, so the existing try/except handles it) - some OpenAI-compatible
+  endpoints return `content: null` on a filtered/tool-call response, and
+  `to_markdown(None)` raises `AttributeError` *outside* the try/except,
+  leaving the PROCESSING reaction stuck and (for `chat()`) poisoning the
+  stored conversation with the broken turn.
+- `database.py::_update_user_duration()` uses a DB-level atomic
+  `UPDATE ... SET x = x + inc` (via SQLAlchemy's `Query.update()`), not a
+  Python-side read-modify-write - two independent `asyncio.to_thread` calls
+  (the hourly tick and a disconnect flush) landing close together on a plain
+  read-then-write would otherwise lose one increment.
+- `config.py`'s generic `DZ_<KEY>` env-override loop must skip keys whose
+  current value is a `dict` (e.g. never let a stray `DZ_SECRETS=x` env var
+  replace the whole `secrets` section with a string) - only scalar top-level
+  keys should ever be override targets that way.

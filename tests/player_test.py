@@ -333,6 +333,23 @@ async def test_join_voice_channel_noop_when_not_disconnected(player, state):
 
 
 @pytest.mark.asyncio
+async def test_join_voice_channel_returns_existing_client_when_already_connected(
+    player, state
+):
+    # Regression test: an already-connected bot (not DISCONNECTED) must report
+    # success via its existing voice client, not None - callers (e.g.
+    # Playlist.add) treat None as "failed to join" and would otherwise drop
+    # the song even though the bot is already in the channel.
+    state.state_machine.get_state.return_value = State.PLAYING
+    player.voice_client = MagicMock()
+    message = MagicMock()
+
+    result = await player.join_voice_channel(message)
+
+    assert result is player.voice_client
+
+
+@pytest.mark.asyncio
 async def test_join_voice_channel_handles_connect_failure(player, state):
     state.state_machine.get_state.return_value = State.DISCONNECTED
     message = MagicMock()

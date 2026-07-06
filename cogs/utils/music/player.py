@@ -62,24 +62,31 @@ class Player:
         self.state.cleanup_files(song, playlist.songs)
 
     async def join_voice_channel(self, message):
-        if self.state.state_machine.get_state() == State.DISCONNECTED:
-            if message.author.voice is None:
-                self.logger.warning("Requester is not in a voice channel.")
-                return None
-            voice_channel = message.author.voice.channel
-            self.logger.info(f"Joining voice channel: {voice_channel.name}")
-            try:
-                self.voice_client = await voice_channel.connect()
-            except discord.DiscordException as e:
-                self.logger.error(
-                    "Failed to connect to voice channel %s: %s",
-                    voice_channel.name,
-                    e,
-                    exc_info=True,
-                )
-                return None
-            self.state.state_machine.transition_to(State.STOPPED)
+        """Ensure the bot is connected, returning the voice client on success.
+
+        Returns None only on an actual failure (requester not in a voice
+        channel, or the connect attempt raised) - callers must treat None as
+        "did not join" rather than "already connected".
+        """
+        if self.state.state_machine.get_state() != State.DISCONNECTED:
             return self.voice_client
+        if message.author.voice is None:
+            self.logger.warning("Requester is not in a voice channel.")
+            return None
+        voice_channel = message.author.voice.channel
+        self.logger.info(f"Joining voice channel: {voice_channel.name}")
+        try:
+            self.voice_client = await voice_channel.connect()
+        except discord.DiscordException as e:
+            self.logger.error(
+                "Failed to connect to voice channel %s: %s",
+                voice_channel.name,
+                e,
+                exc_info=True,
+            )
+            return None
+        self.state.state_machine.transition_to(State.STOPPED)
+        return self.voice_client
 
     def play_audio(self, song_path):
         self.logger.debug("Playing audio for song path: %s", song_path)

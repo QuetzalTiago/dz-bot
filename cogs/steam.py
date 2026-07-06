@@ -4,7 +4,7 @@ import discord
 from discord.ext import commands
 
 from cogs.utils.config import load_config
-from cogs.utils.emojis import DONE, SEARCHING
+from cogs.utils.emojis import DONE, ERROR, SEARCHING
 from cogs.utils.endpoints import STEAM_STORE_API_URL, STEAM_STORE_URL
 from cogs.utils.http import get_session
 
@@ -27,14 +27,17 @@ class Steam(commands.Cog):
             game_id, game_details = await self.search_game(game_name)
             if game_id and game_details:
                 await ctx.send(embed=self.create_game_embed(game_details))
+                await ctx.message.clear_reactions()
+                await ctx.message.add_reaction(DONE)
             else:
                 await ctx.send("Game not found. Please check the name and try again.")
+                await ctx.message.clear_reactions()
+                await ctx.message.add_reaction(ERROR)
         except Exception:
             self.logger.exception("Steam lookup failed for %s", game_name)
             await ctx.send("Could not retrieve Steam game info right now.")
-
-        await ctx.message.clear_reactions()
-        await ctx.message.add_reaction(DONE)
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(ERROR)
 
     async def search_game(self, game_name):
         session = get_session()
@@ -65,11 +68,12 @@ class Steam(commands.Cog):
 
     def create_game_embed(self, game_details):
         price_overview = game_details.get("price_overview", {})
-        price = (
-            f"${price_overview['final'] / 100:.2f}"
-            if price_overview
-            else "Free to Play"
-        )
+        if game_details.get("is_free"):
+            price = "Free to Play"
+        elif price_overview:
+            price = f"${price_overview['final'] / 100:.2f}"
+        else:
+            price = "N/A"
         developers = ", ".join(game_details.get("developers", []))
         release_date = game_details.get("release_date", {}).get("date", "Unknown")
 

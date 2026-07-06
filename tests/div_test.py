@@ -37,6 +37,7 @@ async def test_div_command_success(div_cog):
     ctx.send.assert_awaited_with(
         "Current Divine price in Standard league: **200 Chaos**"
     )
+    ctx.message.clear_reactions.assert_awaited_once()
 
 
 @pytest.mark.asyncio

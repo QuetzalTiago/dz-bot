@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import random
 from concurrent.futures import ThreadPoolExecutor
 
@@ -107,23 +108,34 @@ class Downloader:
             await self.state.cog_failure(sent_message, message)
             return
 
-        if all(message is not item[1] for item in self.queue):
-            await self.state.cog_success(message)
-
         if self.queue_cancelled:
+            # The queue was cancelled while this download was in flight: the
+            # song will never play, so don't react success and don't leak the
+            # file that was just downloaded for it.
             self.set_queue_cancelled(False)
             self.process_queue.stop()
             await self.state.state_machine.stop()
-        else:
-            lyrics = None
-            if spotify_req:
-                lyrics = await self.genius.fetch_lyrics(next_song_name)
-                next_song_name = f"{next_song_name} audio"
-            await self.state.playlist.add(
-                next_song_path, next_song_info, message, lyrics
-            )
+            self._delete_file_quietly(next_song_path)
+            return
+
+        if all(message is not item[1] for item in self.queue):
+            await self.state.cog_success(message)
+
+        lyrics = None
+        if spotify_req:
+            lyrics = await self.genius.fetch_lyrics(next_song_name)
+            next_song_name = f"{next_song_name} audio"
+        await self.state.playlist.add(
+            next_song_path, next_song_info, message, lyrics
+        )
 
         await self.state.playlist.update_message()
+
+    def _delete_file_quietly(self, file_path):
+        try:
+            os.remove(file_path)
+        except OSError as e:
+            self.logger.debug("Could not remove leftover download %s: %s", file_path, e)
 
     async def enqueue(self, query, message):
         if "spotify.com" in query:

@@ -63,7 +63,11 @@ def load_config() -> Dict[str, Any]:
             config["secrets"][_env_to_existing_key(config["secrets"], target)] = value
         elif key.startswith("DZ_") and not key.startswith("DZ_SECRET_"):
             target = key[len("DZ_") :]
-            config[_env_to_existing_key(config, target)] = value
+            existing_key = _env_to_existing_key(config, target)
+            # Never let a scalar env value clobber a nested section (e.g. a
+            # stray DZ_SECRETS would otherwise replace the "secrets" dict).
+            if not isinstance(config.get(existing_key), dict):
+                config[existing_key] = value
 
     return config
 

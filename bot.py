@@ -68,7 +68,7 @@ class Khaled(commands.AutoShardedBot):
         db = self.get_cog("Database")
         if db is None:
             return
-        message_id, channel_id = db.get_startup_notification()
+        message_id, channel_id = await asyncio.to_thread(db.get_startup_notification)
         if message_id and channel_id:
             message = await self.fetch_message_by_id(channel_id, message_id)
             if message:

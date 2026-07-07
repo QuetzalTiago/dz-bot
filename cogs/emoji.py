@@ -30,7 +30,12 @@ class Emoji(commands.Cog):
         emoji_text = ""
         for char in text:
             char = char.lower()
-            if "a" <= char <= "z":
+            # Some characters lowercase to more than one codepoint (e.g. the
+            # Turkish dotted capital "İ" -> "i" + combining dot above) - the
+            # range check below assumes a single character, so those must
+            # fall through to the plain-text branch instead of producing a
+            # corrupted ":regional_indicator_X:" shortcode.
+            if len(char) == 1 and "a" <= char <= "z":
                 emoji_text += f":regional_indicator_{char}: "
             elif char == "?":
                 emoji_text += "❔ "

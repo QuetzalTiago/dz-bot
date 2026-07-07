@@ -112,7 +112,7 @@ class Khaled(commands.AutoShardedBot):
         # was already being tracked - that would discard their accrued
         # duration since their real join.
         for guild in self.guilds:
-            for voice_channel in guild.voice_channels:
+            for voice_channel in guild.voice_channels + guild.stage_channels:
                 for member in voice_channel.members:
                     if not member.bot:
                         self.online_users.setdefault(

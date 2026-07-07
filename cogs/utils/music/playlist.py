@@ -125,7 +125,12 @@ class Playlist:
         embed = discord.Embed(color=0x1ABC9C)
         embed.title = "🎵 Current Playlist 🎵"
         if not self.songs:
-            embed.description = "The playlist is empty."
+            if dl_queue:
+                embed.description = (
+                    f"**{len(dl_queue)}** song(s) still downloading."
+                )
+            else:
+                embed.description = "The playlist is empty."
             return embed
 
         description = ""

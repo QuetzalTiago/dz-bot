@@ -47,6 +47,15 @@ def emoji_cog(bot):
             ":regional_indicator_c: :regional_indicator_a: "
             ":regional_indicator_f: é ",
         ),
+        # Regression test: Python's `.lower()` turns the Turkish dotted
+        # capital "İ" (U+0130) into the *two*-codepoint "i" + combining dot
+        # above (U+0307) - without the length guard this still satisfies
+        # "a" <= char <= "z" (string comparison on the first codepoint) and
+        # emits a corrupted, invalid shortcode instead of falling through.
+        (
+            "İ",
+            "i̇ ",
+        ),
     ],
 )
 def test_text_to_emoji(emoji_cog, input_text, expected_output):

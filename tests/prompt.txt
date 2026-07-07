@@ -619,3 +619,98 @@ Environment / gotchas learned from past runs (read this before writing new tests
   move that call *inside* the try block (not after it) so a parse-time
   exception degrades to `None` like every other failure path in this
   function, instead of propagating uncaught.
+- `cogs/btc.py::btc()` and `cogs/div.py::div()` built the embed/reply and
+  did the success `clear_reactions()`/`add_reaction(DONE)` *after* their
+  try/except instead of inside it - unlike `football.py`/`formula1.py`/
+  `ufc.py`, which already keep the whole success sequence (fetch, send,
+  react) inside one try. If `ctx.send()` itself raises (rate limit,
+  permission change), the PROCESSING reaction was left stuck forever with
+  no ❌. Fixed by moving the success-path send/react calls inside the try.
+  `cogs/weather.py::get_weather()` had a narrower version of the same gap -
+  only its final `clear_reactions()`/`add_reaction(DONE)` (not the `ctx.send`)
+  sat outside the try. Check any new/edited PROCESSING-reaction command for
+  this same "success tail after the try" gap.
+- `cogs/privacy.py::forget_me()` had no try/except around
+  `db.delete_user_data(...)`, unlike its sibling `my_data()` (and
+  `status.py`/`leaderboard.py`) which were already fixed for this exact bug
+  class - the before_invoke 👍 ACK reaction was left stuck with no ❌ on a DB
+  failure. Fixed to match. When one command in a file gets this fix, check
+  every other DB-calling command in the *same* file too, not just siblings
+  in other files - this file's own `my_data()` fix didn't get copied to
+  `forget_me()` in the same pass.
+- `bot.py::update_online_users()` (the `on_ready` backfill) iterated only
+  `guild.voice_channels`, which excludes Stage Channels (`guild.stage_channels`
+  is a separate discord.py property) - a member already in a Stage Channel
+  when the bot reconnects (network blip, forced restart) never got seeded
+  into `online_users`, so their voice time since the reconnect was silently
+  never tracked/flushed. Fixed with `guild.voice_channels + guild.stage_channels`.
+  Gotcha found while fixing this: a test `MagicMock(voice_channels=[...])`
+  that doesn't also set `stage_channels` will *silently* make the whole loop
+  body a no-op instead of erroring - `[real_list] + a_bare_MagicMock()`
+  doesn't raise; Python falls back to `MagicMock.__radd__`, which returns
+  another MagicMock, and iterating *that* yields zero items (MagicMock's
+  auto-mocked `__iter__` defaults to an empty iterator). Any test mock for
+  a `discord.Guild` used with `+` on one of its list attributes must set
+  *all* operands to real lists, or the test silently stops testing anything.
+- `cogs/music.py::handle_forced_disconnect()` (wired from `bot.py`'s
+  `on_voice_state_update` whenever `before.channel and not after.channel` for
+  the bot's own member) is misnamed - it fires for *every* bot voice
+  disconnect, not just kicks, including our own `!stop`/idle-timeout/
+  alone-in-channel auto-stops (`player.py::stop()` is the only caller of
+  `voice_client.disconnect()`). Since gateway events are dispatched
+  asynchronously and can arrive after arbitrary delay, a user who runs
+  `!stop` then immediately `!play <url>` again (reconnecting before the
+  *old* disconnect's event is delivered) could have the stale event's
+  `teardown()` wipe out the brand-new session (cancel its state machine,
+  clear its downloader queue, disconnect its new voice client, clear its
+  playlist). `GuildMusicState.teardown()`/`player.stop()` are otherwise
+  idempotent no-ops when `voice_client` is already `None`, so this only bites
+  in that reconnect-race window. Fixed by checking `guild.voice_client is
+  None` (the actual, current, real connection state - not our possibly
+  stale bookkeeping) before tearing down; a fast reconnect means
+  `guild.voice_client` is already the new client, so the stale event is
+  correctly ignored. A test `MagicMock(spec=discord.Guild)` for this
+  function must explicitly set `.voice_client` (a `spec`'d Mock does not
+  default it to `None`).
+- `cogs/utils/music/playlist.py::get_embed()` only checked `self.songs`
+  (already-downloaded, not-yet-played songs) to decide "playlist is empty" -
+  it ignored `self.state.downloader.queue` entirely in that branch, even
+  though the non-empty branch right below it already accounts for it. A
+  Spotify playlist/album import's first song can finish downloading and
+  start playing (moving it out of `songs` into `current_song`) while the
+  rest are still in the download queue - `!playlist` at that moment showed
+  "The playlist is empty." even though N more songs were actively
+  downloading. Fixed by reporting "N song(s) still downloading" instead of
+  "empty" when `songs` is empty but the download queue isn't. Gotcha: the
+  `state` test fixture in `playlist_test.py` is a bare `MagicMock()`, so
+  `state.downloader.queue` defaulted to a truthy-but-zero-length MagicMock
+  (`bool(MagicMock()) is True`, `len(MagicMock()) == 0`) - tests must set
+  `state.downloader.queue = []` explicitly or they'll exercise the wrong
+  branch (or silently pass without truly testing the "non-empty queue"
+  branch at all, since a bare MagicMock is truthy but every `len()` call on
+  it returns 0).
+- `cogs/models/song.py::Song.get_progress_bar()`'s idle-clamp
+  (`if self.current_seconds > duration_seconds: self.current_seconds =
+  duration_seconds`) assigned the raw `duration_seconds`, which can be a
+  `float` (yt-dlp reports it that way for many non-YouTube extractors) into
+  `current_seconds`, an `int` incremented in fixed ticks. Once clamped,
+  `progress`'s `divmod(self.current_seconds, 60)` produces float
+  minutes/seconds, rendering a corrupted "now playing" timestamp like
+  "3.0:37.36" instead of "3:37" for the rest of that song's idle ticks. The
+  sibling `duration` property already did `int(self.duration_seconds)`
+  first - `get_progress_bar()` needed the same cast before comparing/using it.
+- `cogs/music.py::_extract_query()`'s classic-prefix-command fallback built
+  `token = f"{prefix}{name}"` from the *raw* configured prefix but compared
+  it against `content.lower()` - for any prefix containing an uppercase
+  character (e.g. `"DZ!"`), the comparison could never match, silently
+  breaking `play`/`p` for every non-default-prefix deployment (falls
+  through to "Missing URL..." even for a valid query). Fixed by lowercasing
+  `token` too. The default `"!"` prefix masked this in every existing test.
+- `cogs/emoji.py::text_to_emoji()` assumed `char.lower()` always yields a
+  single character before comparing `"a" <= char <= "z"` - Python's `.lower()`
+  turns the Turkish dotted capital "İ" (U+0130) into the *two*-codepoint
+  string "i" + combining dot above (U+0307). The range comparison still
+  evaluates `True` (string comparison examines the first codepoint), so it
+  emitted a corrupted `:regional_indicator_i̇:` shortcode instead of falling
+  through to the literal-character branch. Fixed with a `len(char) == 1`
+  guard before the range check.

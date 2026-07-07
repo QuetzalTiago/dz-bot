@@ -59,7 +59,14 @@ class Privacy(commands.Cog):
         # must be cleared, not just a single guild's.
         for key in [k for k in self.bot.online_users if k[1] == ctx.author.id]:
             self.bot.online_users.pop(key, None)
-        await db.delete_user_data(ctx.author.id)
+        try:
+            await db.delete_user_data(ctx.author.id)
+        except Exception:
+            self.logger.exception("Failed to erase stored data for %s", ctx.author.id)
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(ERROR)
+            await ctx.send("Something went wrong erasing your data.")
+            return
         await ctx.send("Your stored data has been erased.")
 
 

@@ -582,6 +582,7 @@ async def test_cleanup_files_noop_when_download_dir_missing(music_cog, tmp_path)
 async def test_handle_forced_disconnect_tears_down_existing_state(music_cog):
     guild = MagicMock(spec=discord.Guild)
     guild.id = 42
+    guild.voice_client = None
     state = music_cog.get_state(guild)
     state.teardown = AsyncMock()
 
@@ -594,9 +595,29 @@ async def test_handle_forced_disconnect_tears_down_existing_state(music_cog):
 async def test_handle_forced_disconnect_noop_when_no_state_for_guild(music_cog):
     guild = MagicMock(spec=discord.Guild)
     guild.id = 999
+    guild.voice_client = None
     # No prior get_state call for this guild id; must not raise or create one.
     await music_cog.handle_forced_disconnect(guild)
     assert guild.id not in music_cog.guild_states
+
+
+@pytest.mark.asyncio
+async def test_handle_forced_disconnect_skips_teardown_when_already_reconnected(
+    music_cog,
+):
+    """Regression test: a stale disconnect event for an old session must not
+    tear down a brand-new one that reconnected before the event arrived."""
+    guild = MagicMock(spec=discord.Guild)
+    guild.id = 42
+    # The guild already has a live voice client by the time this handler
+    # runs - a fast `!play` won the race against the delayed gateway event.
+    guild.voice_client = MagicMock()
+    state = music_cog.get_state(guild)
+    state.teardown = AsyncMock()
+
+    await music_cog.handle_forced_disconnect(guild)
+
+    state.teardown.assert_not_awaited()
 
 
 # ---- cog_success / cog_failure (real behavior, not mocked) ----------------
@@ -732,6 +753,16 @@ def test_extract_query_returns_empty_when_no_match(music_cog):
     ctx = MagicMock()
     ctx.message.content = "!stop"
     assert music_cog._extract_query(ctx, "") == ""
+
+
+def test_extract_query_matches_uppercase_prefix_case_insensitively(music_cog):
+    """Regression test: a mixed/upper-case configured prefix (e.g. "DZ!")
+    must still match the lower-cased message content, not just lower-case
+    prefixes like the default "!"."""
+    music_cog.config["prefix"] = "DZ!"
+    ctx = MagicMock()
+    ctx.message.content = "DZ!play my favorite song"
+    assert music_cog._extract_query(ctx, "") == "my favorite song"
 
 
 # ---- _playlist deletes previous tracking messages --------------------------

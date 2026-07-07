@@ -46,15 +46,14 @@ class Weather(commands.Cog):
                 data = await response.json()
             embed = self.create_weather_embed(city, data)
             await ctx.send(embed=embed)
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(DONE)
         except Exception:
             self.logger.exception("Weather lookup failed for %s", city)
             await ctx.message.clear_reactions()
             await ctx.message.add_reaction(ERROR)
             await ctx.send("Could not retrieve weather right now. Try again later.")
             return
-
-        await ctx.message.clear_reactions()
-        await ctx.message.add_reaction(DONE)
 
     def create_weather_embed(self, city, data):
         # Timezone offset (seconds from UTC) is supplied by the API so

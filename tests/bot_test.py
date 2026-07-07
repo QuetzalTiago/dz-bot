@@ -300,7 +300,7 @@ async def test_update_online_users_tracks_humans_not_bots_and_does_not_reset_joi
     human = MagicMock(id=1, bot=False)
     bot_member = MagicMock(id=2, bot=True)
     voice_channel = MagicMock(members=[human, bot_member])
-    guild = MagicMock(id=100, voice_channels=[voice_channel])
+    guild = MagicMock(id=100, voice_channels=[voice_channel], stage_channels=[])
     _set_connection_state(khaled, guilds=[guild])
 
     sentinel_join_time = object()
@@ -312,6 +312,22 @@ async def test_update_online_users_tracks_humans_not_bots_and_does_not_reset_joi
     # second on_ready (reconnect) firing - setdefault, not overwrite.
     assert khaled.online_users[(100, 1)] is sentinel_join_time
     assert (100, 2) not in khaled.online_users
+
+
+@pytest.mark.asyncio
+async def test_update_online_users_tracks_members_in_stage_channels(khaled):
+    """Regression test: `guild.voice_channels` excludes Stage Channels - the
+    on_ready backfill must also seed join times for members already in one,
+    or a reconnect mid-stage silently drops their tracked voice time."""
+    human = MagicMock(id=3, bot=False)
+    stage_channel = MagicMock(members=[human])
+    guild = MagicMock(id=100, voice_channels=[], stage_channels=[stage_channel])
+    _set_connection_state(khaled, guilds=[guild])
+    khaled.online_users = {}
+
+    await khaled.update_online_users()
+
+    assert (100, 3) in khaled.online_users
 
 
 @pytest.mark.asyncio

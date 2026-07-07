@@ -9,6 +9,7 @@ from cogs.models.song import Song
 def state():
     state = MagicMock()
     state.player.join_voice_channel = AsyncMock()
+    state.downloader.queue = []
     return state
 
 
@@ -139,11 +140,31 @@ def test_get_embed_when_empty(playlist):
     assert embed.description == "The playlist is empty."
 
 
+def test_get_embed_reports_songs_still_downloading_instead_of_empty(playlist, state):
+    """Regression test: a song can finish downloading and start playing
+    (moving it out of `songs` into `current_song`) while the rest of a
+    Spotify playlist/album import are still in the download queue - that
+    must not be reported as an empty playlist."""
+    state.downloader.queue = [("song", MagicMock(), None), ("song2", MagicMock(), None)]
+    embed = playlist.get_embed()
+    assert "2" in embed.description
+    assert "still downloading" in embed.description
+    assert "empty" not in embed.description
+
+
 def test_get_embed_lists_queued_songs(playlist):
     playlist.songs = [make_song("Song One"), make_song("Song Two")]
     embed = playlist.get_embed()
     assert "Song One" in embed.description
     assert "Song Two" in embed.description
+
+
+def test_get_embed_notes_download_queue_alongside_queued_songs(playlist, state):
+    state.downloader.queue = [("song", MagicMock(), None)]
+    playlist.songs = [make_song("Song One")]
+    embed = playlist.get_embed()
+    assert "Song One" in embed.description
+    assert "1** more in the download queue." in embed.description
 
 
 def test_get_embed_lists_exactly_20_songs_without_and_more(playlist):

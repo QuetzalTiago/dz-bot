@@ -122,6 +122,28 @@ async def test_forget_me_drops_online_tracking_before_deleting_from_db(
 
 
 @pytest.mark.asyncio
+async def test_forget_me_reports_error_and_reacts_error_when_db_raises(
+    privacy_cog, mock_bot, mock_ctx
+):
+    # Regression test: same bug class already fixed for my_data() - an
+    # unhandled DB error must not leave the before_invoke ACK reaction stuck
+    # with no error indicator. forget_me() was the one sibling command in
+    # this file that was missed by that earlier fix.
+    mock_ctx.message.clear_reactions = AsyncMock()
+    mock_ctx.message.add_reaction = AsyncMock()
+    db = MagicMock()
+    db.delete_user_data = AsyncMock(side_effect=RuntimeError("db down"))
+    mock_bot.get_cog.return_value = db
+    mock_bot.online_users = {}
+
+    await privacy_cog.forget_me.callback(privacy_cog, mock_ctx)
+
+    mock_ctx.send.assert_awaited_once_with("Something went wrong erasing your data.")
+    mock_ctx.message.clear_reactions.assert_awaited_once()
+    mock_ctx.message.add_reaction.assert_awaited_once_with("❌")
+
+
+@pytest.mark.asyncio
 async def test_forget_me_when_database_unavailable(privacy_cog, mock_bot, mock_ctx):
     mock_bot.get_cog.return_value = None
 

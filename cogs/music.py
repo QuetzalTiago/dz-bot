@@ -36,9 +36,17 @@ class Music(commands.Cog):
         return self.get_state(ctx.guild)
 
     async def handle_forced_disconnect(self, guild):
-        """Called when the bot is kicked/disconnected from a voice channel."""
+        """Called when the bot is kicked/disconnected from a voice channel.
+
+        This also fires for our own `!stop`/idle-timeout disconnects, since
+        discord.py can't distinguish a kick from a self-initiated leave in
+        the gateway event alone. Checking the guild's *current* voice client
+        (not our possibly-stale bookkeeping) guards against a delayed event
+        for an old disconnect arriving after a fast `!play` has already
+        reconnected - tearing down that brand-new session out from under it.
+        """
         state = self.guild_states.get(guild.id)
-        if state is not None:
+        if state is not None and guild.voice_client is None:
             await state.teardown()
 
     # Response Helpers
@@ -154,7 +162,7 @@ class Music(commands.Cog):
         content = ctx.message.content or ""
         prefix = self.config.get("prefix", "")
         for name in ("play ", "p "):
-            token = f"{prefix}{name}"
+            token = f"{prefix}{name}".lower()
             if content.lower().startswith(token):
                 return content[len(token):].strip()
         return ""

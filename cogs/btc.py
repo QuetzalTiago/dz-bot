@@ -24,17 +24,16 @@ class Btc(commands.Cog):
         await ctx.message.add_reaction(PROCESSING)
         try:
             btc_price = await self.fetch_btc_price()
+            embed = self.create_price_embed(btc_price)
+            self.sent_messages[ctx.channel.id] = await ctx.send(embed=embed)
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(DONE)
         except Exception:
             self.logger.exception("Error in btc command")
             await ctx.message.clear_reactions()
             await ctx.message.add_reaction(ERROR)
             await ctx.send("An error occurred while fetching the Bitcoin price.")
             return
-
-        embed = self.create_price_embed(btc_price)
-        self.sent_messages[ctx.channel.id] = await ctx.send(embed=embed)
-        await ctx.message.clear_reactions()
-        await ctx.message.add_reaction(DONE)
 
         if not self.btc_price_task.is_running():
             self.btc_price_task.start()

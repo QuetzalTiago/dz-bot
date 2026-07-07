@@ -127,6 +127,11 @@ class Song:
         # Livestreams/unknown durations have no meaningful progress bar.
         if not duration_seconds:
             return f"**{self.progress}**          \n"
+        # yt-dlp reports duration as a float for many extractors - clamping
+        # current_seconds to a float would make `progress`'s divmod (and thus
+        # the rendered "M:SS" string) float-valued too for the rest of the
+        # song, e.g. "3.0:37.36" instead of "3:37".
+        duration_seconds = int(duration_seconds)
 
         if self.current_seconds > duration_seconds:
             self.current_seconds = duration_seconds

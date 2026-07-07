@@ -25,6 +25,11 @@ class Div(commands.Cog):
         await ctx.message.add_reaction(PROCESSING)
         try:
             div_price = await self.fetch_div_price(league)
+            await ctx.send(
+                f"Current Divine price in {league} league: **{div_price} Chaos**"
+            )
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(DONE)
         except LookupError:
             await ctx.message.clear_reactions()
             await ctx.message.add_reaction(ERROR)
@@ -38,12 +43,6 @@ class Div(commands.Cog):
                 "Error fetching data for that league. Check the name and try again."
             )
             return
-
-        await ctx.send(
-            f"Current Divine price in {league} league: **{div_price} Chaos**"
-        )
-        await ctx.message.clear_reactions()
-        await ctx.message.add_reaction(DONE)
 
     async def fetch_div_price(self, league):
         session = get_session()

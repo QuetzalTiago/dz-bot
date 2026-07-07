@@ -524,3 +524,54 @@ Environment / gotchas learned from past runs (read this before writing new tests
   reaction update never runs, leaving the `SEARCHING` reaction stuck forever
   with no error indicator. Fixed by reordering to match every sibling cog.
   Check any new/edited API-fetch cog's error branch for the same order.
+- `cogs/status.py::status()`, `cogs/leaderboard.py::leaderboard()`, and
+  `cogs/privacy.py::my_data()` called their one `db.get_*` read with no
+  try/except at all, unlike every API-fetch cog. `bot.py`'s global
+  `before_invoke` hook adds an ACK (👍) reaction before *every* command runs;
+  if the DB call raises, the global `on_command_error` handler sends a
+  generic text reply but never touches reactions, leaving that 👍 stuck
+  forever with no ❌ error indicator - same bug class as the PROCESSING-stuck
+  bugs already fixed elsewhere, just triggered by the ACK reaction instead of
+  a cog-added PROCESSING one. Fixed by wrapping each DB read in try/except
+  that clears reactions, adds ERROR, logs, and sends an error message,
+  matching `div.py`/`btc.py`'s convention. `cogs/chess_leaderboard.py` didn't
+  need this fix - `Database.get_chess_games()` already catches internally and
+  returns `[]`. Check any new/edited read-only command cog for the same gap.
+- `cogs/music.py`'s `most_played`/`most_requested` never called
+  `self.cog_success(ctx.message)` on success (unlike every other command in
+  the file) and had no try/except around their `db.get_*` calls either - the
+  ACK reaction from `before_invoke` was left stuck on *every* invocation,
+  success or failure, with no DONE/ERROR indicator ever shown. Fixed to match
+  the `cog_success`/`cog_failure` convention used by `loop`, `pause`,
+  `skip_song`, etc. in the same file.
+- `cogs/music.py::_playlist()` wrapped *two* independent message deletes
+  (`state.playlist.sent_message.delete()` then `.user_req_message.delete()`)
+  in one shared try/except - a `NotFound` on the first (already-removed by a
+  purge, etc.) raised past the second `.delete()` call, so the old invocation
+  message was never cleaned up after that point. Fixed by reusing the
+  existing per-message `self._delete_invocation()` helper (already used by
+  `clear`) for each delete independently, so one failing delete can't skip
+  the other.
+- `cogs/api/spotify.py`'s `get_track_name`/`get_playlist_songs`/
+  `get_album_songs` each indexed `track["artists"][0]["name"]` directly - a
+  local file embedded in a playlist/album (Spotify represents these with
+  minimal metadata) can report an empty `artists` list, and the `IndexError`
+  aborts the *entire* `for item in results["items"]` loop, silently dropping
+  every other track already collected in that call (only `Music.play()`'s
+  outer `except Exception` catches it, reporting one generic failure for the
+  whole playlist/album import). Fixed with a shared `_format_track()` helper
+  that falls back to `"Unknown Artist"` when `artists` is empty, instead of
+  raising and losing the rest of the batch.
+- `Music.cog_failure()`'s `delete_error_log()` inner coroutine is scheduled
+  via `self.bot.loop.create_task(...)`, not awaited directly - to unit-test
+  its real body (not just assert `cog_failure` was called with the right
+  args), patch `music_cog.bot.loop.create_task` with a wrapper that still
+  calls the real `create_task` but also records the returned task in a list,
+  patch `cogs.music.asyncio.sleep` to an `AsyncMock()` so the 30s wait
+  doesn't actually block, then `await asyncio.gather(*created)` after calling
+  `cog_failure` to let the task run to completion before asserting on it. If
+  a test instead patches `create_task` with a bare `MagicMock()` (e.g. to
+  just verify a task *was* scheduled without running it), it must call
+  `coro.close()` on the coroutine passed in, or pytest emits a "coroutine was
+  never awaited" `RuntimeWarning` for the abandoned `delete_error_log(...)`
+  coroutine object.

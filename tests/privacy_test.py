@@ -44,6 +44,26 @@ async def test_my_data_reports_tracked_hours_and_songs(privacy_cog, mock_bot, mo
 
 
 @pytest.mark.asyncio
+async def test_my_data_reports_error_and_reacts_error_when_db_raises(
+    privacy_cog, mock_bot, mock_ctx
+):
+    # Regression test: same bug class as status.py/leaderboard.py - an
+    # unhandled DB error must not leave the before_invoke ACK reaction stuck
+    # with no error indicator.
+    mock_ctx.message.clear_reactions = AsyncMock()
+    mock_ctx.message.add_reaction = AsyncMock()
+    db = MagicMock()
+    db.get_user_data = AsyncMock(side_effect=RuntimeError("db down"))
+    mock_bot.get_cog.return_value = db
+
+    await privacy_cog.my_data.callback(privacy_cog, mock_ctx)
+
+    mock_ctx.send.assert_awaited_once_with("Something went wrong fetching your data.")
+    mock_ctx.message.clear_reactions.assert_awaited_once()
+    mock_ctx.message.add_reaction.assert_awaited_once_with("❌")
+
+
+@pytest.mark.asyncio
 async def test_my_data_when_database_unavailable(privacy_cog, mock_bot, mock_ctx):
     mock_bot.get_cog.return_value = None
 

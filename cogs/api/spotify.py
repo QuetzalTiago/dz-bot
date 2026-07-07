@@ -13,12 +13,19 @@ class SpotifyAPI:
             )
         )
 
+    def _format_track(self, track):
+        # Local files embedded in a playlist/album can report an empty
+        # "artists" list - a direct [0] index would abort the whole
+        # pagination loop (and the entire import) on that one track.
+        artists = track.get("artists") or []
+        artist = artists[0]["name"] if artists else "Unknown Artist"
+        return f"{artist} - {track['name']}"
+
     async def get_track_name(self, track_url):
         track_id = track_url.split("/")[-1].split("?")[0]
         # spotipy is blocking, so keep it off the event loop.
         track = await asyncio.to_thread(self.spotify.track, track_id)
-        artist = track["artists"][0]["name"]
-        return f"{artist} - {track['name']}"
+        return self._format_track(track)
 
     async def get_playlist_songs(self, playlist_url):
         playlist_id = playlist_url.split("/")[-1].split("?")[0]
@@ -29,8 +36,7 @@ class SpotifyAPI:
                 track = item.get("track")
                 if not track:
                     continue
-                artist = track["artists"][0]["name"]
-                songs.append(f"{artist} - {track['name']}")
+                songs.append(self._format_track(track))
             # Follow pagination so playlists over 100 tracks aren't truncated.
             if results.get("next"):
                 results = await asyncio.to_thread(self.spotify.next, results)
@@ -44,8 +50,7 @@ class SpotifyAPI:
         songs = []
         while results:
             for item in results["items"]:
-                artist = item["artists"][0]["name"]
-                songs.append(f"{artist} - {item['name']}")
+                songs.append(self._format_track(item))
             if results.get("next"):
                 results = await asyncio.to_thread(self.spotify.next, results)
             else:

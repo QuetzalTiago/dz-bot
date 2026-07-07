@@ -5,13 +5,18 @@ commercial product these commands give users visibility into, and control
 over, that data (GDPR access & erasure rights).
 """
 
+import logging
+
 import discord
 from discord.ext import commands
+
+from cogs.utils.emojis import ERROR
 
 
 class Privacy(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.logger = logging.getLogger("discord")
 
     @commands.hybrid_command(aliases=["mydata"])
     @commands.cooldown(1, 10, commands.BucketType.user)
@@ -21,7 +26,14 @@ class Privacy(commands.Cog):
         if db is None:
             await ctx.send("Data storage is not available right now.")
             return
-        data = await db.get_user_data(ctx.author.id)
+        try:
+            data = await db.get_user_data(ctx.author.id)
+        except Exception:
+            self.logger.exception("Failed to fetch stored data for %s", ctx.author.id)
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(ERROR)
+            await ctx.send("Something went wrong fetching your data.")
+            return
         hours = round(data["tracked_seconds"] / 3600, 2)
         embed = discord.Embed(title="Your stored data", color=0x5865F2)
         embed.add_field(name="Voice time tracked", value=f"{hours} hours", inline=False)

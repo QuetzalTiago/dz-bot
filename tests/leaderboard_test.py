@@ -102,6 +102,35 @@ async def test_resolve_user_uses_cache_when_available(leaderboard_cog, mock_bot)
 
 
 @pytest.mark.asyncio
+async def test_leaderboard_when_database_unavailable(leaderboard_cog, mock_bot, mock_ctx):
+    mock_bot.get_cog.return_value = None
+
+    await leaderboard_cog.leaderboard.callback(leaderboard_cog, mock_ctx)
+
+    mock_ctx.send.assert_awaited_once_with("Leaderboard is temporarily unavailable.")
+
+
+@pytest.mark.asyncio
+async def test_leaderboard_reports_error_and_reacts_error_when_db_raises(
+    leaderboard_cog, mock_bot, mock_ctx
+):
+    # Regression test: same bug class as status.py - an unhandled DB error
+    # must not leave the before_invoke ACK reaction stuck with no error
+    # indicator.
+    db = MagicMock()
+    db.get_all_user_hours = AsyncMock(side_effect=RuntimeError("db down"))
+    mock_bot.get_cog.return_value = db
+
+    await leaderboard_cog.leaderboard.callback(leaderboard_cog, mock_ctx)
+
+    mock_ctx.send.assert_awaited_once_with(
+        "Something went wrong fetching the leaderboard."
+    )
+    mock_ctx.message.clear_reactions.assert_awaited_once()
+    mock_ctx.message.add_reaction.assert_awaited_once_with("❌")
+
+
+@pytest.mark.asyncio
 async def test_cog_setup():
     bot = MagicMock(spec=commands.Bot)
     bot.add_cog = AsyncMock()

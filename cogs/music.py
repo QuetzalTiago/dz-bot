@@ -265,7 +265,15 @@ class Music(commands.Cog):
         if db is None:
             await ctx.send("Most played songs are temporarily unavailable.")
             return
-        most_played_songs = await db.get_most_played_songs()
+        try:
+            most_played_songs = await db.get_most_played_songs()
+        except Exception:
+            self.logger.exception("Failed to fetch most played songs")
+            sent_message = await ctx.send(
+                "Something went wrong fetching the most played songs."
+            )
+            await self.cog_failure(sent_message, ctx.message)
+            return
         embed = discord.Embed(title="Top 5 Most Played Songs 🎵", color=0x3498DB)
         for index, (url, title, total_plays) in enumerate(most_played_songs, start=1):
             embed.add_field(
@@ -275,6 +283,7 @@ class Music(commands.Cog):
                 inline=False,
             )
         await ctx.send(embed=embed)
+        await self.cog_success(ctx.message)
 
     @commands.hybrid_command(
         aliases=["topreq", "rtop", "topdj", "plays", "reqs"]
@@ -286,7 +295,15 @@ class Music(commands.Cog):
         if db is None:
             await ctx.send("Most requested songs are temporarily unavailable.")
             return
-        top_users = await db.get_most_song_requests()
+        try:
+            top_users = await db.get_most_song_requests()
+        except Exception:
+            self.logger.exception("Failed to fetch most requested songs")
+            sent_message = await ctx.send(
+                "Something went wrong fetching the most requested songs."
+            )
+            await self.cog_failure(sent_message, ctx.message)
+            return
         embed = discord.Embed(
             title="Top 5 users with most requested songs 🎵", color=0x3498DB
         )
@@ -298,6 +315,7 @@ class Music(commands.Cog):
                 inline=False,
             )
         await ctx.send(embed=embed)
+        await self.cog_success(ctx.message)
 
     @commands.hybrid_command(aliases=["leave"])
     @commands.guild_only()
@@ -343,13 +361,12 @@ class Music(commands.Cog):
         playlist_embed = state.playlist.get_embed()
         message_sent = await ctx.send(embed=playlist_embed)
 
-        try:
-            if state.playlist.sent_message:
-                await state.playlist.sent_message.delete()
-            if state.playlist.user_req_message:
-                await state.playlist.user_req_message.delete()
-        except discord.DiscordException:
-            pass
+        # Each delete is independent - one message already being gone (e.g. a
+        # purge) must not skip cleanup of the other.
+        if state.playlist.sent_message:
+            await self._delete_invocation(state.playlist.sent_message)
+        if state.playlist.user_req_message:
+            await self._delete_invocation(state.playlist.user_req_message)
 
         state.playlist.sent_message = message_sent
         state.playlist.user_req_message = ctx.message

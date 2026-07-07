@@ -1,14 +1,16 @@
 import asyncio
+import logging
 
 from discord.ext import commands
 
-from cogs.utils.emojis import DONE
+from cogs.utils.emojis import DONE, ERROR
 
 
 class Leaderboard(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self.logger = logging.getLogger("discord")
 
     @commands.hybrid_command(aliases=["lb"])
     @commands.cooldown(1, 5, commands.BucketType.channel)
@@ -18,7 +20,14 @@ class Leaderboard(commands.Cog):
         if db is None:
             await ctx.send("Leaderboard is temporarily unavailable.")
             return
-        user_hours_list = await db.get_all_user_hours()
+        try:
+            user_hours_list = await db.get_all_user_hours()
+        except Exception:
+            self.logger.exception("Failed to fetch leaderboard data")
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(ERROR)
+            await ctx.send("Something went wrong fetching the leaderboard.")
+            return
 
         bot_user_id = self.bot.user.id
         user_hours_list = [uh for uh in user_hours_list if uh[0] != bot_user_id]

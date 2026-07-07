@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 import pytest
@@ -7,7 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import discord
 from discord.ext import commands
 
-from cogs.music import Music
+from cogs.music import Music, delete_file, setup
+from cogs.utils.emojis import DONE, ERROR
 from cogs.utils.music.state_machine import State
 from tests.mocks import mock_ctx
 
@@ -437,6 +439,26 @@ async def test_most_played_with_database_builds_embed(music_cog, bot):
     assert embed.title == "Top 5 Most Played Songs 🎵"
     assert "[Song A](http://example.com/a)" in embed.fields[0].value
     assert "3" in embed.fields[0].value
+    # Regression test: this command used to never clear/replace the ACK
+    # reaction added by bot.py's before_invoke hook on success, leaving it
+    # stuck forever unlike every sibling music command.
+    ctx.message.clear_reactions.assert_awaited_once()
+    ctx.message.add_reaction.assert_awaited_once_with("✅")
+
+
+@pytest.mark.asyncio
+async def test_most_played_reports_error_when_db_raises(music_cog, bot):
+    ctx = mock_ctx(bot)
+    db = MagicMock()
+    db.get_most_played_songs = AsyncMock(side_effect=RuntimeError("db down"))
+    with patch.object(bot, "get_cog", return_value=db):
+        await call(music_cog.most_played, music_cog, ctx)
+
+    ctx.send.assert_awaited_once_with(
+        "Something went wrong fetching the most played songs."
+    )
+    ctx.message.clear_reactions.assert_awaited_once()
+    ctx.message.add_reaction.assert_awaited_once_with("❌")
 
 
 @pytest.mark.asyncio
@@ -461,6 +483,23 @@ async def test_most_requested_with_database_builds_embed(music_cog, bot):
     assert embed.title == "Top 5 users with most requested songs 🎵"
     assert "<@42>" in embed.fields[0].value
     assert "7" in embed.fields[0].value
+    ctx.message.clear_reactions.assert_awaited_once()
+    ctx.message.add_reaction.assert_awaited_once_with("✅")
+
+
+@pytest.mark.asyncio
+async def test_most_requested_reports_error_when_db_raises(music_cog, bot):
+    ctx = mock_ctx(bot)
+    db = MagicMock()
+    db.get_most_song_requests = AsyncMock(side_effect=RuntimeError("db down"))
+    with patch.object(bot, "get_cog", return_value=db):
+        await call(music_cog.most_requested, music_cog, ctx)
+
+    ctx.send.assert_awaited_once_with(
+        "Something went wrong fetching the most requested songs."
+    )
+    ctx.message.clear_reactions.assert_awaited_once()
+    ctx.message.add_reaction.assert_awaited_once_with("❌")
 
 
 # ---- per-guild isolation -------------------------------------------------
@@ -527,3 +566,258 @@ async def test_cleanup_files_does_not_delete_pending_download(music_cog, bot, tm
         music_cog.cleanup_files(song_a, [])
 
     assert os.path.exists(pending_path)
+
+
+@pytest.mark.asyncio
+async def test_cleanup_files_noop_when_download_dir_missing(music_cog, tmp_path):
+    missing_dir = str(tmp_path / "does-not-exist")
+    with patch("cogs.music.DOWNLOAD_DIR", missing_dir):
+        # Must not raise even though os.listdir(missing_dir) would.
+        music_cog.cleanup_files(MagicMock(path="x"), [])
+
+
+# ---- handle_forced_disconnect ---------------------------------------------
+
+@pytest.mark.asyncio
+async def test_handle_forced_disconnect_tears_down_existing_state(music_cog):
+    guild = MagicMock(spec=discord.Guild)
+    guild.id = 42
+    state = music_cog.get_state(guild)
+    state.teardown = AsyncMock()
+
+    await music_cog.handle_forced_disconnect(guild)
+
+    state.teardown.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_handle_forced_disconnect_noop_when_no_state_for_guild(music_cog):
+    guild = MagicMock(spec=discord.Guild)
+    guild.id = 999
+    # No prior get_state call for this guild id; must not raise or create one.
+    await music_cog.handle_forced_disconnect(guild)
+    assert guild.id not in music_cog.guild_states
+
+
+# ---- cog_success / cog_failure (real behavior, not mocked) ----------------
+
+@pytest.mark.asyncio
+async def test_cog_success_clears_reactions_and_adds_done(music_cog):
+    message = MagicMock()
+    message.clear_reactions = AsyncMock()
+    message.add_reaction = AsyncMock()
+
+    await music_cog.cog_success(message)
+
+    message.clear_reactions.assert_awaited_once()
+    message.add_reaction.assert_awaited_once_with(DONE)
+
+
+@pytest.mark.asyncio
+async def test_cog_success_swallows_discord_exception(music_cog):
+    message = MagicMock()
+    message.clear_reactions = AsyncMock(side_effect=discord.HTTPException(MagicMock(), "boom"))
+    message.add_reaction = AsyncMock()
+
+    await music_cog.cog_success(message)  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_cog_failure_marks_error_and_schedules_deletion(music_cog):
+    sent_message = MagicMock()
+    sent_message.delete = AsyncMock()
+    query_message = MagicMock()
+    query_message.clear_reactions = AsyncMock()
+    query_message.add_reaction = AsyncMock()
+    query_message.delete = AsyncMock()
+
+    real_create_task = music_cog.bot.loop.create_task
+    created = []
+
+    def capture(coro):
+        task = real_create_task(coro)
+        created.append(task)
+        return task
+
+    with patch.object(music_cog.bot.loop, "create_task", side_effect=capture), \
+            patch("cogs.music.asyncio.sleep", new=AsyncMock()):
+        await music_cog.cog_failure(sent_message, query_message)
+        await asyncio.gather(*created)
+
+    query_message.clear_reactions.assert_awaited_once()
+    query_message.add_reaction.assert_awaited_once_with(ERROR)
+    sent_message.delete.assert_awaited_once()
+    query_message.delete.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_cog_failure_swallows_discord_exception_on_reaction(music_cog):
+    sent_message = MagicMock()
+    query_message = MagicMock()
+    query_message.clear_reactions = AsyncMock(
+        side_effect=discord.HTTPException(MagicMock(), "boom")
+    )
+    query_message.add_reaction = AsyncMock()
+
+    with patch.object(
+        music_cog.bot.loop, "create_task", side_effect=lambda coro: coro.close()
+    ):
+        await music_cog.cog_failure(sent_message, query_message)  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_cog_failure_delete_error_log_swallows_deletion_errors(music_cog):
+    # delete_error_log's own try/except must swallow a failure to delete
+    # (e.g. one of the messages was already removed) rather than letting it
+    # escape the scheduled task.
+    sent_message = MagicMock()
+    sent_message.delete = AsyncMock(side_effect=discord.NotFound(MagicMock(), "gone"))
+    query_message = MagicMock()
+    query_message.clear_reactions = AsyncMock()
+    query_message.add_reaction = AsyncMock()
+    query_message.delete = AsyncMock()
+
+    real_create_task = music_cog.bot.loop.create_task
+    created = []
+
+    def capture(coro):
+        task = real_create_task(coro)
+        created.append(task)
+        return task
+
+    with patch.object(music_cog.bot.loop, "create_task", side_effect=capture), \
+            patch("cogs.music.asyncio.sleep", new=AsyncMock()):
+        await music_cog.cog_failure(sent_message, query_message)
+        await asyncio.gather(*created)  # must not raise despite the NotFound
+
+
+# ---- send_lyrics_file ------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_send_lyrics_file_sends_file_contents(music_cog, tmp_path):
+    lyrics_path = tmp_path / "lyrics.txt"
+    lyrics_path.write_text("some lyrics")
+    channel = MagicMock()
+    channel.send = AsyncMock(return_value="sent")
+
+    result = await music_cog.send_lyrics_file(channel, str(lyrics_path))
+
+    assert result == "sent"
+    channel.send.assert_awaited_once()
+    kwargs = channel.send.await_args.kwargs
+    assert isinstance(kwargs["file"], discord.File)
+
+
+# ---- _extract_query ---------------------------------------------------------
+
+def test_extract_query_prefers_parsed_argument(music_cog):
+    ctx = MagicMock()
+    ctx.message.content = "!play some other song"
+    assert music_cog._extract_query(ctx, "given query") == "given query"
+
+
+def test_extract_query_falls_back_to_slicing_prefix_command_content(music_cog):
+    ctx = MagicMock()
+    ctx.message.content = "!play my favorite song"
+    assert music_cog._extract_query(ctx, "") == "my favorite song"
+
+
+def test_extract_query_falls_back_to_slicing_short_alias(music_cog):
+    ctx = MagicMock()
+    ctx.message.content = "!p my favorite song"
+    assert music_cog._extract_query(ctx, "") == "my favorite song"
+
+
+def test_extract_query_returns_empty_when_no_match(music_cog):
+    ctx = MagicMock()
+    ctx.message.content = "!stop"
+    assert music_cog._extract_query(ctx, "") == ""
+
+
+# ---- _playlist deletes previous tracking messages --------------------------
+
+@pytest.mark.asyncio
+async def test_playlist_deletes_previous_sent_and_request_messages(music_cog, bot):
+    ctx = mock_ctx(bot)
+    state = state_for(music_cog, ctx)
+    old_sent = MagicMock()
+    old_sent.delete = AsyncMock()
+    old_req = MagicMock()
+    old_req.delete = AsyncMock()
+    state.playlist.sent_message = old_sent
+    state.playlist.user_req_message = old_req
+
+    with patch.object(music_cog, "cog_success", new_callable=AsyncMock):
+        await call(music_cog._playlist, music_cog, ctx)
+
+    old_sent.delete.assert_awaited_once()
+    old_req.delete.assert_awaited_once()
+    assert state.playlist.sent_message is ctx.send.return_value
+    assert state.playlist.user_req_message is ctx.message
+
+
+@pytest.mark.asyncio
+async def test_playlist_swallows_discord_exception_deleting_previous_messages(
+    music_cog, bot
+):
+    ctx = mock_ctx(bot)
+    state = state_for(music_cog, ctx)
+    old_sent = MagicMock()
+    old_sent.delete = AsyncMock(side_effect=discord.NotFound(MagicMock(), "gone"))
+    state.playlist.sent_message = old_sent
+    state.playlist.user_req_message = None
+
+    with patch.object(music_cog, "cog_success", new_callable=AsyncMock):
+        await call(music_cog._playlist, music_cog, ctx)  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_playlist_deletes_request_message_even_if_sent_message_delete_fails(
+    music_cog, bot
+):
+    # Regression test: the two deletes used to share one try/except, so a
+    # NotFound on the first (already-removed sent_message) skipped the
+    # second delete entirely, leaking the old invocation message forever.
+    ctx = mock_ctx(bot)
+    state = state_for(music_cog, ctx)
+    old_sent = MagicMock()
+    old_sent.delete = AsyncMock(side_effect=discord.NotFound(MagicMock(), "gone"))
+    old_req = MagicMock()
+    old_req.delete = AsyncMock()
+    state.playlist.sent_message = old_sent
+    state.playlist.user_req_message = old_req
+
+    with patch.object(music_cog, "cog_success", new_callable=AsyncMock):
+        await call(music_cog._playlist, music_cog, ctx)
+
+    old_req.delete.assert_awaited_once()
+
+
+# ---- delete_file / setup module-level helpers ------------------------------
+
+def test_delete_file_removes_existing_file(tmp_path):
+    logger = MagicMock()
+    path = tmp_path / "song.mp3"
+    path.write_text("data")
+
+    delete_file(str(path), logger)
+
+    assert not path.exists()
+    logger.info.assert_called_once()
+
+
+def test_delete_file_logs_error_when_removal_fails(tmp_path):
+    logger = MagicMock()
+    missing_path = str(tmp_path / "does-not-exist.mp3")
+
+    delete_file(missing_path, logger)  # must not raise
+
+    logger.info.assert_called_once()
+    assert "Error deleting file" in logger.info.call_args.args[0]
+
+
+@pytest.mark.asyncio
+async def test_setup_adds_music_cog(bot):
+    with patch("cogs.music.load_config", return_value={"prefix": "!", "secrets": {}}):
+        await setup(bot)
+    assert bot.get_cog("Music") is not None

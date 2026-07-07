@@ -39,6 +39,20 @@ async def test_get_track_name_uses_first_artist_only(api):
 
 
 @pytest.mark.asyncio
+async def test_get_track_name_falls_back_when_artists_empty(api):
+    # Regression test: a local file embedded in a playlist/album can report
+    # an empty "artists" list - a direct [0] index would raise IndexError
+    # and (for playlist/album imports) abort the entire batch on one track.
+    api.spotify.track = MagicMock(
+        return_value={"artists": [], "name": "Untitled Local File"}
+    )
+
+    result = await api.get_track_name("https://open.spotify.com/track/abc123")
+
+    assert result == "Unknown Artist - Untitled Local File"
+
+
+@pytest.mark.asyncio
 async def test_get_playlist_songs_follows_pagination(api):
     page1 = {
         "items": [{"track": {"artists": [{"name": "A"}], "name": "Song A"}}],
@@ -73,6 +87,29 @@ async def test_get_playlist_songs_skips_removed_tracks(api):
     songs = await api.get_playlist_songs("https://open.spotify.com/playlist/plid")
 
     assert songs == ["A - Song A"]
+
+
+@pytest.mark.asyncio
+async def test_get_playlist_songs_falls_back_when_track_artists_empty(api):
+    page = {
+        "items": [{"track": {"artists": [], "name": "Local Track"}}],
+        "next": None,
+    }
+    api.spotify.playlist_tracks = MagicMock(return_value=page)
+
+    songs = await api.get_playlist_songs("https://open.spotify.com/playlist/plid")
+
+    assert songs == ["Unknown Artist - Local Track"]
+
+
+@pytest.mark.asyncio
+async def test_get_album_songs_falls_back_when_artists_empty(api):
+    page = {"items": [{"artists": [], "name": "Local Track"}], "next": None}
+    api.spotify.album_tracks = MagicMock(return_value=page)
+
+    songs = await api.get_album_songs("https://open.spotify.com/album/alid")
+
+    assert songs == ["Unknown Artist - Local Track"]
 
 
 def test_init_does_not_raise_when_secrets_missing():

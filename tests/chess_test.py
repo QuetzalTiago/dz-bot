@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -200,3 +202,98 @@ async def test_watch_match_retries_on_non_200_then_saves_on_next_poll(chess_cog)
 
     assert fake_session.get.call_count == 2
     db.save_chess_game.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_cog_unload_cancels_pending_watch_tasks(chess_cog):
+    async def never_ending():
+        await asyncio.sleep(1000)
+
+    task = asyncio.ensure_future(never_ending())
+    chess_cog._watch_tasks.add(task)
+
+    await chess_cog.cog_unload()
+
+    assert task.cancelled() or task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+@pytest.mark.asyncio
+async def test_fetch_match_url_swallows_unexpected_exception(chess_cog):
+    ctx = mock_ctx()
+    fake_session = MagicMock()
+    fake_session.post = MagicMock(side_effect=RuntimeError("connection refused"))
+    with patch("cogs.chess.get_session", return_value=fake_session):
+        result = await chess_cog.fetch_match_url(ctx, {})
+    assert result is None
+    ctx.send.assert_awaited_with("An error occurred while connecting to Lichess.")
+    chess_cog.logger.exception.assert_called_once()
+
+
+def test_create_game_summary_embed_named_winner(chess_cog):
+    embed = chess_cog.create_game_summary_embed(
+        "abcd1234", "mate", "alice", "bob", "white"
+    )
+    assert embed.title == "alice wins!"
+
+
+def test_create_game_summary_embed_anonymous_winner_uses_color(chess_cog):
+    embed = chess_cog.create_game_summary_embed(
+        "abcd1234", "mate", "Anonymous", "bob", "white"
+    )
+    assert embed.title == "White wins!"
+
+    embed_black = chess_cog.create_game_summary_embed(
+        "abcd1234", "mate", "alice", "Anonymous", "black"
+    )
+    assert embed_black.title == "Black wins!"
+
+
+def test_create_game_summary_embed_both_anonymous_omits_names(chess_cog):
+    embed = chess_cog.create_game_summary_embed(
+        "abcd1234", "draw", "Anonymous", "Anonymous", None
+    )
+    assert "White:" not in embed.description
+    assert "Black:" not in embed.description
+    assert "abcd1234" in embed.description
+
+
+@pytest.mark.asyncio
+async def test_watch_match_continues_after_polling_exception(chess_cog):
+    ctx = mock_ctx()
+    fake_session = MagicMock()
+    fake_session.get = MagicMock(
+        side_effect=[
+            RuntimeError("network blip"),
+            FakeResponse(200, json_data=_finished_game_data(status="mate")),
+        ]
+    )
+    chess_cog.bot.get_cog = MagicMock(return_value=None)
+
+    with patch("cogs.chess.get_session", return_value=fake_session), patch(
+        "cogs.chess.asyncio.sleep", AsyncMock()
+    ):
+        await chess_cog._watch_match(ctx, "abcd1234")
+
+    assert fake_session.get.call_count == 2
+    chess_cog.logger.exception.assert_called_once()
+    ctx.send.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_watch_match_logs_when_posting_summary_fails(chess_cog):
+    ctx = mock_ctx()
+    ctx.send = AsyncMock(side_effect=discord.HTTPException(MagicMock(), "rate limited"))
+    fake_session = MagicMock()
+    fake_session.get = MagicMock(
+        return_value=FakeResponse(200, json_data=_finished_game_data())
+    )
+    chess_cog.bot.get_cog = MagicMock(return_value=None)
+
+    with patch("cogs.chess.get_session", return_value=fake_session), patch(
+        "cogs.chess.asyncio.sleep", AsyncMock()
+    ):
+        await chess_cog._watch_match(ctx, "abcd1234")  # must not raise
+
+    chess_cog.logger.exception.assert_called_once()

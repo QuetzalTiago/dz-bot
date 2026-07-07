@@ -59,6 +59,36 @@ async def test_status_reports_rounded_hours(status_cog, mock_bot):
 
 
 @pytest.mark.asyncio
+async def test_status_when_database_unavailable(status_cog, mock_bot):
+    ctx = mock_ctx()
+    mock_bot.get_cog.return_value = None
+
+    await status_cog.status.callback(status_cog, ctx)
+
+    ctx.send.assert_awaited_once_with("Status is temporarily unavailable.")
+
+
+@pytest.mark.asyncio
+async def test_status_reports_error_and_reacts_error_when_db_raises(
+    status_cog, mock_bot
+):
+    # Regression test: a DB failure must not propagate unhandled - the global
+    # error handler would send a generic message but never clear the ACK
+    # reaction added by bot.py's before_invoke hook, leaving it stuck forever
+    # with no error indicator, unlike every sibling command in the codebase.
+    ctx = mock_ctx()
+    db = MagicMock()
+    db.get_user_hours = AsyncMock(side_effect=RuntimeError("db down"))
+    mock_bot.get_cog.return_value = db
+
+    await status_cog.status.callback(status_cog, ctx)
+
+    ctx.send.assert_awaited_once_with("Something went wrong fetching your status.")
+    ctx.message.clear_reactions.assert_awaited_once()
+    ctx.message.add_reaction.assert_awaited_once_with("❌")
+
+
+@pytest.mark.asyncio
 async def test_cog_setup():
     bot = MagicMock(spec=commands.Bot)
     bot.add_cog = AsyncMock()

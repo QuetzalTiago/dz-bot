@@ -1,12 +1,15 @@
+import logging
+
 from discord.ext import commands
 
-from cogs.utils.emojis import DONE
+from cogs.utils.emojis import DONE, ERROR
 
 
 class Status(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self.logger = logging.getLogger("discord")
 
     @commands.hybrid_command()
     @commands.cooldown(1, 3, commands.BucketType.user)
@@ -16,7 +19,14 @@ class Status(commands.Cog):
         if db is None:
             await ctx.send("Status is temporarily unavailable.")
             return
-        user_hours = await db.get_user_hours(ctx.author.id)
+        try:
+            user_hours = await db.get_user_hours(ctx.author.id)
+        except Exception:
+            self.logger.exception("Failed to fetch status for %s", ctx.author.id)
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(ERROR)
+            await ctx.send("Something went wrong fetching your status.")
+            return
         user_hours = round(user_hours, 2)  # rounding off to 2 decimal   places
 
         if user_hours < 1:

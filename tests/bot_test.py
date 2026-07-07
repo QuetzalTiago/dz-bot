@@ -424,3 +424,107 @@ async def test_fetch_message_by_id_returns_none_on_discord_exception(khaled):
     khaled.get_channel = MagicMock(return_value=channel)
 
     assert await khaled.fetch_message_by_id(123, 456) is None
+
+
+def _stub_main_startup(monkeypatch, config):
+    monkeypatch.setattr(bot_module, "_configure_logging", lambda: MagicMock())
+    monkeypatch.setattr(bot_module, "_init_observability", MagicMock())
+    monkeypatch.setattr(bot_module, "load_config", lambda: config)
+    monkeypatch.delenv("DZ_OWNERS", raising=False)
+
+    fake_bot = AsyncMock()
+    fake_bot.__aenter__.return_value = fake_bot
+    fake_bot.__aexit__.return_value = False
+    fake_bot.before_invoke = MagicMock()
+    khaled_cls = MagicMock(return_value=fake_bot)
+    monkeypatch.setattr(bot_module, "Khaled", khaled_cls)
+    return khaled_cls, fake_bot
+
+
+@pytest.mark.asyncio
+async def test_main_exits_without_a_discord_token(monkeypatch):
+    _stub_main_startup(monkeypatch, {})
+    monkeypatch.delenv("DZ_SECRET_DISCORD_TOKEN", raising=False)
+
+    with pytest.raises(SystemExit):
+        await bot_module.main()
+
+
+@pytest.mark.asyncio
+async def test_main_falls_back_to_env_token_and_starts_bot(monkeypatch):
+    khaled_cls, fake_bot = _stub_main_startup(monkeypatch, {"owners": []})
+    monkeypatch.setenv("DZ_SECRET_DISCORD_TOKEN", "env-tok")
+    monkeypatch.delenv("DZ_ENABLE_CEDULA", raising=False)
+
+    await bot_module.main()
+
+    fake_bot.start.assert_awaited_once_with("env-tok")
+    fake_bot.before_invoke.assert_called_once()
+    _, kwargs = khaled_cls.call_args
+    assert "cogs.ci" not in kwargs["initial_extensions"]
+    assert kwargs["initial_extensions"][-1] == "cogs.purge"
+
+
+@pytest.mark.asyncio
+async def test_main_starts_with_configured_prefix(monkeypatch):
+    khaled_cls, fake_bot = _stub_main_startup(
+        monkeypatch, {"secrets": {"discordToken": "tok"}, "owners": [], "prefix": "!"}
+    )
+    monkeypatch.delenv("DZ_ENABLE_CEDULA", raising=False)
+
+    await bot_module.main()
+
+    args, _ = khaled_cls.call_args
+    assert args[0] == "!"
+    fake_bot.start.assert_awaited_once_with("tok")
+
+
+@pytest.mark.asyncio
+async def test_main_inserts_ci_extension_before_purge_when_cedula_enabled(monkeypatch):
+    khaled_cls, fake_bot = _stub_main_startup(
+        monkeypatch, {"secrets": {"discordToken": "tok"}, "owners": []}
+    )
+    monkeypatch.setenv("DZ_ENABLE_CEDULA", "true")
+
+    await bot_module.main()
+
+    _, kwargs = khaled_cls.call_args
+    exts = kwargs["initial_extensions"]
+    assert exts[-1] == "cogs.purge"
+    assert exts[-2] == "cogs.ci"
+
+
+@pytest.mark.asyncio
+async def test_main_passes_loaded_owner_ids_to_khaled(monkeypatch):
+    khaled_cls, fake_bot = _stub_main_startup(
+        monkeypatch, {"secrets": {"discordToken": "tok"}, "owners": [111, "222"]}
+    )
+    monkeypatch.delenv("DZ_ENABLE_CEDULA", raising=False)
+
+    await bot_module.main()
+
+    _, kwargs = khaled_cls.call_args
+    assert kwargs["owner_ids"] == {111, 222}
+
+
+@pytest.mark.asyncio
+async def test_show_cmd_confirmation_acks_and_survives_reaction_failure(monkeypatch):
+    khaled_cls, fake_bot = _stub_main_startup(
+        monkeypatch, {"secrets": {"discordToken": "tok"}, "owners": []}
+    )
+    monkeypatch.delenv("DZ_ENABLE_CEDULA", raising=False)
+
+    await bot_module.main()
+
+    show_cmd_confirmation = fake_bot.before_invoke.call_args[0][0]
+
+    ctx = MagicMock()
+    ctx.command = MagicMock(name="play")
+    ctx.author = "someone"
+    ctx.message.add_reaction = AsyncMock()
+    await show_cmd_confirmation(ctx)
+    ctx.message.add_reaction.assert_awaited_once()
+
+    ctx.command = None
+    ctx.message.add_reaction = AsyncMock(side_effect=discord.DiscordException("nope"))
+    await show_cmd_confirmation(ctx)

@@ -23,6 +23,23 @@ def make_state_machine():
     return sm, state
 
 
+@pytest.mark.asyncio
+async def test_before_handle_state_waits_until_bot_ready():
+    sm, state = make_state_machine()
+    state.bot.wait_until_ready = AsyncMock()
+
+    await sm.before_handle_state()
+
+    state.bot.wait_until_ready.assert_awaited_once()
+
+
+def test_get_state_returns_current_state():
+    sm, _ = make_state_machine()
+    sm.set_state(State.PAUSED)
+
+    assert sm.get_state() == State.PAUSED
+
+
 def test_transition_to_allows_valid_transition():
     sm, _ = make_state_machine()
     sm.set_state(State.STOPPED)
@@ -71,6 +88,33 @@ async def test_stop_cancels_running_loop():
     await sm.stop()
 
     sm.handle_state.cancel.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_tick_disconnected_state_is_a_no_op():
+    """The `case _` default branch: DISCONNECTED has nothing to advance."""
+    sm, state = make_state_machine()
+    sm.set_state(State.DISCONNECTED)
+    state.player.voice_client = None
+
+    await sm._tick()
+
+    assert sm.current == State.DISCONNECTED
+    state.playlist.get_next.assert_not_awaited()
+    state.player.handle_idle.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_handle_state_loop_survives_a_tick_exception():
+    """A bare tasks.loop stops for good on the first unhandled exception -
+    handle_state's try/except must swallow it and log instead."""
+    sm, _ = make_state_machine()
+    sm._tick = AsyncMock(side_effect=RuntimeError("boom"))
+    sm.logger = MagicMock()
+
+    await sm.handle_state.coro(sm)
+
+    sm.logger.exception.assert_called_once()
 
 
 @pytest.mark.asyncio

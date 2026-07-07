@@ -7,6 +7,10 @@ from cogs.utils.checks import is_owner_or_admin, require_manage_messages
 from cogs.utils.formatting import format_local, split_message, to_local
 
 
+def test_split_message_empty():
+    assert split_message("") == []
+
+
 def test_split_message_short():
     assert split_message("hello") == ["hello"]
 

@@ -143,9 +143,17 @@ class AI(commands.Cog):
             await ctx.send("There was an error connecting to the AI service.")
             return
 
-        await self._send_response(ctx, response_text)
-        await ctx.message.clear_reactions()
-        await ctx.message.add_reaction(DONE)
+        try:
+            await self._send_response(ctx, response_text)
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(DONE)
+        except Exception:
+            logger.exception("Failed to send AI ask response")
+            try:
+                await ctx.message.clear_reactions()
+                await ctx.message.add_reaction(ERROR)
+            except Exception:
+                pass
 
     @commands.hybrid_command()
     @commands.cooldown(1, 5, commands.BucketType.user)
@@ -171,9 +179,17 @@ class AI(commands.Cog):
             return
 
         conversation.append({"role": "assistant", "content": response_text})
-        await self._send_response(ctx, response_text)
-        await ctx.message.clear_reactions()
-        await ctx.message.add_reaction(DONE)
+        try:
+            await self._send_response(ctx, response_text)
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(DONE)
+        except Exception:
+            logger.exception("Failed to send AI chat response")
+            try:
+                await ctx.message.clear_reactions()
+                await ctx.message.add_reaction(ERROR)
+            except Exception:
+                pass
 
     @commands.hybrid_command()
     @commands.cooldown(1, 5, commands.BucketType.user)

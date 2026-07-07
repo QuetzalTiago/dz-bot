@@ -1,6 +1,8 @@
+import logging
+
 from discord.ext import commands
 
-from cogs.utils.emojis import DONE
+from cogs.utils.emojis import DONE, ERROR
 from cogs.utils.formatting import split_message
 
 
@@ -8,6 +10,7 @@ class Emoji(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self.logger = logging.getLogger("discord")
 
     @commands.hybrid_command()
     @commands.cooldown(1, 3, commands.BucketType.user)
@@ -18,12 +21,20 @@ class Emoji(commands.Cog):
             await ctx.send("Give me some text, for example: `emoji hello`")
             return
         emoji_text = self.text_to_emoji(text)
-        # Each letter expands to a multi-char emoji code, so ordinary-length
-        # input can easily blow past Discord's 2000-char message limit.
-        for chunk in split_message(emoji_text):
-            await ctx.send(chunk)
-        await ctx.message.clear_reactions()
-        await ctx.message.add_reaction(DONE)
+        try:
+            # Each letter expands to a multi-char emoji code, so ordinary-length
+            # input can easily blow past Discord's 2000-char message limit.
+            for chunk in split_message(emoji_text):
+                await ctx.send(chunk)
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(DONE)
+        except Exception:
+            self.logger.exception("Failed to send emoji response")
+            try:
+                await ctx.message.clear_reactions()
+                await ctx.message.add_reaction(ERROR)
+            except Exception:
+                pass
 
     @staticmethod
     def text_to_emoji(text):

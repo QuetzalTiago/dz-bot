@@ -184,6 +184,28 @@ async def test_ask_success_sends_response_and_reactions(cog):
 
 
 @pytest.mark.asyncio
+async def test_ask_send_failure_sets_error_reaction(cog):
+    # Regression test: a successful API call followed by a failed ctx.send
+    # (e.g. rate limit) must still clear the stuck PROCESSING reaction.
+    ctx = mock_ctx()
+    ctx.send = AsyncMock(side_effect=Exception("rate limited"))
+    with patch.object(cog, "_call_api", new=AsyncMock(return_value="the answer")):
+        await cog.ask.callback(cog, ctx, question="what's up")
+    ctx.message.add_reaction.assert_any_call("❌")
+
+
+@pytest.mark.asyncio
+async def test_ask_send_failure_swallows_reaction_cleanup_error(cog):
+    # Regression test: a doubly-failing cleanup (send fails, then clearing the
+    # reaction also fails) must not raise out of the command.
+    ctx = mock_ctx()
+    ctx.send = AsyncMock(side_effect=Exception("rate limited"))
+    ctx.message.clear_reactions = AsyncMock(side_effect=Exception("message gone"))
+    with patch.object(cog, "_call_api", new=AsyncMock(return_value="the answer")):
+        await cog.ask.callback(cog, ctx, question="what's up")
+
+
+@pytest.mark.asyncio
 async def test_ask_api_error_sets_error_reaction(cog):
     ctx = mock_ctx()
     with patch.object(cog, "_call_api", new=AsyncMock(side_effect=Exception("boom"))):
@@ -213,6 +235,27 @@ async def test_chat_success_persists_conversation(cog):
     assert conversation[-1]["content"] == "reply text"
     ctx.send.assert_awaited_once_with("> reply text")
     ctx.message.add_reaction.assert_any_call("✅")
+
+
+@pytest.mark.asyncio
+async def test_chat_send_failure_sets_error_reaction(cog):
+    # Regression test: same gap as ask() - a failed ctx.send after a
+    # successful API call must not leave the PROCESSING reaction stuck.
+    ctx = mock_ctx()
+    ctx.send = AsyncMock(side_effect=Exception("rate limited"))
+    with patch.object(cog, "_call_api", new=AsyncMock(return_value="reply text")):
+        await cog.chat.callback(cog, ctx, prompt="hello")
+    ctx.message.add_reaction.assert_any_call("❌")
+
+
+@pytest.mark.asyncio
+async def test_chat_send_failure_swallows_reaction_cleanup_error(cog):
+    # Regression test: same doubly-failing cleanup as ask() must not raise.
+    ctx = mock_ctx()
+    ctx.send = AsyncMock(side_effect=Exception("rate limited"))
+    ctx.message.clear_reactions = AsyncMock(side_effect=Exception("message gone"))
+    with patch.object(cog, "_call_api", new=AsyncMock(return_value="reply text")):
+        await cog.chat.callback(cog, ctx, prompt="hello")
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,7 @@
 import asyncio
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import discord
 from discord.ext import commands
@@ -92,6 +92,42 @@ async def test_chess_success(chess_cog):
         await chess_cog.chess.callback(chess_cog, ctx, minutes=10, increment=5)
     ctx.send.assert_awaited_with("https://lichess.org/abcd1234")
     ctx.message.add_reaction.assert_any_call("✅")
+
+
+@pytest.mark.asyncio
+async def test_chess_starts_watcher_even_if_posting_link_fails(chess_cog):
+    # Regression test: the Lichess challenge already exists once fetch_match_url
+    # succeeds, so a failure sending the link back to Discord must not skip
+    # starting the watcher - otherwise the game's result is never posted/saved.
+    ctx = mock_ctx()
+    ctx.send = AsyncMock(side_effect=discord.HTTPException(Mock(status=429), "rate limited"))
+    watch_match = AsyncMock()
+    with patch.object(
+        chess_cog,
+        "fetch_match_url",
+        new=AsyncMock(return_value="https://lichess.org/abcd1234"),
+    ), patch.object(chess_cog, "_watch_match", new=watch_match):
+        await chess_cog.chess.callback(chess_cog, ctx, minutes=10, increment=5)
+
+    # The watcher coroutine was created (i.e. asyncio.create_task ran) even
+    # though ctx.send failed - it doesn't need to finish for this assertion.
+    watch_match.assert_called_once_with(ctx, "abcd1234")
+    ctx.message.add_reaction.assert_any_call("❌")
+
+
+@pytest.mark.asyncio
+async def test_chess_send_failure_swallows_reaction_cleanup_error(chess_cog):
+    # Regression test: if clearing/reacting to the message also fails while
+    # already handling a failed ctx.send, the command must not raise.
+    ctx = mock_ctx()
+    ctx.send = AsyncMock(side_effect=discord.HTTPException(Mock(status=429), "rate limited"))
+    ctx.message.clear_reactions = AsyncMock(side_effect=discord.DiscordException("gone"))
+    with patch.object(
+        chess_cog,
+        "fetch_match_url",
+        new=AsyncMock(return_value="https://lichess.org/abcd1234"),
+    ), patch.object(chess_cog, "_watch_match", new=AsyncMock()):
+        await chess_cog.chess.callback(chess_cog, ctx, minutes=10, increment=5)
 
 
 @pytest.mark.asyncio

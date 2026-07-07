@@ -714,3 +714,23 @@ Environment / gotchas learned from past runs (read this before writing new tests
   emitted a corrupted `:regional_indicator_i̇:` shortcode instead of falling
   through to the literal-character branch. Fixed with a `len(char) == 1`
   guard before the range check.
+- The "keep the success tail inside the try/except" rule (see the steam/
+  weather/ci note above) had three outliers that were missed in that pass:
+  `chess.py::chess()`'s `await ctx.send(match_url)` + reaction cleanup,
+  `ai.py::ask()`/`chat()`'s `await self._send_response(...)` + reaction
+  cleanup, and `emoji.py::emoji()`'s chunked `ctx.send` loop + reaction
+  cleanup all ran *after* their respective try/except instead of inside it -
+  a failing `ctx.send` (rate limit, permission change) left the PROCESSING
+  reaction stuck forever with no ERROR indicator. Worse in `chess.py`: the
+  per-game watcher (`asyncio.create_task(self._watch_match(...))`) was only
+  reached after the unguarded `ctx.send`, so a send failure also meant the
+  already-created Lichess game was never watched/saved. Fix: wrap the whole
+  success tail in try/except (reusing the existing ERROR-reaction pattern),
+  but in `chess.py` specifically create the watch task unconditionally
+  afterward (in a `finally`-equivalent position) since the challenge exists
+  on Lichess regardless of whether Discord accepted the confirmation
+  message. When adding a new command with a "call external API, then send
+  result + react DONE" shape, grep for `ctx.message.add_reaction(DONE)` in
+  the new file and confirm every statement before it that can raise
+  (`ctx.send`, `.clear_reactions()`) is inside the same try/except as the
+  API call, not tacked on after it.

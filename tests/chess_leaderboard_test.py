@@ -108,6 +108,17 @@ async def test_chess_leaderboard_command_empty(leaderboard_cog, mock_bot):
 
 
 @pytest.mark.asyncio
+async def test_chess_leaderboard_command_no_database(leaderboard_cog, mock_bot):
+    ctx = mock_ctx()
+    mock_bot.get_cog.return_value = None
+
+    await leaderboard_cog.chess_leaderboard.callback(leaderboard_cog, ctx)
+
+    ctx.send.assert_awaited_once_with("Chess leaderboard is temporarily unavailable.")
+    ctx.message.add_reaction.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_chess_leaderboard_command_with_games(leaderboard_cog, mock_bot):
     ctx = mock_ctx()
     mock_bot.get_cog.return_value = make_db([make_game("white", "alice", "bob")])

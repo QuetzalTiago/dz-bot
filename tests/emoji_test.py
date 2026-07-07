@@ -80,6 +80,26 @@ async def test_emoji_command_empty(emoji_cog):
 
 
 @pytest.mark.asyncio
+async def test_emoji_command_send_failure_sets_error_reaction(emoji_cog):
+    # Regression test: a failed ctx.send (e.g. rate limit) previously left the
+    # invoking message's ACK reaction stuck forever with no error indicator.
+    ctx = mock_ctx()
+    ctx.send = AsyncMock(side_effect=Exception("rate limited"))
+    await emoji_cog.emoji.callback(emoji_cog, ctx, text="Hi!")
+    ctx.message.add_reaction.assert_awaited_once_with("❌")
+
+
+@pytest.mark.asyncio
+async def test_emoji_command_send_failure_swallows_reaction_cleanup_error(emoji_cog):
+    # Regression test: if clearing/reacting to the message also fails while
+    # already handling a send failure, the command must not raise.
+    ctx = mock_ctx()
+    ctx.send = AsyncMock(side_effect=Exception("rate limited"))
+    ctx.message.clear_reactions = AsyncMock(side_effect=Exception("message gone"))
+    await emoji_cog.emoji.callback(emoji_cog, ctx, text="Hi!")
+
+
+@pytest.mark.asyncio
 async def test_emoji_command_chunks_long_output(emoji_cog):
     # Regression test: each letter expands to a ~23-char shortcode, so
     # ordinary-length input can exceed Discord's 2000-char message limit -

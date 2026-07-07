@@ -76,10 +76,21 @@ class Chess(commands.Cog):
             return
 
         match_id = self.get_match_id(match_url)
-        await ctx.send(match_url)
-        await ctx.message.clear_reactions()
-        await ctx.message.add_reaction(DONE)
         self.logger.info(f"Chess match created: {match_url}")
+        try:
+            await ctx.send(match_url)
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(DONE)
+        except Exception:
+            # The challenge already exists on Lichess regardless of whether we
+            # could tell the user about it - the watcher below must still run
+            # so the game result gets posted/saved once it's played.
+            self.logger.exception("Failed to post chess match link for %s", match_id)
+            try:
+                await ctx.message.clear_reactions()
+                await ctx.message.add_reaction(ERROR)
+            except discord.DiscordException:
+                pass
 
         # Each game gets its own watcher so concurrent games don't collide (the
         # old single cog-level task loop raised RuntimeError on the 2nd game).

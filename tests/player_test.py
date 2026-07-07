@@ -1,3 +1,5 @@
+import threading
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -49,6 +51,30 @@ async def test_play_starts_playback_and_saves_stats(player, state):
     db.save_song.assert_awaited_once_with(song.info, song.message.author.id)
     state.cleanup_files.assert_called_once_with(song, state.playlist.songs)
     assert song.messages_to_delete.count(song.message) == 1
+
+
+@pytest.mark.asyncio
+async def test_play_offloads_cleanup_files_off_the_event_loop_thread(player, state):
+    # Regression test: cleanup_files() does a directory scan plus per-file
+    # os.remove() - it must run via asyncio.to_thread (like every other
+    # blocking filesystem/DB call in this codebase), not directly on the
+    # event loop thread, or it stalls all guilds' commands/voice heartbeats
+    # on every song start.
+    song = make_song()
+    main_thread = threading.current_thread()
+    seen_thread = None
+
+    def fake_cleanup_files(current_song, queue):
+        nonlocal seen_thread
+        seen_thread = threading.current_thread()
+
+    state.cleanup_files = fake_cleanup_files
+
+    with patch.object(player, "play_audio"):
+        await player.play(song)
+
+    assert seen_thread is not None
+    assert seen_thread is not main_thread
 
 
 @pytest.mark.asyncio

@@ -734,3 +734,47 @@ Environment / gotchas learned from past runs (read this before writing new tests
   the new file and confirm every statement before it that can raise
   (`ctx.send`, `.clear_reactions()`) is inside the same try/except as the
   API call, not tacked on after it.
+- `cogs/privacy.py::my_data()`/`forget_me()` never called
+  `ctx.message.clear_reactions()`/`add_reaction(DONE)` on their success path -
+  only the `except` branch touched reactions. `bot.py`'s global
+  `before_invoke` hook adds a 👍 ACK reaction before every command, so on
+  every *successful* `my_data`/`forget_me` call that ACK was left stuck
+  forever with no success indicator, unlike sibling read-only commands
+  (`status.py`, `leaderboard.py`) which already clear-and-react DONE at the
+  end of their success path. The file only imported `ERROR`, not `DONE` -
+  that's a quick signal something's missing when auditing a cog with
+  before_invoke-added reactions. Fixed by adding the same clear/DONE tail to
+  both commands' success paths.
+- `cogs/purge.py::is_bot_or_command()` built `f"{prefix}{cmd}"` from the
+  *raw* configured prefix (no `.lower()`) but compared it against
+  `m.content.lower()` - same bug class already fixed once in
+  `music.py::_extract_query()` (a prefix containing an uppercase character,
+  e.g. `"DZ!"`, can never match). `purge.py` was missed in that pass. Any
+  code that builds a `prefix + name` token to compare against lowercased
+  message content must lowercase the prefix too - grep for `f"{prefix}` when
+  auditing a new prefix-comparison site.
+- `cogs/models/song.py::Song.get_progress_bar()` checked `if not
+  duration_seconds` on the *pre-cast* float value, then divided by
+  `int(duration_seconds)` afterward - a duration strictly between 0 and 1
+  (yt-dlp can report this for some extractors) is truthy as a float but
+  casts to `0`, so the guard doesn't catch it and `bar_length *
+  current_seconds // duration_seconds` raises `ZeroDivisionError`. This
+  wasn't caught by `handle_state()`'s outer try/except crashing the bot, but
+  it did silently break that guild's playback tick (no auto-advance/idle
+  timeout) since the exception fires from inside `_tick()` before the
+  idle-transition check runs. Fixed by casting to `int(duration_seconds or
+  0)` before the falsiness check, not after.
+- `cogs/utils/music/player.py::play()` called `self.state.cleanup_files(...)`
+  (a plain sync method that does `os.listdir` + per-file `os.remove()` over
+  the shared download directory) directly on the event loop, unlike every
+  other blocking filesystem/DB call in this codebase (`images.py`,
+  `youtube.py`, `database.py`), which are all offloaded via
+  `asyncio.to_thread`/`run_in_executor`. Since this runs on every song start
+  in every guild, a slow/networked disk or many guilds stalls the whole
+  bot's event loop (voice heartbeats, all guilds' commands) for the
+  duration of the scan. Fixed with `await
+  asyncio.to_thread(self.state.cleanup_files, song, playlist.songs)`. To
+  regression-test this without mocking `asyncio.to_thread` itself, patch
+  `state.cleanup_files` with a plain (non-async) function that records
+  `threading.current_thread()` and assert it differs from the test's main
+  thread.

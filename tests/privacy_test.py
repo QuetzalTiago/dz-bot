@@ -23,6 +23,8 @@ def mock_ctx():
     ctx = MagicMock()
     ctx.author.id = 123
     ctx.send = AsyncMock()
+    ctx.message.clear_reactions = AsyncMock()
+    ctx.message.add_reaction = AsyncMock()
     return ctx
 
 
@@ -41,6 +43,11 @@ async def test_my_data_reports_tracked_hours_and_songs(privacy_cog, mock_bot, mo
     embed = mock_ctx.send.await_args.kwargs["embed"]
     assert embed.fields[0].value == "2.0 hours"
     assert embed.fields[1].value == "4"
+    # Regression test: the before_invoke ACK reaction must be resolved to a
+    # success indicator, not left stuck forever - only the error path did
+    # this before.
+    mock_ctx.message.clear_reactions.assert_awaited_once()
+    mock_ctx.message.add_reaction.assert_awaited_once_with("✅")
 
 
 @pytest.mark.asyncio
@@ -94,6 +101,8 @@ async def test_forget_me_erases_data_and_in_memory_tracking(
     assert (2, 123) not in mock_bot.online_users
     assert (1, 456) in mock_bot.online_users
     mock_ctx.send.assert_awaited_once_with("Your stored data has been erased.")
+    mock_ctx.message.clear_reactions.assert_awaited_once()
+    mock_ctx.message.add_reaction.assert_awaited_once_with("✅")
 
 
 @pytest.mark.asyncio

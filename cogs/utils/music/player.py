@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 
@@ -63,7 +64,11 @@ class Player:
             await db.save_song(song.info, song.message.author.id)
             self.logger.info("Song statistics saved for %s", song.title)
 
-        self.state.cleanup_files(song, playlist.songs)
+        # cleanup_files does a directory scan plus per-file os.remove() -
+        # offload it like every other blocking filesystem/DB call in this
+        # codebase, or it stalls the event loop (all guilds' commands and
+        # voice heartbeats) on every song start.
+        await asyncio.to_thread(self.state.cleanup_files, song, playlist.songs)
 
     async def join_voice_channel(self, message):
         """Ensure the bot is connected, returning the voice client on success.

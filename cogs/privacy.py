@@ -10,7 +10,7 @@ import logging
 import discord
 from discord.ext import commands
 
-from cogs.utils.emojis import ERROR
+from cogs.utils.emojis import DONE, ERROR
 
 
 class Privacy(commands.Cog):
@@ -42,6 +42,8 @@ class Privacy(commands.Cog):
         )
         embed.set_footer(text="Use `forget_me` to erase this data.")
         await ctx.send(embed=embed)
+        await ctx.message.clear_reactions()
+        await ctx.message.add_reaction(DONE)
 
     @commands.hybrid_command(aliases=["forgetme"])
     @commands.cooldown(1, 30, commands.BucketType.user)
@@ -68,6 +70,8 @@ class Privacy(commands.Cog):
             await ctx.send("Something went wrong erasing your data.")
             return
         await ctx.send("Your stored data has been erased.")
+        await ctx.message.clear_reactions()
+        await ctx.message.add_reaction(DONE)
 
 
 async def setup(bot):

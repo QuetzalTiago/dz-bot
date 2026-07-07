@@ -181,6 +181,16 @@ def test_get_progress_bar_fills_proportionally():
     assert bar.startswith("█████▒▒▒▒▒")
 
 
+def test_get_progress_bar_does_not_divide_by_zero_for_sub_second_duration():
+    # Regression test: yt-dlp can report a sub-1-second float duration for
+    # some extractors (e.g. 0.5). The old code checked truthiness on the
+    # pre-cast float (0.5 is truthy) but then divided by int(0.5) == 0.
+    song = make_song(info={"title": "t", "original_url": "u", "duration": 0.5})
+    song.current_seconds = 0
+    bar = song.get_progress_bar()
+    assert bar == "**0:00**          \n"
+
+
 def test_to_embed_shows_next_song_when_queue_present():
     message = MagicMock()
     message.author.id = 999

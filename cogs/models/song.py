@@ -123,15 +123,17 @@ class Song:
         return embed
 
     def get_progress_bar(self, bar_length=30):
-        duration_seconds = self.duration_seconds
-        # Livestreams/unknown durations have no meaningful progress bar.
-        if not duration_seconds:
-            return f"**{self.progress}**          \n"
         # yt-dlp reports duration as a float for many extractors - clamping
         # current_seconds to a float would make `progress`'s divmod (and thus
         # the rendered "M:SS" string) float-valued too for the rest of the
-        # song, e.g. "3.0:37.36" instead of "3:37".
-        duration_seconds = int(duration_seconds)
+        # song, e.g. "3.0:37.36" instead of "3:37". Cast before the falsiness
+        # check too, or a sub-1-second float duration (truthy) slips through
+        # and int(0.x) == 0 divides by zero below.
+        duration_seconds = int(self.duration_seconds or 0)
+        # Livestreams/unknown/sub-1-second durations have no meaningful
+        # progress bar.
+        if not duration_seconds:
+            return f"**{self.progress}**          \n"
 
         if self.current_seconds > duration_seconds:
             self.current_seconds = duration_seconds

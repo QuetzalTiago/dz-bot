@@ -110,6 +110,24 @@ def test_is_bot_or_command_with_params(purge_cog_instance):
     assert not purge_cog_instance.is_bot_or_command(message, params=True)
 
 
+def test_is_bot_or_command_matches_uppercase_prefix(mock_bot):
+    # Regression test: same bug class already fixed in music.py's
+    # _extract_query() - a prefix with an uppercase character (e.g. "DZ!")
+    # must still match, since message content is compared lowercased.
+    from cogs.purge import Purge
+
+    cog = Purge(mock_bot, {"prefix": "DZ!"})
+    cog.set_cmd_list()
+
+    message = MagicMock(spec=Message)
+    message.author = MagicMock(spec=Member)
+    message.content = "dz!ping"
+    assert cog.is_bot_or_command(message, params=False)
+
+    message.content = "dz!echo hello"
+    assert cog.is_bot_or_command(message, params=True)
+
+
 @pytest.mark.asyncio
 async def test_purge_command_success(purge_cog_instance, mock_ctx):
     await purge_cog_instance.purge.callback(purge_cog_instance, mock_ctx)

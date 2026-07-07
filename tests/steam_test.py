@@ -187,6 +187,15 @@ async def test_search_game_success_looks_up_details(cog):
 
 
 @pytest.mark.asyncio
+async def test_get_game_details_returns_none_on_non_200_status(cog):
+    fake_session = MagicMock()
+    fake_session.get = MagicMock(return_value=FakeResponse(500))
+    with patch("cogs.steam.get_session", return_value=fake_session):
+        result = await cog.get_game_details(620)
+    assert result is None
+
+
+@pytest.mark.asyncio
 async def test_get_game_details_returns_none_when_not_successful(cog):
     fake_session = MagicMock()
     fake_session.get = MagicMock(

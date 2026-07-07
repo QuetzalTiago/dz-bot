@@ -261,6 +261,56 @@ async def test_enqueue_clears_cancelled_flag_when_song_is_added(downloader, stat
 
 
 @pytest.mark.asyncio
+async def test_enqueue_expands_spotify_url_via_get_spotify_songs(downloader, state):
+    # enqueue() must route a spotify.com query through get_spotify_songs()
+    # (which can expand one URL into many tracks) instead of queuing the raw
+    # URL as a single song.
+    downloader.download_next_song = AsyncMock()
+    downloader.get_spotify_songs = AsyncMock(
+        return_value=[("track one", MagicMock(), True), ("track two", MagicMock(), True)]
+    )
+    message = MagicMock()
+    message.channel.send = AsyncMock()
+
+    await downloader.enqueue("https://open.spotify.com/playlist/xyz", message)
+
+    downloader.get_spotify_songs.assert_awaited_once_with(
+        "https://open.spotify.com/playlist/xyz", message
+    )
+    assert [song[0] for song in downloader.queue] == ["track one", "track two"]
+    await cancel_and_wait(downloader.process_queue)
+
+
+@pytest.mark.asyncio
+async def test_download_next_song_ignores_clear_reactions_failure_when_cancelled(
+    downloader, state
+):
+    # Regression-style test: if the requester's message was already deleted
+    # (e.g. a purge) by the time a cancelled-queue download finishes, the
+    # best-effort clear_reactions() call must not blow up the cleanup path.
+    message = MagicMock()
+    message.reactions = []
+    message.add_reaction = AsyncMock()
+    message.clear_reactions = AsyncMock(side_effect=Exception("message deleted"))
+    message.channel.send = AsyncMock()
+
+    downloader.queue = [("some song", message, False)]
+    downloader.queue_cancelled = True
+
+    state.bot.loop.run_in_executor = AsyncMock(
+        side_effect=[True, ("downloads/12345.mp3", {"title": "Some Song"})]
+    )
+    state.state_machine.stop = AsyncMock()
+    state.playlist.add = AsyncMock()
+
+    with patch("cogs.utils.music.downloader.os.remove"):
+        await downloader.download_next_song()  # must not raise
+
+    message.clear_reactions.assert_awaited_once()
+    assert downloader.queue_cancelled is False
+
+
+@pytest.mark.asyncio
 async def test_get_spotify_songs_playlist_url(downloader):
     downloader.spotify.get_playlist_songs = AsyncMock(return_value=["song a", "song b"])
     message = MagicMock()

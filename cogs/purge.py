@@ -36,7 +36,7 @@ class Purge(commands.Cog):
             self.cmd_list.extend([cmd.name] + list(cmd.aliases))
 
     def is_bot_or_command(self, m, params=False):
-        prefix = self.config.get("prefix", "")
+        prefix = self.config.get("prefix", "").lower()
         if params:
             return m.author == self.bot.user or any(
                 m.content.lower().startswith(f"{prefix}{cmd} ") for cmd in self.cmd_list

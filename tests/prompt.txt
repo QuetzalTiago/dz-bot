@@ -575,3 +575,47 @@ Environment / gotchas learned from past runs (read this before writing new tests
   `coro.close()` on the coroutine passed in, or pytest emits a "coroutine was
   never awaited" `RuntimeWarning` for the abandoned `delete_error_log(...)`
   coroutine object.
+- `bot.online_users` is keyed by **`(guild_id, member_id)`**, not just
+  `member_id` - the same user can be connected to voice in two guilds the bot
+  shares at once, and a member-id-only key let the second guild's join
+  silently overwrite the first guild's tracked join time (lost/misattributed
+  duration). `bot.py::update_online_users`/`on_voice_state_update`,
+  `database.py::update_user_durations` (unpacks `_, user_id = key` before the
+  DB call), and `privacy.py::forget_me` (pops *every* key whose `k[1] ==
+  user_id`, across all guilds) all depend on this key shape. Any new test
+  that sets `bot.online_users = {...}` directly must use `(guild_id, id)`
+  tuple keys, e.g. `{(100, 1): join_time}`; a `MagicMock` member used in such
+  a test needs an explicit `guild=MagicMock(id=...)` (or `member.guild.id`
+  won't be a stable/comparable value across assertions).
+- `cogs/api/youtube.py::download()`/`is_video_playable()` now reject URLs
+  that resolve to a private/loopback/link-local/reserved address
+  (`_reject_internal_urls`, an SSRF guard - yt-dlp's generic extractor will
+  otherwise fetch whatever host it's given, e.g. a cloud metadata endpoint)
+  before calling `extract_info`. The check does a real (blocking, but these
+  methods already run via `run_in_executor`) `socket.getaddrinfo` - existing
+  tests that pass real hostnames (`youtu.be`, `soundcloud.com`, etc.) work
+  unmodified since DNS resolution succeeds in this sandbox/CI, but a test
+  that wants to force the rejection path should `monkeypatch.setattr(
+  youtube_module.socket, "getaddrinfo", lambda host, port: [(None, None,
+  None, None, ("127.0.0.1", 0))])` rather than relying on a real domain
+  resolving privately. The guard call must stay *inside* the existing
+  `try/finally` (not before it), or an unsafe/unresolvable URL leaves
+  `self.downloading` stuck `True` forever.
+- `cogs/purge.py::purge()`'s invoking message (a bare `"!purge"` with no
+  args) matches its own `is_bot_or_command` check, so the first
+  `ctx.channel.purge()` call can delete `ctx.message` itself - any
+  post-purge `ctx.message.clear_reactions()`/`add_reaction(...)` call must be
+  wrapped in its own `try/except discord.DiscordException: pass`, it cannot
+  assume the invoking message still exists.
+- `cogs/models/song.py`'s `views`/`like_count` properties used
+  `self.info.get("view_count", 0)` - `dict.get`'s default only covers a
+  *missing* key, not an explicit `None` (yt-dlp sets `view_count`/
+  `like_count: None` when stats are hidden), and `"{:,}".format(None)`
+  raises `TypeError` inside `to_embed()` (called unguarded from
+  `Playlist.send_song_embed`), mid-playback. `comment_count` already had the
+  `is not None` guard - `views`/`like_count` needed the same fix.
+- `cogs/api/genius.py::fetch_lyrics()`'s try/except wrapped the network
+  calls but not the final `self.format_lyrics(BeautifulSoup(...))` call -
+  move that call *inside* the try block (not after it) so a parse-time
+  exception degrades to `None` like every other failure path in this
+  function, instead of propagating uncaught.

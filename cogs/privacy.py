@@ -53,8 +53,12 @@ class Privacy(commands.Cog):
             return
         # Drop in-memory voice tracking first so the hourly duration flush
         # (or a disconnect racing with this command) can't resurrect a row
-        # for this user right after the delete below.
-        self.bot.online_users.pop(ctx.author.id, None)
+        # for this user right after the delete below. online_users is keyed
+        # by (guild_id, user_id), and the same user may be tracked in more
+        # than one guild the bot shares with them, so every matching entry
+        # must be cleared, not just a single guild's.
+        for key in [k for k in self.bot.online_users if k[1] == ctx.author.id]:
+            self.bot.online_users.pop(key, None)
         await db.delete_user_data(ctx.author.id)
         await ctx.send("Your stored data has been erased.")
 

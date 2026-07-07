@@ -300,27 +300,27 @@ async def test_update_online_users_tracks_humans_not_bots_and_does_not_reset_joi
     human = MagicMock(id=1, bot=False)
     bot_member = MagicMock(id=2, bot=True)
     voice_channel = MagicMock(members=[human, bot_member])
-    guild = MagicMock(voice_channels=[voice_channel])
+    guild = MagicMock(id=100, voice_channels=[voice_channel])
     _set_connection_state(khaled, guilds=[guild])
 
     sentinel_join_time = object()
-    khaled.online_users = {1: sentinel_join_time}
+    khaled.online_users = {(100, 1): sentinel_join_time}
 
     await khaled.update_online_users()
 
     # Existing join time for a member already being tracked must survive a
     # second on_ready (reconnect) firing - setdefault, not overwrite.
-    assert khaled.online_users[1] is sentinel_join_time
-    assert 2 not in khaled.online_users
+    assert khaled.online_users[(100, 1)] is sentinel_join_time
+    assert (100, 2) not in khaled.online_users
 
 
 @pytest.mark.asyncio
 async def test_on_voice_state_update_disconnect_flushes_duration(khaled):
-    member = MagicMock(id=42)
+    member = MagicMock(id=42, guild=MagicMock(id=100))
     before = MagicMock(channel=MagicMock())
     after = MagicMock(channel=None)
     join_time = object()
-    khaled.online_users = {42: join_time}
+    khaled.online_users = {(100, 42): join_time}
 
     db_cog = MagicMock()
     db_cog.flush_user_duration = AsyncMock()
@@ -329,13 +329,40 @@ async def test_on_voice_state_update_disconnect_flushes_duration(khaled):
 
     await khaled.on_voice_state_update(member, before, after)
 
-    assert 42 not in khaled.online_users
+    assert (100, 42) not in khaled.online_users
     db_cog.flush_user_duration.assert_awaited_once_with(42, join_time)
 
 
 @pytest.mark.asyncio
+async def test_on_voice_state_update_disconnect_from_one_guild_keeps_other_guild_session(
+    khaled,
+):
+    # Regression test: online_users is keyed by (guild_id, member_id) - the
+    # same user connected in two guilds at once must not have one guild's
+    # disconnect wipe out the other guild's still-active session.
+    member = MagicMock(id=42, guild=MagicMock(id=100))
+    before = MagicMock(channel=MagicMock())
+    after = MagicMock(channel=None)
+    other_guild_join_time = object()
+    khaled.online_users = {
+        (100, 42): object(),
+        (200, 42): other_guild_join_time,
+    }
+
+    db_cog = MagicMock()
+    db_cog.flush_user_duration = AsyncMock()
+    khaled.get_cog = MagicMock(side_effect=lambda name: {"Database": db_cog}.get(name))
+    _set_connection_state(khaled, user=MagicMock(id=999))
+
+    await khaled.on_voice_state_update(member, before, after)
+
+    assert (100, 42) not in khaled.online_users
+    assert khaled.online_users[(200, 42)] is other_guild_join_time
+
+
+@pytest.mark.asyncio
 async def test_on_voice_state_update_connect_tracks_human_join(khaled):
-    member = MagicMock(id=7, bot=False)
+    member = MagicMock(id=7, bot=False, guild=MagicMock(id=100))
     before = MagicMock(channel=None)
     after = MagicMock(channel=MagicMock())
     khaled.online_users = {}
@@ -344,7 +371,7 @@ async def test_on_voice_state_update_connect_tracks_human_join(khaled):
 
     await khaled.on_voice_state_update(member, before, after)
 
-    assert 7 in khaled.online_users
+    assert (100, 7) in khaled.online_users
 
 
 @pytest.mark.asyncio

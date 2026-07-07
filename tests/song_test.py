@@ -51,6 +51,14 @@ def test_views_formats_with_commas_and_defaults_to_zero():
     assert song.views == "1,234,567"
 
 
+def test_views_handles_none():
+    # yt-dlp reports view_count: None for some entries (e.g. hidden stats),
+    # not just a missing key - "{:,}".format(None) raises TypeError, which
+    # would crash to_embed() mid-playback.
+    song = make_song(info={"title": "t", "original_url": "u", "view_count": None})
+    assert song.views == "N/A"
+
+
 def test_thumbnail_url_defaults_to_none():
     assert make_song().thumbnail_url is None
     song = make_song(
@@ -69,6 +77,11 @@ def test_like_count_formats_with_commas_and_defaults_to_zero():
     assert make_song().like_count == "0"
     song = make_song(info={"title": "t", "original_url": "u", "like_count": 4200})
     assert song.like_count == "4,200"
+
+
+def test_like_count_handles_none():
+    song = make_song(info={"title": "t", "original_url": "u", "like_count": None})
+    assert song.like_count == "N/A"
 
 
 def test_comment_count_defaults_to_zero_and_handles_none():

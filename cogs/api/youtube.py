@@ -1,12 +1,42 @@
 import asyncio
+import ipaddress
 import os
+import socket
 import uuid
+from urllib.parse import urlparse
 
 import yt_dlp
 
 # Downloaded audio is kept in a dedicated directory instead of the repo working
 # directory, so cleanup is scoped and the source tree stays clean.
 DOWNLOAD_DIR = os.environ.get("DZ_DOWNLOAD_DIR", "downloads")
+
+
+def _reject_internal_urls(video_url):
+    """Block SSRF: a user-supplied URL must not resolve to an internal host.
+
+    yt-dlp's generic extractor will fetch whatever URL it's given (cloud
+    metadata endpoints, internal services, etc.), so any http(s) URL must be
+    resolved and checked before being handed off.
+    """
+    hostname = urlparse(video_url).hostname
+    if not hostname:
+        raise ValueError(f"Refusing to fetch URL with no hostname: {video_url}")
+    try:
+        addrinfo = socket.getaddrinfo(hostname, None)
+    except socket.gaierror as e:
+        raise ValueError(f"Could not resolve host {hostname}: {e}") from e
+    for _family, _type, _proto, _canonname, sockaddr in addrinfo:
+        ip = ipaddress.ip_address(sockaddr[0])
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise ValueError(f"Refusing to fetch internal/private URL: {video_url}")
 
 
 class YouTubeAPI:
@@ -48,6 +78,8 @@ class YouTubeAPI:
                 video_url = f"ytsearch:{video_url}"
 
             try:
+                if not is_query:
+                    _reject_internal_urls(video_url)
                 info = ydl.extract_info(video_url, download=True)
 
                 if is_query:
@@ -90,6 +122,8 @@ class YouTubeAPI:
                 video_url = f"ytsearch:{video_url}"
 
             try:
+                if not is_query:
+                    _reject_internal_urls(video_url)
                 info = ydl.extract_info(video_url, download=False)
 
                 if is_query:

@@ -109,8 +109,10 @@ class Database(commands.Cog):
         (the old code re-added the full elapsed time every hour).
         """
         now = datetime.datetime.now(datetime.timezone.utc)
-        for user_id, join_time in list(self.bot.online_users.items()):
-            if self.bot.online_users.get(user_id) is not join_time:
+        # Keyed by (guild_id, user_id) - bot.py tracks a user's voice presence
+        # per-guild, since the same user can be connected in two guilds at once.
+        for key, join_time in list(self.bot.online_users.items()):
+            if self.bot.online_users.get(key) is not join_time:
                 # Disconnected (or disconnected-and-reconnected) while we were
                 # awaiting a previous user's flush in this same tick: their
                 # time for this segment was already flushed by
@@ -120,7 +122,8 @@ class Database(commands.Cog):
             seconds = int((now - join_time).total_seconds())
             if seconds <= 0:
                 continue
-            self.bot.online_users[user_id] = now
+            self.bot.online_users[key] = now
+            _, user_id = key
             try:
                 async with self._user_locks[user_id]:
                     await asyncio.to_thread(self._update_user_duration, user_id, seconds)

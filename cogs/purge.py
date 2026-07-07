@@ -1,10 +1,11 @@
 import os
 
+import discord
 from discord.ext import commands, tasks
 
 from cogs.utils.checks import require_manage_messages
 from cogs.utils.config import load_config
-from cogs.utils.emojis import PROCESSING
+from cogs.utils.emojis import DONE, ERROR, PROCESSING
 
 
 class Purge(commands.Cog):
@@ -51,10 +52,26 @@ class Purge(commands.Cog):
         """Purges bot messages and command queries in the current channel."""
         self.set_cmd_list()
         await ctx.message.add_reaction(PROCESSING)
-        await ctx.channel.purge(limit=50, check=self.is_bot_or_command)
-        await ctx.channel.purge(
-            limit=50, check=lambda m: self.is_bot_or_command(m, params=True)
-        )
+        try:
+            await ctx.channel.purge(limit=50, check=self.is_bot_or_command)
+            await ctx.channel.purge(
+                limit=50, check=lambda m: self.is_bot_or_command(m, params=True)
+            )
+        except Exception:
+            self.bot.logger.exception("Error purging channel %s", ctx.channel.id)
+            # The invoking message ("!purge" with no args) matches its own
+            # is_bot_or_command check, so it may already be gone by now.
+            try:
+                await ctx.message.clear_reactions()
+                await ctx.message.add_reaction(ERROR)
+            except discord.DiscordException:
+                pass
+            return
+        try:
+            await ctx.message.clear_reactions()
+            await ctx.message.add_reaction(DONE)
+        except discord.DiscordException:
+            pass
 
     def _first_text_channel(self, guild):
         text_channels = sorted(guild.text_channels, key=lambda c: c.position)

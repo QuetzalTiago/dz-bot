@@ -3,7 +3,7 @@ import datetime
 import time
 
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 
@@ -90,6 +90,62 @@ def test_init_engine_disables_expire_on_commit(db_cog):
     assert db_cog.Session.kw.get("expire_on_commit") is False
 
 
+def test_init_engine_rejects_invalid_database_name(monkeypatch):
+    # The database name flows into a DDL statement via an f-string
+    # ("CREATE DATABASE `{self.db_name}`"), so it must be validated as a
+    # plain identifier before use.
+    monkeypatch.setattr(database_module, "create_engine", lambda *a, **k: MagicMock())
+    cog = Database(MagicMock(), db_url="mysql+pymysql://user:pass@host/")
+    cog.db_name = "bad`; DROP DATABASE discord_bot; --"
+
+    with pytest.raises(ValueError):
+        cog._init_engine()
+
+
+def test_init_engine_creates_database_when_it_does_not_exist(monkeypatch):
+    executed_statements = []
+
+    class _FakeMissingDbConn:
+        def execute(self, stmt, *args, **kwargs):
+            executed_statements.append(str(stmt))
+            result = MagicMock()
+            result.fetchone.return_value = None  # database not found yet
+            return result
+
+        def commit(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    class _FakeMissingDbEngine:
+        def connect(self):
+            return _FakeMissingDbConn()
+
+        def dispose(self):
+            pass
+
+    real_engine = create_engine(
+        "sqlite:///:memory:",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+    engines = iter([_FakeMissingDbEngine(), real_engine])
+    monkeypatch.setattr(database_module, "create_engine", lambda *a, **k: next(engines))
+
+    cog = Database(MagicMock(), db_url="mysql+pymysql://user:pass@host/")
+    cog.db_name = "brand_new_db"
+    cog.logger = MagicMock()
+
+    cog._init_engine()
+
+    assert any("CREATE DATABASE" in stmt for stmt in executed_statements)
+    cog.logger.info.assert_any_call("Database %s created.", "brand_new_db")
+
+
 @pytest.mark.asyncio
 async def test_get_chess_games_returns_usable_entities_after_session_closes(db_cog):
     await db_cog.save_chess_game(CHESS_GAME)
@@ -112,10 +168,72 @@ async def test_get_chess_games_returns_empty_list_on_error(db_cog):
 
 
 @pytest.mark.asyncio
+async def test_save_chess_game_error_is_logged_not_raised(db_cog):
+    db_cog.engine.dispose()
+    db_cog.Session = None
+
+    await db_cog.save_chess_game(CHESS_GAME)  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_cog_load_initializes_engine_and_starts_duration_loop(db_cog):
+    db_cog._init_engine = MagicMock()
+    db_cog.update_user_durations.start = MagicMock()
+
+    await db_cog.cog_load()
+
+    db_cog._init_engine.assert_called_once()
+    db_cog.update_user_durations.start.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cog_unload_cancels_duration_loop(db_cog):
+    db_cog.update_user_durations.cancel = MagicMock()
+
+    await db_cog.cog_unload()
+
+    db_cog.update_user_durations.cancel.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_before_durations_waits_until_bot_ready(db_cog):
+    db_cog.bot.wait_until_ready = AsyncMock()
+
+    await db_cog._before_durations()
+
+    db_cog.bot.wait_until_ready.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_durations_error_handler_logs_exception(db_cog):
+    db_cog.logger = MagicMock()
+    error = RuntimeError("loop crashed")
+
+    await db_cog._durations_error(error)
+
+    db_cog.logger.exception.assert_called_once_with(
+        "update_user_durations loop errored", exc_info=error
+    )
+
+
+@pytest.mark.asyncio
+async def test_setup_adds_database_cog():
+    bot = MagicMock()
+    bot.add_cog = AsyncMock()
+
+    await database_module.setup(bot)
+
+    bot.add_cog.assert_awaited_once()
+    assert isinstance(bot.add_cog.await_args.args[0], Database)
+
+
+@pytest.mark.asyncio
 async def test_update_user_durations_credits_connected_users(db_cog):
     now = datetime.datetime.now(datetime.timezone.utc)
     one_hour_ago = now - datetime.timedelta(hours=1)
-    db_cog.bot.online_users = {1: one_hour_ago, 2: one_hour_ago}
+    # Keyed by (guild_id, user_id) - the same user can appear under more than
+    # one guild key, but the DB credit is always per user_id.
+    db_cog.bot.online_users = {(10, 1): one_hour_ago, (10, 2): one_hour_ago}
 
     await db_cog.update_user_durations.coro(db_cog)
 
@@ -123,8 +241,78 @@ async def test_update_user_durations_credits_connected_users(db_cog):
     assert hours[1] == pytest.approx(1, abs=0.01)
     assert hours[2] == pytest.approx(1, abs=0.01)
     # The marker is reset so the next tick only credits time since now.
-    assert db_cog.bot.online_users[1] > one_hour_ago
-    assert db_cog.bot.online_users[2] > one_hour_ago
+    assert db_cog.bot.online_users[(10, 1)] > one_hour_ago
+    assert db_cog.bot.online_users[(10, 2)] > one_hour_ago
+
+
+@pytest.mark.asyncio
+async def test_update_user_durations_credits_same_user_in_two_guilds_independently(
+    db_cog,
+):
+    # Regression test: online_users is keyed by (guild_id, user_id) so the
+    # same user_id connected in two guilds at once gets two independent
+    # markers instead of one clobbering the other - both must be credited.
+    now = datetime.datetime.now(datetime.timezone.utc)
+    one_hour_ago = now - datetime.timedelta(hours=1)
+    two_hours_ago = now - datetime.timedelta(hours=2)
+    db_cog.bot.online_users = {(10, 1): one_hour_ago, (20, 1): two_hours_ago}
+
+    await db_cog.update_user_durations.coro(db_cog)
+
+    hours = dict(await db_cog.get_all_user_hours())
+    assert hours[1] == pytest.approx(3, abs=0.01)
+
+
+@pytest.mark.asyncio
+async def test_update_user_durations_skips_user_with_no_elapsed_time(db_cog):
+    now = datetime.datetime.now(datetime.timezone.utc)
+    db_cog.bot.online_users = {(10, 1): now}  # just joined, ~0 seconds elapsed
+
+    await db_cog.update_user_durations.coro(db_cog)
+
+    hours = dict(await db_cog.get_all_user_hours())
+    assert hours.get(1, 0) == 0
+    # The marker must be left untouched when nothing was credited.
+    assert db_cog.bot.online_users[(10, 1)] == now
+
+
+@pytest.mark.asyncio
+async def test_update_user_durations_logs_error_and_still_credits_other_users(db_cog):
+    now = datetime.datetime.now(datetime.timezone.utc)
+    one_hour_ago = now - datetime.timedelta(hours=1)
+    db_cog.bot.online_users = {(10, 1): one_hour_ago, (10, 2): one_hour_ago}
+    db_cog.logger = MagicMock()
+    real_update = db_cog._update_user_duration
+
+    def flaky_update(user_id, seconds):
+        if user_id == 1:
+            raise RuntimeError("db exploded")
+        return real_update(user_id, seconds)
+
+    db_cog._update_user_duration = flaky_update
+
+    await db_cog.update_user_durations.coro(db_cog)
+
+    db_cog.logger.exception.assert_called_once_with(
+        "Failed to update duration for %s", 1
+    )
+    hours = dict(await db_cog.get_all_user_hours())
+    assert hours.get(1, 0) == 0
+    assert hours[2] == pytest.approx(1, abs=0.01)
+
+
+@pytest.mark.asyncio
+async def test_flush_user_duration_logs_error_without_raising(db_cog):
+    db_cog.logger = MagicMock()
+    db_cog._update_user_duration = MagicMock(side_effect=RuntimeError("db down"))
+
+    await db_cog.flush_user_duration(
+        1, datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1)
+    )  # must not raise
+
+    db_cog.logger.exception.assert_called_once_with(
+        "Failed to flush duration for %s", 1
+    )
 
 
 @pytest.mark.asyncio
@@ -139,7 +327,7 @@ async def test_update_user_durations_does_not_resurrect_user_who_disconnects_mid
     # tick.
     now = datetime.datetime.now(datetime.timezone.utc)
     one_hour_ago = now - datetime.timedelta(hours=1)
-    db_cog.bot.online_users = {1: one_hour_ago, 2: one_hour_ago}
+    db_cog.bot.online_users = {(10, 1): one_hour_ago, (10, 2): one_hour_ago}
 
     real_to_thread = database_module.asyncio.to_thread
 
@@ -147,14 +335,14 @@ async def test_update_user_durations_does_not_resurrect_user_who_disconnects_mid
         if args and args[0] == 1:
             # Simulate user 2 disconnecting (and being flushed/popped by
             # on_voice_state_update) while user 1's flush is in flight.
-            del db_cog.bot.online_users[2]
+            del db_cog.bot.online_users[(10, 2)]
         return await real_to_thread(func, *args, **kwargs)
 
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(database_module.asyncio, "to_thread", racing_to_thread)
         await db_cog.update_user_durations.coro(db_cog)
 
-    assert 2 not in db_cog.bot.online_users
+    assert (10, 2) not in db_cog.bot.online_users
     hours = dict(await db_cog.get_all_user_hours())
     assert hours.get(2, 0) == 0
     assert hours[1] == pytest.approx(1, abs=0.01)

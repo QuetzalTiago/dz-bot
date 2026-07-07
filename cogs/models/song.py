@@ -35,7 +35,8 @@ class Song:
 
     @property
     def views(self):
-        return "{:,}".format(self.info.get("view_count", 0))
+        view_count = self.info.get("view_count", 0)
+        return "{:,}".format(view_count) if view_count is not None else "N/A"
 
     @property
     def url(self):
@@ -51,7 +52,8 @@ class Song:
 
     @property
     def like_count(self):
-        return "{:,}".format(self.info.get("like_count", 0))
+        like_count = self.info.get("like_count", 0)
+        return "{:,}".format(like_count) if like_count is not None else "N/A"
 
     @property
     def comment_count(self):

@@ -116,20 +116,25 @@ class Khaled(commands.AutoShardedBot):
                 for member in voice_channel.members:
                     if not member.bot:
                         self.online_users.setdefault(
-                            member.id, datetime.datetime.now(datetime.timezone.utc)
+                            (guild.id, member.id),
+                            datetime.datetime.now(datetime.timezone.utc),
                         )
 
     async def on_voice_state_update(self, member, before, after):
+        # Keyed by (guild_id, member_id): the same user can be connected to
+        # voice in two different guilds the bot shares at once, and a
+        # member-id-only key would let the second guild's join overwrite the
+        # first guild's tracked join time, losing that session's duration.
         if before.channel and not after.channel:  # User disconnected
-            join_time = self.online_users.pop(member.id, None)
+            join_time = self.online_users.pop((member.guild.id, member.id), None)
             db = self.get_cog("Database")
             if join_time is not None and db is not None:
                 await db.flush_user_duration(member.id, join_time)
 
         elif not before.channel and after.channel:  # User connected
             if not member.bot:
-                self.online_users[member.id] = datetime.datetime.now(
-                    datetime.timezone.utc
+                self.online_users[(member.guild.id, member.id)] = (
+                    datetime.datetime.now(datetime.timezone.utc)
                 )
 
         # The bot itself was disconnected/kicked from a voice channel.

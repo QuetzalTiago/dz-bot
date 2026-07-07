@@ -123,6 +123,67 @@ def test_download_resets_downloading_flag_on_exception(mock_youtube_dl, youtube_
 
 
 @patch("cogs.api.youtube.yt_dlp.YoutubeDL")
+def test_download_rejects_url_resolving_to_private_ip(mock_youtube_dl, youtube_api, monkeypatch):
+    # Regression test (SSRF): a URL that resolves to an internal/private
+    # address (e.g. cloud metadata, LAN services) must be rejected before
+    # yt-dlp's generic extractor is allowed to fetch it, and the "downloading"
+    # guard flag must still be reset.
+    import cogs.api.youtube as youtube_module
+
+    monkeypatch.setattr(
+        youtube_module.socket,
+        "getaddrinfo",
+        lambda host, port: [(None, None, None, None, ("169.254.169.254", 0))],
+    )
+    mock_youtube_dl.return_value = make_ydl({"title": "a song"})
+
+    with pytest.raises(ValueError):
+        youtube_api.download("https://metadata.internal/latest/meta-data/")
+
+    assert youtube_api.downloading is False
+    mock_youtube_dl.return_value.extract_info.assert_not_called()
+
+
+@patch("cogs.api.youtube.yt_dlp.YoutubeDL")
+def test_is_video_playable_rejects_url_resolving_to_private_ip(
+    mock_youtube_dl, youtube_api, monkeypatch
+):
+    import cogs.api.youtube as youtube_module
+
+    monkeypatch.setattr(
+        youtube_module.socket,
+        "getaddrinfo",
+        lambda host, port: [(None, None, None, None, ("127.0.0.1", 0))],
+    )
+    mock_youtube_dl.return_value = make_ydl({"duration": 200})
+
+    with pytest.raises(ValueError):
+        youtube_api.is_video_playable("https://localhost.example/secret")
+
+    assert youtube_api.downloading is False
+    mock_youtube_dl.return_value.extract_info.assert_not_called()
+
+
+def test_download_rejects_url_with_no_hostname(youtube_api):
+    with pytest.raises(ValueError):
+        youtube_api.download("https:///no-host-here")
+
+
+def test_download_rejects_url_that_fails_to_resolve(youtube_api, monkeypatch):
+    import socket
+
+    import cogs.api.youtube as youtube_module
+
+    def raise_gaierror(host, port):
+        raise socket.gaierror("Name or service not known")
+
+    monkeypatch.setattr(youtube_module.socket, "getaddrinfo", raise_gaierror)
+
+    with pytest.raises(ValueError):
+        youtube_api.download("https://this-does-not-resolve.invalid/track")
+
+
+@patch("cogs.api.youtube.yt_dlp.YoutubeDL")
 def test_extract_playlist_songs_returns_titles(mock_youtube_dl, youtube_api):
     mock_youtube_dl.return_value = make_ydl(
         {

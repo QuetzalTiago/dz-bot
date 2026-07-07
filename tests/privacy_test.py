@@ -79,13 +79,20 @@ async def test_forget_me_erases_data_and_in_memory_tracking(
     db = MagicMock()
     db.delete_user_data = AsyncMock()
     mock_bot.get_cog.return_value = db
-    mock_bot.online_users = {123: "some-join-time", 456: "other"}
+    # online_users is keyed by (guild_id, user_id) - the same user (123) can
+    # be tracked in more than one guild at once, and both must be cleared.
+    mock_bot.online_users = {
+        (1, 123): "some-join-time",
+        (2, 123): "other-guild-join-time",
+        (1, 456): "other-user",
+    }
 
     await privacy_cog.forget_me.callback(privacy_cog, mock_ctx)
 
     db.delete_user_data.assert_awaited_once_with(123)
-    assert 123 not in mock_bot.online_users
-    assert 456 in mock_bot.online_users
+    assert (1, 123) not in mock_bot.online_users
+    assert (2, 123) not in mock_bot.online_users
+    assert (1, 456) in mock_bot.online_users
     mock_ctx.send.assert_awaited_once_with("Your stored data has been erased.")
 
 
@@ -105,7 +112,7 @@ async def test_forget_me_drops_online_tracking_before_deleting_from_db(
     db = MagicMock()
     db.delete_user_data = fake_delete
     mock_bot.get_cog.return_value = db
-    mock_bot.online_users = {123: "some-join-time"}
+    mock_bot.online_users = {(1, 123): "some-join-time"}
 
     await privacy_cog.forget_me.callback(privacy_cog, mock_ctx)
 

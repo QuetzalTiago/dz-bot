@@ -1,6 +1,7 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, call
 
+import discord
 from discord.ext import commands
 from discord import Message, TextChannel, ClientUser, Member, Guild
 
@@ -112,11 +113,61 @@ def test_is_bot_or_command_with_params(purge_cog_instance):
 @pytest.mark.asyncio
 async def test_purge_command_success(purge_cog_instance, mock_ctx):
     await purge_cog_instance.purge.callback(purge_cog_instance, mock_ctx)
-    mock_ctx.message.add_reaction.assert_awaited_once_with("⌛")
+    # PROCESSING while purging, then cleared and replaced with DONE.
+    assert mock_ctx.message.add_reaction.await_args_list == [call("⌛"), call("✅")]
+    mock_ctx.message.clear_reactions.assert_awaited_once()
     assert mock_ctx.channel.purge.await_count == 2
     purge_calls = mock_ctx.channel.purge.await_args_list
     assert purge_calls[0].kwargs["limit"] == 50
     assert purge_calls[1].kwargs["limit"] == 50
+
+
+@pytest.mark.asyncio
+async def test_purge_command_reacts_error_and_survives_purge_failure(
+    purge_cog_instance, mock_ctx
+):
+    # Regression test: purge() must not leave the PROCESSING reaction stuck
+    # forever with no error indicator if ctx.channel.purge() raises (e.g.
+    # missing Manage Messages), unlike the pre-fix behavior.
+    mock_ctx.channel.purge = AsyncMock(side_effect=RuntimeError("no permission"))
+    purge_cog_instance.bot.logger = MagicMock()
+
+    await purge_cog_instance.purge.callback(purge_cog_instance, mock_ctx)
+
+    assert mock_ctx.message.add_reaction.await_args_list == [call("⌛"), call("❌")]
+    mock_ctx.message.clear_reactions.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_purge_command_survives_invoking_message_already_deleted(
+    purge_cog_instance, mock_ctx
+):
+    # Regression test: a bare "!purge" invocation matches its own
+    # is_bot_or_command check, so the first ctx.channel.purge() call may
+    # delete ctx.message itself - the DONE reaction attempt on that
+    # already-gone message must not raise back out of the command.
+    mock_ctx.message.clear_reactions = AsyncMock(
+        side_effect=discord.DiscordException("Unknown Message")
+    )
+
+    await purge_cog_instance.purge.callback(purge_cog_instance, mock_ctx)  # must not raise
+
+    mock_ctx.message.add_reaction.assert_awaited_once_with("⌛")
+
+
+@pytest.mark.asyncio
+async def test_purge_command_survives_invoking_message_already_deleted_on_failure(
+    purge_cog_instance, mock_ctx
+):
+    mock_ctx.channel.purge = AsyncMock(side_effect=RuntimeError("no permission"))
+    purge_cog_instance.bot.logger = MagicMock()
+    mock_ctx.message.clear_reactions = AsyncMock(
+        side_effect=discord.DiscordException("Unknown Message")
+    )
+
+    await purge_cog_instance.purge.callback(purge_cog_instance, mock_ctx)  # must not raise
+
+    mock_ctx.message.add_reaction.assert_awaited_once_with("⌛")
 
 
 @pytest.mark.asyncio

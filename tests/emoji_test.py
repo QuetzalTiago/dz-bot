@@ -68,3 +68,16 @@ async def test_emoji_command_empty(emoji_cog):
     ctx = mock_ctx()
     await emoji_cog.emoji.callback(emoji_cog, ctx, text="")
     ctx.send.assert_awaited_once_with("Give me some text, for example: `emoji hello`")
+
+
+@pytest.mark.asyncio
+async def test_emoji_command_chunks_long_output(emoji_cog):
+    # Regression test: each letter expands to a ~23-char shortcode, so
+    # ordinary-length input can exceed Discord's 2000-char message limit -
+    # send() must be called once per chunk instead of raising HTTPException.
+    ctx = mock_ctx()
+    await emoji_cog.emoji.callback(emoji_cog, ctx, text="a" * 90)
+    assert ctx.send.await_count > 1
+    for sent_call in ctx.send.await_args_list:
+        assert len(sent_call.args[0]) <= 2000
+    ctx.message.add_reaction.assert_awaited_once_with("✅")

@@ -40,11 +40,10 @@ class GeniusAPI:
 
             song_url = hits[0]["result"]["url"]
             page_text = await get_text(song_url)
+            return self.format_lyrics(BeautifulSoup(page_text, "html.parser"))
         except Exception:
             logger.exception("Failed to fetch lyrics for %s", song_name)
             return None
-
-        return self.format_lyrics(BeautifulSoup(page_text, "html.parser"))
 
     def format_lyrics(self, html_content):
         for h in html_content("script"):

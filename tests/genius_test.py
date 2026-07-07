@@ -150,6 +150,29 @@ async def test_fetch_lyrics_returns_none_on_missing_lyrics_container(api):
 
 
 @pytest.mark.asyncio
+async def test_fetch_lyrics_returns_none_when_parsing_raises(api):
+    # Regression test: format_lyrics()/BeautifulSoup parsing used to run
+    # outside the try/except that wraps the network calls, so a parse-time
+    # exception would propagate uncaught instead of degrading to None like
+    # every other failure path in fetch_lyrics.
+    fake_session = MagicMock()
+    fake_session.get = MagicMock(
+        return_value=FakeResponse(
+            200,
+            {"response": {"hits": [{"result": {"url": "https://genius.com/x"}}]}},
+        )
+    )
+    with patch("cogs.api.genius.get_session", return_value=fake_session), patch(
+        "cogs.api.genius.get_text", return_value=LYRICS_HTML
+    ), patch.object(
+        GeniusAPI, "format_lyrics", side_effect=RuntimeError("malformed markup")
+    ):
+        result = await api.fetch_lyrics("Some Song")
+
+    assert result is None
+
+
+@pytest.mark.asyncio
 async def test_fetch_lyrics_returns_none_on_missing_result_key(api):
     # Malformed hit shape (missing "result"/"url") must be caught, not raise.
     fake_session = MagicMock()
